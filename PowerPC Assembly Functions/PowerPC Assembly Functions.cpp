@@ -164,7 +164,22 @@ void While(int Val1, int Comparision, int Val2)
 {
 	If(Val1, Comparision, Val2);
 
-	if(Comparision >= 10)
+	if (Comparision >= 40)
+	{
+		OpHex = GetOpSegment(10, 6, 5); //cmpli
+		OpHex |= GetOpSegment(Val2, 16, 31);
+		Comparision -= 40;
+		//CMPLI(Val1, Val2, 0);
+	}
+	else if (Comparision >= 30)
+	{
+		OpHex = GetOpSegment(31, 6, 5); //cmpl
+		OpHex |= GetOpSegment(Val2, 5, 20);
+		OpHex |= GetOpSegment(32, 10, 30);
+		Comparision -= 30;
+		//CMPL(Val1, Val2, 0);
+	}
+	else if(Comparision >= 10)
 	{
 		OpHex = GetOpSegment(11, 6, 5);//cmpi
 		OpHex |= GetOpSegment(Val2, 16, 31);
@@ -489,30 +504,10 @@ void FindInArray(int ValueReg, int StartAddressReg, int numberOfElements, int el
 	Label(EndOfSearch);
 }
 
-void CallBrawlFunc(int Address, bool saveRegs) {
-	int Reg = 0;
-
-	if (saveRegs)
-	{
-		Push(Reg); //save r0
-		MFLR(Reg);
-		Push(Reg); //save lr
-		MFCTR(Reg);
-		Push(Reg); //save ctr
-	}
-
-	SetRegister(Reg, Address);
-	MTCTR(Reg);
+void CallBrawlFunc(int Address) {
+	SetRegister(0, Address);
+	MTCTR(0);
 	BCTRL();
-
-	if (saveRegs)
-	{
-		Pop();
-		MTCTR(Reg);
-		Pop();
-		MTLR(Reg);
-		Pop();
-	}
 }
 
 //be careful using push and pop inside If statements as it will affect the count even if the ASM doesn't run
@@ -531,6 +526,17 @@ void SaveRegs(vector<int> Registers)
 		STW(Registers[i], SP, -i * 4);
 	}
 	ADDI(SP, SP, -Registers.size() * 4);
+}
+
+//doesn't save regs 0-2
+void SaveAllRegs()
+{
+	vector<int> regs;
+	for (int i = 3; i < 32; i++)
+	{
+		regs.push_back(i);
+	}
+	SaveRegs(regs);
 }
 
 void Pop()
@@ -555,36 +561,72 @@ void RestoreRegs(int numRegs)
 	for(int i = 0; i < numRegs; i++)
 	{
 		Pop();
-		//LWZ(PushRecords.back(), SP, i * 4);
-		//PushRecords.pop_back();
 	}
-	//ADDI(SP, SP, numRegs * 4);
 }
 
 //r3 returns ptr to memory
-//save it before calling if nesescary
-void Allocate(int size)
+void Allocate(int SizeReg)
 {
-	Push(4);
+	if (SizeReg <= 4) { Push(SizeReg); }
+	//SetRegister(3, 0x2A);
+	SetRegister(3, 6); //network
+	//SetRegister(3, 18); //fighter1 resource
+	CallBrawlFunc(GET_MEM_ALLOCATOR); //call getMemAllocator
+	//set size
+	if (SizeReg <= 4) { Pop(4); }
+	else { ADDI(4, SizeReg, 0); }
+	CallBrawlFunc(ALLOC); //call allocator
+}
 
-	SetRegister(3, 0x2A);
-	CallBrawlFunc(0x80024430, true); //call getMemAllocator
-	SetRegister(4, size); //set size
-	CallBrawlFunc(0x80204e5c, true); //call allocator
+//r3 = Dest, r4 = Source, r5 = size
+void Memmove(int DestReg, int SourceReg, int SizeReg)
+{
+	if (DestReg != 3) { ADDI(3, DestReg, 0); }
+	if (SourceReg != 4) { ADDI(4, SourceReg, 0); }
+	if (SizeReg != 5) { ADDI(5, SizeReg, 0); }
+	CallBrawlFunc(MEMMOVE); //Memmove
+}
 
+//saves r0, lr, and ctr
+void SaveSpecialRegs()
+{
+	Push(0); //save r0
+	MFLR(0);
+	Push(0); //save lr
+	MFCTR(0);
+	Push(0); //save ctr
+}
+
+//restores r0, lr, and ctr
+void RestoreSpecialRegs()
+{
+	Pop();
+	MTCTR(0);
+	Pop();
+	MTLR(0);
 	Pop();
 }
 
-//set r3 to Destination, set r4 to Source
-void Memmove(int size)
+
+
+//saves StartAddressReg and LengthReg
+void For(int StartAddressReg, int LengthReg, int elementOffset)
 {
-	SaveRegs({ 5, 6, 7 });
-
-	SetRegister(5, size);
-	CallBrawlFunc(0x803f602c, true); //Memmove
-
-	RestoreRegs(3);
+	ForEachData.push_back({ StartAddressReg, LengthReg, elementOffset });
+	SaveRegs({ StartAddressReg, LengthReg });
+	While(LengthReg, GREATER_I, 0);
 }
+
+void EndFor()
+{
+	ADDI(ForEachData.back()[0], ForEachData.back()[0], ForEachData.back()[2]); //address += offset
+	ADDI(ForEachData.back()[1], ForEachData.back()[1], -1); //counter -= 1
+	EndWhile();
+	RestoreRegs(2);
+	ForEachData.pop_back();
+}
+
+
 
 void ADD(int DestReg, int SourceReg1, int SourceReg2)
 {

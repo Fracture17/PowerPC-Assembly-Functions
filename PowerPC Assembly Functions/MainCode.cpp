@@ -18,7 +18,11 @@ int main()
 
 	//StopStartAltFunctions();
 
-	temp1();
+	//temp1();
+
+	//SaveStateCodes();
+
+	SaveOrRestoreState();
 
 	CodeEnd();
 	

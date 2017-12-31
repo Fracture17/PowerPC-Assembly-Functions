@@ -13,6 +13,13 @@ typedef unsigned int u32;
 
 ///addresses start
 
+///Function addresses start
+#define GET_MEM_ALLOCATOR 0x80024430
+#define ALLOC 0x80204e5c
+#define MEMMOVE 0x803f602c
+#define GF_POOL_FREE 0x8002632c
+///Function addresses end
+
 ///addresses maintained by Brawl start
 #define IS_REPLAY_LOC 0x805BBFC0 //equals 1 if in replay, 2 if in match
 #define REPLAY_BUFFER_END_ADDRESS 0x9134CA00 //end of replay buffer
@@ -113,6 +120,8 @@ static int JumpLabelNumArray[MAX_JUMPS] = {};
 static int JumpFromArray[MAX_JUMPS] = {};
 static int JumpIndex = 0;
 static vector<int> PushRecords;
+//address reg, length reg, offset size
+static vector<vector<int>> ForEachData;
 ///variables end
 int HexToDec(char x);
 
@@ -150,15 +159,22 @@ void SetGeckoBaseAddress(int Address);
 //searches for byte, elementOffset is distance between elements, ResultReg returns index if found, else -1
 //StartAddressReg ends with the address of the found element, or an address after the array
 void FindInArray(int ValueReg, int StartAddressReg, int numberOfElements, int elementOffset, int ResultReg, int TempReg);
-void CallBrawlFunc(int Address, bool saveRegs);
-void Allocate(int size);
+void CallBrawlFunc(int Address);
+//r3 returns ptr
+void Allocate(int SizeReg);
 void Push(int Reg);
 void SaveRegs(vector<int> Registers);
+void SaveAllRegs();
 void Pop(int Reg);
 void Pop();
 void RestoreRegs(int numRegs);
 void RestoreRegs();
-void Memmove(int size);
+void Memmove(int DestReg, int SourceReg, int SizeReg);
+void SaveSpecialRegs();
+void RestoreSpecialRegs();
+
+void For(int StartAddressReg, int LengthReg, int size);
+void EndFor();
 
 void ADD(int DestReg, int SourceReg1, int SourceReg2);
 void ADDI(int DestReg, int SourceReg, int Immediate);
