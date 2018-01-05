@@ -9,7 +9,9 @@ typedef unsigned int u32;
 
 //set to 1 if debugging.  records positions every frame and compares them during replay
 #define IS_DEBUGGING 0
-#define IS_FASTER_PM 0
+#define NORMAL 0
+#define PMEX 1
+#define BUILD_TYPE NORMAL
 
 ///addresses start
 
@@ -27,10 +29,10 @@ typedef unsigned int u32;
 #define FRAME_COUNTER_LOC 0x901812A4 //gives the frame count of the match, increments through debug pause
 #define PLAY_INPUT_LOC_START 0x805BC068 //the location of P1's inputs.  Add 4 for the next player during playback
 #define PLAY_BUTTON_LOC_START 0x805BAD04 //the location of P1's buttons.  Add 0x40 for the next player
-#if IS_FASTER_PM
-#define ALT_STAGE_VAL_LOC 0x805858ba //half word that defines what alt stage should be loaded
-#else
+#if BUILD_TYPE == NORMAL
 #define ALT_STAGE_VAL_LOC 0x815e8422 //half word that defines what alt stage should be loaded
+#elif BUILD_TYPE == PMEX
+#define ALT_STAGE_VAL_LOC 0x805858ba //half word that defines what alt stage should be loaded
 #endif
 #define REPLAY_BUFFER_BEGIN 0x91301c00 //start of the replay buffer
 #define IS_DEBUG_PAUSED 0x805B8A08 //word that equals 1 if game is debug paused, 0x100 if frame advancing

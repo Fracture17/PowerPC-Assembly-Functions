@@ -3,8 +3,9 @@
 #include "PowerPC Assembly Functions.h"
 
 //change TEMP stuff later
-#define TEMP_SAVE_STATE_PTR_LIST_LOC 0x80002800
-#define PTR_LIST_LOC 0x80002800
+//#define TEMP_SAVE_STATE_PTR_LIST_LOC 0x80002800
+//#define PTR_LIST_LOC 0x80002800
+#define PTR_LIST_LOC 0x935ce700
 #define FIRST_FIGHTER_INSTANCE_LOC 0x8123ab60
 #define FIGHTER_INSTANCE_SIZE 0x52000
 

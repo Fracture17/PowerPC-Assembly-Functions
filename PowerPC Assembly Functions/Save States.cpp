@@ -522,12 +522,13 @@ void SaveOrRestoreState()
 	SaveSpecialRegs();
 	SaveAllRegs();
 
-	SetRegister(Reg3, PTR_LIST_LOC - 4);
+	SetRegister(Reg3, PTR_LIST_LOC);
 
 	If(Reg6, EQUAL_I, 8); //DUp
 
+	LWZ(Reg4, Reg3, 4);
+	If(Reg4, EQUAL_I, 0xFF); //state to restore exists
 	LWZ(Reg3, Reg3, 0);
-	If(Reg3, NOT_EQUAL_I, 0); //state to restore exists
 	RestoreState(Reg3);
 	EndIf(); //state to restore exists
 
@@ -547,8 +548,9 @@ void SaveOrRestoreState()
 	//start + 0x30 + (index * 0x78) -> (half) * 0x40 is size of save
 	//check if location != 0 before saving
 
+	LWZ(Reg1, Reg3, 4);
+	If(Reg1, EQUAL_I, 0xFF); //state already exists
 	LWZ(Reg1, Reg3, 0);
-	If(Reg1, NOT_EQUAL_I, 0); //state already exists
 	FreeAllocdArray(Reg1);
 	LWZ(Reg1, Reg3, 0);
 	FreeMem(Reg1);
@@ -701,6 +703,10 @@ void SaveOrRestoreState()
 	
 	SetRegister(Reg1, 0);
 	STW(Reg1, Reg3, 4); //set last word to 0
+
+	SetRegister(Reg3, PTR_LIST_LOC);
+	SetRegister(Reg1, 0xFF);
+	STW(Reg1, Reg3, 4); //set state saved flag
 
 	EndIf(); //DDown
 

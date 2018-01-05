@@ -39,6 +39,9 @@
     <ClInclude Include="Save States.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="DrawDI.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="PowerPC Assembly Functions.cpp">
@@ -60,6 +63,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Save States.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="DrawDI.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

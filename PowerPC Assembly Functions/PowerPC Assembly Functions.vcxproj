@@ -139,6 +139,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Controls.h" />
+    <ClInclude Include="DrawDI.h" />
     <ClInclude Include="PowerPC Assembly Functions.h" />
     <ClInclude Include="ReplayFix.h" />
     <ClInclude Include="Save States.h" />
@@ -148,6 +149,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Controls.cpp" />
+    <ClCompile Include="DrawDI.cpp" />
     <ClCompile Include="MainCode.cpp" />
     <ClCompile Include="PowerPC Assembly Functions.cpp" />
     <ClCompile Include="ReplayFix.cpp" />

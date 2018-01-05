@@ -19,8 +19,6 @@ void MenuControlCodes()
 
 	SetMenuData();
 
-
-	//test
 	ReplaceNameFunctions();
 }
 
