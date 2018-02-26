@@ -307,8 +307,7 @@ void temp1()
 	ANDI(Reg6, 9, 0xF);
 	If(Reg6, GREATER_I, 0); //DPad pressed
 
-	SaveSpecialRegs();
-	SaveAllRegs();
+	SaveRegisters();
 
 	SetRegister(Reg3, 0x80002800);
 
@@ -489,8 +488,7 @@ void temp1()
 
 	EndIf(); //DDown
 
-	RestoreRegs(29);
-	RestoreSpecialRegs();
+	RestoreRegisters();
 
 	EndIf(); //DPad pressed
 
@@ -513,16 +511,14 @@ void SaveOrRestoreState()
 	int Reg9 = 22;
 	int Reg10 = 23;
 
+	SaveRegisters();
+
+	SetRegister(Reg3, PTR_LIST_LOC);
 	LoadWordToReg(Reg6, IS_REPLAY_LOC);
 	If(Reg6, NOT_EQUAL_I, 0); //basic check if is in match
 
 	ANDI(Reg6, 9, 0xF);
 	If(Reg6, GREATER_I, 0); //DPad pressed
-
-	SaveSpecialRegs();
-	SaveAllRegs();
-
-	SetRegister(Reg3, PTR_LIST_LOC);
 
 	If(Reg6, EQUAL_I, 8); //DUp
 
@@ -710,12 +706,25 @@ void SaveOrRestoreState()
 
 	EndIf(); //DDown
 
-	RestoreRegs(29);
-	RestoreSpecialRegs();
-
 	EndIf(); //DPad pressed
 
+	Else(); //basic check if is in match
+
+	LWZ(Reg1, Reg3, 4);
+	If(Reg1, EQUAL_I, 0xFF); //state exists
+
+	LWZ(Reg1, Reg3, 0);
+	FreeAllocdArray(Reg1);
+	LWZ(Reg1, Reg3, 0);
+	FreeMem(Reg1);
+	SetRegister(Reg1, 0);
+	STW(Reg1, Reg3, 4);
+
+	EndIf(); //state exists
+
 	EndIf(); //basic check if is in match
+
+	RestoreRegisters();
 
 	ASMEnd(0x4e800020); //blr
 }
@@ -749,18 +758,6 @@ void SaveInstance(int StartReg, int SaveToReg, int TempReg1, int TempReg2)
 	EndWhile(); //save loop
 }
 
-//location is where to save from, size is how much, saveTo is where to store the alloc ptr - 4
-void SaveMem(int LocationReg, int SizeReg, int SaveToReg)
-{
-	ADDI(5, SizeReg, 8);
-	Allocate(5);
-	STWU(3, SaveToReg, 4);
-	STW(LocationReg, 3, 0);
-	STW(SizeReg, 3, 4);
-	ADDI(3, 3, 8);
-	Memmove(3, LocationReg, SizeReg);
-}
-
 //Memory to restore must start with origanal location followed by size
 //MemPtrReg must point to start (origonal location value)
 //don't use r3 or r5
@@ -780,24 +777,6 @@ void RestoreState(int AllocAddressReg)
 
 	RestoreMem(4);
 	LWZU(4, AllocAddressReg, 4);
-
-	EndWhile();
-}
-
-void FreeMem(int AddressReg)
-{
-	if (AddressReg != 3) { ADDI(3, AddressReg, 0); }
-	CallBrawlFunc(GF_POOL_FREE);
-}
-
-//calls free on a null teminated array of ptrs to allocd memory
-void FreeAllocdArray(int AllocAddressReg)
-{
-	LWZU(3, AllocAddressReg, 4);
-	While(3, NOT_EQUAL_I, 0);
-
-	FreeMem(3);
-	LWZU(3, AllocAddressReg, 4);
 
 	EndWhile();
 }

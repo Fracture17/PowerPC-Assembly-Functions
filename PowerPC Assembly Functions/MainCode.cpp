@@ -3,6 +3,10 @@
 #include "Controls.h"
 #include "StopStartAlts.h"
 #include "Save States.h"
+#include "Miscellaneous Code.h"
+#include "StopDPadOnSSS (except Wiimote).h"
+#include "DrawDI.h"
+#include "Code Menu.h"
 using namespace std;
 
 int main()
@@ -14,6 +18,8 @@ int main()
 
 	//ReplayFix();
 
+	//NameIsFound();
+
 	//MenuControlCodes();
 
 	//StopStartAltFunctions();
@@ -22,13 +28,41 @@ int main()
 
 	//SaveStateCodes();
 
-	SaveOrRestoreState();
+	//SaveOrRestoreState();
+
+	//StopPokemonTrainerSwitch();
+
+	//StopDPadOnSSS();
+
+	//ConvertButtons();
+
+	//ItemSpawnControl();
+
+	//ClearASLData();
+
+	//SetTeamAttackTraining();
+
+	//test();
+
+	//PositionTrace();
+
+	//UpdatePosTest();
+
+	//DrawDI();
+
+	//Draw();
+
+	CodeMenu();
+
+	//WriteMenuTextToFile("a\0b"s);
 
 	CodeEnd();
 	
 	//string InputGCTPath = "C:\\Users\\john\\Desktop\\ASM Testing\\Good GCT\\RSBE01.gct";
 	//string InputGCTPath = "C:\\Users\\john\\Downloads\\Legacy TE 1.0\\Legacy TE 1.0\\LegacyTE\\RSBE01.gct";
-	string InputGCTPath = "C:\\Users\\john\\Downloads\\Legacy TE 1.1 Wii\\Legacy TE 1.1\\codes\\RSBE01.gct";
+	//string InputGCTPath = "C:\\Users\\john\\Downloads\\Legacy TE 1.1 Wii\\Legacy TE 1.1\\codes\\RSBE01.gct";
+	string InputGCTPath = "C:\\Users\\john\\Downloads\\Legacy TE 1.11 Wii\\Legacy TE 1.11 Wii\\LegacyTE\\RSBE01.gct";
+	//string InputGCTPath = "C:\\Users\\john\\Downloads\\legacyxp-master-f7b8d9b5cedaa8cb1f5740a568543a9dbfadd39d\\legacyxp-master-f7b8d9b5cedaa8cb1f5740a568543a9dbfadd39d\\Smash Bros LXP\\Legacy XP\\SD\\LegacyXP\\RSBEXP.gct";
 	string OutputGCTPath = "C:\\Program Files (x86)\\WinImage\\RSBE01.gct";
 	MakeGCT(OutputTextPath, InputGCTPath, OutputGCTPath); //remove if you don't want to append code
 	return 0;

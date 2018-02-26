@@ -17,3 +17,4 @@ void MemCardCheckSkip();
 void FastForward();
 void FixDebugPause();
 void StopFalseCorruption();
+void ClearASLData();

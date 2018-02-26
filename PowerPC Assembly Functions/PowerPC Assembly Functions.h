@@ -3,6 +3,9 @@
 #include "stdafx.h"
 #include <fstream>
 #include <vector>
+#include <algorithm>
+#include <numeric>
+#include <string>
 using namespace std;
 
 typedef unsigned int u32;
@@ -13,6 +16,13 @@ typedef unsigned int u32;
 #define PMEX 1
 #define BUILD_TYPE NORMAL
 
+//ROTC floating offsets
+#define FS_20_0 -0x7920
+
+//draw buffer offsets
+#define DRAW_BUFFER_XPOS_OFFSET 0x2C
+#define DRAW_BUFFER_YPOS_OFFSET 0x30
+
 ///addresses start
 
 ///Function addresses start
@@ -20,6 +30,18 @@ typedef unsigned int u32;
 #define ALLOC 0x80204e5c
 #define MEMMOVE 0x803f602c
 #define GF_POOL_FREE 0x8002632c
+#define GX_SET_CULL_MODE 0x801f136c
+#define GX_CLEAR_VTX_DESC 0x801efb10
+#define GX_SET_VTX_DESC 0x801ef280
+#define GX_SET_VTX_ATTRIBUTE_FORMAT 0x801efb44
+#define GET_CAMERA_MTX 0x801a7dbc
+#define GX_SET_CURRENT_MTX 0x801f52e4
+#define GX_LOAD_POS_MTX_IMM 0x801f51dc
+#define GX_SET_Z_MODE 0x801f4774
+#define GX_BEGIN 0x801f1088
+#define GX_SET_LINE_WIDTH 0x801f12ac
+#define GF_DRAW_SETUP_COORD_2D 0x8001abbc
+#define GX_DRAW_SET_VTX_COLOR_PRIM_ENVIROMENT 0x8001a5c0
 ///Function addresses end
 
 ///addresses maintained by Brawl start
@@ -29,8 +51,12 @@ typedef unsigned int u32;
 #define FRAME_COUNTER_LOC 0x901812A4 //gives the frame count of the match, increments through debug pause
 #define PLAY_INPUT_LOC_START 0x805BC068 //the location of P1's inputs.  Add 4 for the next player during playback
 #define PLAY_BUTTON_LOC_START 0x805BAD04 //the location of P1's buttons.  Add 0x40 for the next player
+#define WII_BASED_CONTROLLER_START 0x804F7880 //P1 wiimote loc, can't affect inputs from here
+#define WII_BASED_CONTROLLER_PORT_OFFSET 0x9A0 //offset between wii controller ports
+#define WII_BASED_CONTROLLER_TYPE_OFFSET 0x28 //offset from Wii contoller of byte containing type of controller
 #if BUILD_TYPE == NORMAL
 #define ALT_STAGE_VAL_LOC 0x815e8422 //half word that defines what alt stage should be loaded
+//#define ALT_STAGE_VAL_LOC 0x800B9EA2 //half word that defines what alt stage should be loaded
 #elif BUILD_TYPE == PMEX
 #define ALT_STAGE_VAL_LOC 0x805858ba //half word that defines what alt stage should be loaded
 #endif
@@ -40,6 +66,7 @@ typedef unsigned int u32;
 ///addresses maintained by Brawl end
 
 ///reserved memory for storage start
+///in replay
 ///add memory by subtracting the constant above it by the reserved size
 #define REGISTER_BUFFER   (REPLAY_BUFFER_END_ADDRESS - 4 * 10) //place where registers are stored
 #define CURRENT_FRAME_HEADER_BYTE_LOC   (REGISTER_BUFFER - 4) //stores a pointer to the current head byte
@@ -58,7 +85,56 @@ typedef unsigned int u32;
 #define CURRENT_ALT_STAGE_INFO_LOC   (B_HELD_FRAME_COUNTER_LOC - 4) //contains alt stage, used to fix salty runback
 #define END_OF_REPLAY_BUFFER   (CURRENT_ALT_STAGE_INFO_LOC - 0x100) //tells when to stop recording inputs
 ///set END_OF_REPLAY_BUFFER to the last constant - 0x80 to ensure no memory leaks
+
+///at end of MEM2
+const int MENU_BLOCK_PTRS = 0x935ce300;
+const int MENU_BUTTON_STRING_LOC = MENU_BLOCK_PTRS + 4 * 4;
+const int MENU_CONTROL_STRING_LOC = MENU_BUTTON_STRING_LOC + 8 * 12;
+const int TAG_IN_USE_LOC = MENU_CONTROL_STRING_LOC + 8 * 12;
+const int REPLACE_NAME_OLD_TIME_LOC = TAG_IN_USE_LOC + 4;
+const int REPLACE_NAME_TIME_ADDRESS = REPLACE_NAME_OLD_TIME_LOC + 4;
+#define DISABLE_DPAD_ASL_STORAGE REPLACE_NAME_TIME_ADDRESS + 4 //4
+#define GCC_BUTTON_STORAGE_LOC DISABLE_DPAD_ASL_STORAGE + 4 //8
+#define WIIMOTE_CONVERTED_BUTTON_STORAGE_LOC GCC_BUTTON_STORAGE_LOC + 8 //8
+#define WIIMOTE_CONVERSION_TABLE WIIMOTE_CONVERTED_BUTTON_STORAGE_LOC + 8 //16
+#define WIICHUCK_CONVERSION_TABLE WIIMOTE_CONVERSION_TABLE + 16 //16
+#define CLASSIC_CONVERSION_TABLE WIICHUCK_CONVERSION_TABLE + 16 //16
+#define KAPPA_ITEM_FLAG WIICHUCK_CONVERSION_TABLE + 16 //4
+#define DI_DRAW_ALLOC_PTR KAPPA_ITEM_FLAG + 4 //8 * 4 * 4
+///Code Menu Start
+//935ce494
+#define CODE_MENU_CREATED DI_DRAW_ALLOC_PTR + 8 * 4 * 4 //4 (equals 1 if created)
+#define CODE_MENU_CONTROL_FLAG CODE_MENU_CREATED + 4 //4
+#define CODE_MENU_PAGE_ADDRESS CODE_MENU_CONTROL_FLAG + 4 //4
+#define DRAW_SETTINGS_PTR_LOC CODE_MENU_PAGE_ADDRESS + 4 //4
+#define OFF_TEXT_LOC DRAW_SETTINGS_PTR_LOC + 4 //4
+#define ON_TEXT_LOC OFF_TEXT_LOC + 4 //4
+#define CODE_MENU_SETTINGS ON_TEXT_LOC + 4 //4 * MenuID
+#define CODE_MENU_END CODE_MENU_SETTINGS + 4 * MenuID //0 (just a marker)
+///Code Menu End
 ///reserved memory for storage end
+
+///Control code constants start
+#define BUTTON_MENU_SIZE 11
+//#define CONTROL_MENU_BASE_SIZE 7
+#define CONTROL_MENU_BASE_SIZE 8
+#define MENU_WRITE_LOC 0x805b4c00
+#define TAG_LIST_START_LOC 0x90172e20
+#define TAG_LIST_SIZE 0x124
+#define GCC_SETTINGS_TAG_OFFSET 0x14
+#define TAG_TIME_OFFSET 0x10
+#define MENU_FIRST_CREATION_TIME_LOC 0x90172e30
+//state=0, pos=1, size=2, buttonPos=3, buttonCancel=4-5, newSize=6, newPos=7, reopenFlag=8, replaceTimeFlag=9, openFlag=10
+const int MENU_STATE_INFO_OFFSET = 0x60;
+const int MENU_SIZE_OFFSET = 0x6C;
+const int MENU_INDEX_OFFSET = 0x70;
+const int MENU_POS_OFFSET = 0x44;
+//const int MENU_PORT_OFFSET = 0x47F80;
+//const int MENU_PORT1_LOC = 0x81578BDC;
+const int MENU_PORT_NUM_OFFSET = 0x57;
+const int MENU_SELECTED_TAG_OFFSET = 0x164;
+///Control code constants end
+
 
 #define REPLAY_ALT_STAGE_STORAGE_LOC 0x91301f4a //half word that is used to store which alt stage was loaded
 #define REPLAY_AUTO_L_CANCEL_SETTING 0x91301f4e //half word that stores current and recorded auto L-Cancel settings
@@ -67,6 +143,18 @@ typedef unsigned int u32;
 ///addresses end
 
 ///constants start
+///colors
+#define RED 0xFF0000FF
+#define BLUE 0x0066FFFF
+#define ORANGE 0x33CC33FF //still green rn
+#define GREEN 0x33CC33FF
+#define YELLOW 0xFFFF00FF
+#define BLACK 0x000000FF
+#define WHITE 0xFFFFFFFF
+///colors end
+#define WIIMOTE 0
+#define WIICHUCK 1
+#define CLASSIC 2
 #define SP 1 //stack ptr reg
 #define WORD_SIZE 32
 #define BRANCH_IF_TRUE 0b01100
@@ -121,9 +209,7 @@ static int LabelIndex = 0;
 static int JumpLabelNumArray[MAX_JUMPS] = {};
 static int JumpFromArray[MAX_JUMPS] = {};
 static int JumpIndex = 0;
-static vector<int> PushRecords;
-//address reg, length reg, offset size
-static vector<vector<int>> ForEachData;
+static vector<int> FPPushRecords;
 ///variables end
 int HexToDec(char x);
 
@@ -132,8 +218,11 @@ void CodeEnd();
 
 void MakeGCT(string TextFilePath, string OldGCTFilePath, string NewGCTFilePath);
 
+int GetHexFromFloat(float Value);
 int GetShiftNum(int endPos);
 int GetOpSegment(int val, int size, int pos);
+void WriteMenuTextToFile(string Text);
+void WriteTextToFile(string Text);
 void WriteIntToFile(int val);
 void If(int Val1, int Comparision, int Val2);
 void EndIf();
@@ -146,6 +235,9 @@ void SetFloatingRegister(int FPReg, int TempReg1, int TempReg2, float Value);
 void LoadWordToReg(int Register, int Address);
 void LoadHalfToReg(int Register, int Address);
 void LoadByteToReg(int Register, int Address);
+void LoadWordToReg(int DestReg, int Reg, int Address);
+void LoadHalfToReg(int DestReg, int Reg, int Address);
+void LoadByteToReg(int DestReg, int Reg, int Address);
 void ConvertIntToFloat(int SourceReg, int TempReg, int ResultReg);
 void ASMStart(int BranchAddress);
 void ASMEnd(int Replacement);
@@ -158,25 +250,39 @@ int CalcBranchOffset(int Location, int Target);
 void StrCpy(int Destination, int Source, int Temp);
 void GeckoStringWrite(char *Buffer, u32 NumBytes, u32 Address);
 void SetGeckoBaseAddress(int Address);
+void SetGeckoPointerAddress(int Address);
 //searches for byte, elementOffset is distance between elements, ResultReg returns index if found, else -1
 //StartAddressReg ends with the address of the found element, or an address after the array
 void FindInArray(int ValueReg, int StartAddressReg, int numberOfElements, int elementOffset, int ResultReg, int TempReg);
 void CallBrawlFunc(int Address);
 //r3 returns ptr
 void Allocate(int SizeReg);
-void Push(int Reg);
-void SaveRegs(vector<int> Registers);
-void SaveAllRegs();
-void Pop(int Reg);
-void Pop();
-void RestoreRegs(int numRegs);
-void RestoreRegs();
+void AllocateIfNotExist(int SizeReg, int AddressReg, int EmptyVal);
 void Memmove(int DestReg, int SourceReg, int SizeReg);
-void SaveSpecialRegs();
-void RestoreSpecialRegs();
-
-void For(int StartAddressReg, int LengthReg, int size);
-void EndFor();
+void SetRegs(int StartReg, vector<int> values);
+void SetArgumentsFromRegs(int StartReg, vector<int> ValueRegs);
+void GXSetCullMode(int CullModeReg);
+void GXClearVtxDesc();
+void GXSetVtxDesc(int AttributeReg, int TypeReg);
+void GXSetVtxAttrFmt(int vtxfmtReg, int attrReg, int countReg, int typeReg, int fracReg);
+void GetCameraMtx(int StorageLocReg);
+void GXSetCurrentMtx(int IDReg);
+void GXLoadPosMtxImm(int MtxPtrReg, int IDReg);
+void GXSetZMode(int CompareEnabledReg, int FuncTypeReg, int UpdateEnabledReg);
+void GXSetLineWidth(int WidthReg, int TexOffsetReg);
+void GXBegin(int TypeReg, int VtxAttrFmtReg, int NumVertsReg);
+void GFDrawSetupCoord2D();
+void GXDrawSetVtxColorPrimEnviroment();
+void FreeMem(int AddressReg);
+void FreeMemIfAllocd(int AddressReg, int EmptyVal);
+void FreeAllocdArray(int AllocAddressReg);
+void SaveMem(int LocationReg, int SizeReg, int SaveToReg);
+void SaveRegisters();
+void SaveRegisters(vector<int> FPRegs);
+void RestoreRegisters();
+void Increment(int Reg);
+void Decrement(int Reg);
+void WriteStringToMem(string Text, int AddressReg);
 
 void ADD(int DestReg, int SourceReg1, int SourceReg2);
 void ADDI(int DestReg, int SourceReg, int Immediate);
@@ -197,13 +303,19 @@ void CMPL(int Reg1, int Reg2, int CondField);
 void CMPLI(int Reg, int Immediate, int CondField);
 void CNTLZW(int DestReg, int SourceReg);
 void DIVW(int DestReg, int DividendReg, int DivisorReg);
+void DIVWU(int DestReg, int DividendReg, int DivisorReg);
 void EQV(int DestReg, int SourceReg1, int SourceReg2);
 void EXTSB(int DestReg, int SourceReg);
 void FADD(int DestReg, int SourceReg1, int SourceReg2);
 void FADDS(int DestReg, int SourceReg1, int SourceReg2);
+void FCMPU(int FPReg1, int FPReg2, int CondField);
+void FMR(int DestReg, int SourceReg);
 void FCTIW(int DestReg, int SourceReg);
+void FDIV(int FPDestReg, int FPSourceReg1, int FPSourceReg2);
 void FMUL(int DestReg, int SourceReg1, int SourceReg2);
+void FNEG(int DestReg, int SourceReg);
 void FRSP(int DestReg, int SourceReg);
+void FSUB(int FPDestReg, int FPSourceReg1, int FPSourceReg2);
 void LBZ(int DestReg, int AddressReg, int Immediate);
 void LBZU(int DestReg, int AddressReg, int Immediate);
 void LBZUX(int DestReg, int AddressReg1, int AddressReg2);
@@ -218,6 +330,7 @@ void LWZ(int DestReg, int AddressReg, int Immediate);
 void LWZU(int DestReg, int AddressReg, int Immediate);
 void LWZUX(int DestReg, int AddressReg1, int AddressReg2);
 void LWZX(int DestReg, int AddressReg1, int AddressReg2);
+void LMW(int StartReg, int AddressReg, int Immediate);
 void MFCTR(int TargetReg);
 void MFLR(int TargetReg);
 void MTCTR(int TargetReg);
@@ -238,10 +351,12 @@ void STBUX(int SourceReg, int AddressReg1, int AddressReg2);
 void STBX(int SourceReg, int AddressReg1, int AddressReg2);
 void STFD(int SourceReg, int AddressReg, int Immediate);
 void STFS(int SourceReg, int AddressReg, int Immediate);
+void STFSU(int SourceReg, int AddressReg, int Immediate);
 void STH(int SourceReg, int AddressReg, int Immediate);
 void STHU(int SourceReg, int AddressReg, int Immediate);
 void STHUX(int SourceReg, int AddressReg1, int AddressReg2);
 void STHX(int SourceReg, int AddressReg1, int AddressReg2);
+void STMW(int StartReg, int AddressReg,  int Immediate);
 void STW(int SourceReg, int AddressReg, int Immediate);
 void STWU(int SourceReg, int AddressReg, int Immediate);
 void STWUX(int SourceReg, int AddressReg1, int AddressReg2);

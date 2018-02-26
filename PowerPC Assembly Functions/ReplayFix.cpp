@@ -13,6 +13,22 @@ void ReplayFix()
 	FixDebugPause();
 	StopBrawlReplay(); //not sure if needed (haven't tested)
 	StopFalseCorruption();
+	ClearASLData();
+}
+
+//stops the ASL value from classic or versus from interfering with taining mode
+void ClearASLData()
+{
+	//can use r31, r30
+	ASMStart(0x8068290c);
+	int Reg1 = 31;
+	int Reg2 = 30;
+
+	SetRegister(Reg1, REPLAY_ALT_STAGE_STORAGE_LOC);
+	SetRegister(Reg2, 0);
+	STH(Reg2, Reg1, 0);
+
+	ASMEnd(0x83e1000c); //lwz r31, sp, 0xC
 }
 
 //cleans up some settings that might have been changed during playback
@@ -266,8 +282,12 @@ void AlternateStageFix()
 	ASMStart(0x8094a16c);
 
 	//get correct alt stage
+	SetRegister(7, 0x800B9EA2); //alt stage helper ASL loc
+	LWZ(5, 7, -2);
+	If(5, LESS_I, 0); //alt stage helper not used
 	SetRegister(7, ALT_STAGE_VAL_LOC);
 	LHZ(5, 7, 0); //equals 0 if in a replay
+	EndIf(); //alt stage helper not used
 	LoadHalfToReg(3, REPLAY_ALT_STAGE_STORAGE_LOC); //equals 0 if in a match
 	OR(3, 3, 5);
 

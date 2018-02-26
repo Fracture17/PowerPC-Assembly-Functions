@@ -75,6 +75,12 @@ void MakeGCT(string TextFilePath, string OldGCTFilePath, string NewGCTFilePath)
 	NewGCTFilePtr.close();
 }
 
+int GetHexFromFloat(float Value)
+{
+	int *b = (int *)&Value;
+	return *b;
+}
+
 int GetShiftNum(int endPos)
 {
 	return (WORD_SIZE - 1 - endPos);
@@ -86,6 +92,27 @@ int GetOpSegment(int val, int size, int pos)
 	val &= mask;
 	val <<= GetShiftNum(pos);
 	return val;
+}
+
+//menu text has byte with how long the string is in front
+void WriteMenuTextToFile(string Text)
+{
+	WriteTextToFile(((char) Text.size()) + Text);
+}
+
+void WriteTextToFile(string Text)
+{
+	string Output = "";
+	for (int i = 0; i < Text.size(); i++) {
+		sprintf(OpHexBuffer, "%02X", Text[i]);
+		Output += OpHexBuffer[0];
+		Output += OpHexBuffer[1];
+	}
+	/*for (int i = 0; i < Text.size() % 4; i++) {
+		Output += "00";
+	}*/
+	const char* ptr = Output.c_str();
+	WPtr << ptr;
 }
 
 //writes in hex
@@ -301,6 +328,51 @@ void LoadByteToReg(int Register, int Address)
 	}
 }
 
+//Reg takes on the value of address
+void LoadWordToReg(int DestReg, int Reg, int Address)
+{
+	if ((Address & 0xFFFF) < 0x8000)
+	{
+		ADDIS(Reg, 0, (Address & 0xFFFF0000) >> 16);
+		LWZU(DestReg, Reg, (Address & 0xFFFF));
+	}
+	else
+	{
+		ADDIS(Reg, 0, ((Address & 0xFFFF0000) >> 16) + 1);
+		LWZU(DestReg, Reg, (Address & 0xFFFF));
+	}
+}
+
+//Reg takes on the value of address
+void LoadHalfToReg(int DestReg, int Reg, int Address)
+{
+	if ((Address & 0xFFFF) < 0x8000)
+	{
+		ADDIS(Reg, 0, (Address & 0xFFFF0000) >> 16);
+		LHZU(DestReg, Reg, (Address & 0xFFFF));
+	}
+	else
+	{
+		ADDIS(Reg, 0, ((Address & 0xFFFF0000) >> 16) + 1);
+		LHZU(DestReg, Reg, (Address & 0xFFFF));
+	}
+}
+
+//Reg takes on the value of address
+void LoadByteToReg(int DestReg, int Reg, int Address)
+{
+	if ((Address & 0xFFFF) < 0x8000)
+	{
+		ADDIS(Reg, 0, (Address & 0xFFFF0000) >> 16);
+		LBZU(DestReg, Reg, (Address & 0xFFFF));
+	}
+	else
+	{
+		ADDIS(Reg, 0, ((Address & 0xFFFF0000) >> 16) + 1);
+		LBZU(DestReg, Reg, (Address & 0xFFFF));
+	}
+}
+
 //takes an integer value from SourceReg and converts it into a 32 bit float that is stored in ResultReg
 //the values of SourceReg and TempReg are overwritten
 void ConvertIntToFloat(int SourceReg, int TempReg, int ResultReg)
@@ -350,8 +422,6 @@ void ASMStart(int BranchAddress)
 
 void ASMEnd()
 {
-	RestoreRegs();
-
 	int HoldPos = WPtr.tellp();
 	int numLines = HoldPos - ASMStartAddress;
 	numLines /= 8;
@@ -480,6 +550,12 @@ void SetGeckoBaseAddress(int Address)
 	WriteIntToFile(Address);
 }
 
+void SetGeckoPointerAddress(int Address)
+{
+	WriteIntToFile(0x4A000000);
+	WriteIntToFile(Address);
+}
+
 void FindInArray(int ValueReg, int StartAddressReg, int numberOfElements, int elementOffset, int ResultReg, int TempReg)
 {
 	int EndOfSearch = GetNextLabel();
@@ -510,72 +586,27 @@ void CallBrawlFunc(int Address) {
 	BCTRL();
 }
 
-//be careful using push and pop inside If statements as it will affect the count even if the ASM doesn't run
-void Push(int Reg)
-{
-	PushRecords.push_back(Reg);
-	STW(Reg, SP, 0);
-	ADDI(SP, SP, -4);
-}
-
-void SaveRegs(vector<int> Registers)
-{
-	for (int i = 0; i < Registers.size(); i++)
-	{
-		PushRecords.push_back(Registers[i]);
-		STW(Registers[i], SP, -i * 4);
-	}
-	ADDI(SP, SP, -Registers.size() * 4);
-}
-
-//doesn't save regs 0-2
-void SaveAllRegs()
-{
-	vector<int> regs;
-	for (int i = 3; i < 32; i++)
-	{
-		regs.push_back(i);
-	}
-	SaveRegs(regs);
-}
-
-void Pop()
-{
-	Pop(PushRecords.back());
-}
-
-void Pop(int Reg)
-{
-	LWZU(Reg, SP, 4);
-	PushRecords.pop_back();
-}
-
-//restores all regs
-void RestoreRegs()
-{
-	RestoreRegs(PushRecords.size());
-}
-
-void RestoreRegs(int numRegs)
-{
-	for(int i = 0; i < numRegs; i++)
-	{
-		Pop();
-	}
-}
-
 //r3 returns ptr to memory
 void Allocate(int SizeReg)
 {
-	if (SizeReg <= 4) { Push(SizeReg); }
 	//SetRegister(3, 0x2A);
 	SetRegister(3, 6); //network
 	//SetRegister(3, 18); //fighter1 resource
 	CallBrawlFunc(GET_MEM_ALLOCATOR); //call getMemAllocator
 	//set size
-	if (SizeReg <= 4) { Pop(4); }
-	else { ADDI(4, SizeReg, 0); }
+	ADDI(4, SizeReg, 0);
 	CallBrawlFunc(ALLOC); //call allocator
+}
+
+//allocates a buffer of size SizeReg and stores its address at AddressReg if
+//value at addressReg equals EmptyVal
+void AllocateIfNotExist(int SizeReg, int AddressReg, int EmptyVal)
+{
+	LHZ(3, AddressReg, 0);
+	If(3, EQUAL_I_L, EmptyVal);
+	Allocate(SizeReg);
+	STW(3, AddressReg, 0);
+	EndIf();
 }
 
 //r3 = Dest, r4 = Source, r5 = size
@@ -587,46 +618,211 @@ void Memmove(int DestReg, int SourceReg, int SizeReg)
 	CallBrawlFunc(MEMMOVE); //Memmove
 }
 
-//saves r0, lr, and ctr
-void SaveSpecialRegs()
+void SaveRegisters()
 {
-	Push(0); //save r0
+	SaveRegisters({});
+}
+
+void SaveRegisters(vector<int> FPRegs)
+{
+	FPPushRecords = FPRegs;
+	int stackSize = 29 * 4 + FPRegs.size() * 8 + 8 + 8;
+	STW(0, 1, -4);
 	MFLR(0);
-	Push(0); //save lr
+	STW(0, 1, 4);
 	MFCTR(0);
-	Push(0); //save ctr
+	STW(0, 1, -8);
+
+	int offset = -8;
+	for (int x : FPRegs) {
+		offset -= 8;
+		STFD(x, 1, offset);
+	}
+
+	STWU(1, 1, -stackSize);
+	STMW(3, 1, 8);
 }
 
-//restores r0, lr, and ctr
-void RestoreSpecialRegs()
+void RestoreRegisters()
 {
-	Pop();
+	int stackSize = 29 * 4 + FPPushRecords.size() * 8 + 8 + 8;
+
+	LMW(3, 1, 8);
+	ADDI(1, 1, stackSize);
+
+	int offset = -8;
+	for (int x : FPPushRecords) {
+		offset -= 8;
+		LFD(x, 1, offset);
+	}
+	
+	LWZ(0, 1, -8);
 	MTCTR(0);
-	Pop();
+	LWZ(0, 1, 4);
 	MTLR(0);
-	Pop();
+	LWZ(0, 1, -4);
 }
 
-
-
-//saves StartAddressReg and LengthReg
-void For(int StartAddressReg, int LengthReg, int elementOffset)
+void SetRegs(int StartReg, vector<int> values)
 {
-	ForEachData.push_back({ StartAddressReg, LengthReg, elementOffset });
-	SaveRegs({ StartAddressReg, LengthReg });
-	While(LengthReg, GREATER_I, 0);
+	for (int x : values) {
+		SetRegister(StartReg, x);
+		StartReg++;
+		if (StartReg > 31) {
+			cout << "Too many values\n";
+			exit(0);
+		}
+	}
 }
 
-void EndFor()
+void SetArgumentsFromRegs(int StartReg, vector<int> ValueRegs)
 {
-	ADDI(ForEachData.back()[0], ForEachData.back()[0], ForEachData.back()[2]); //address += offset
-	ADDI(ForEachData.back()[1], ForEachData.back()[1], -1); //counter -= 1
+	for (int x : ValueRegs) {
+		if (x != StartReg) {
+			ADDI(StartReg, x, 0);
+		}
+		StartReg++;
+		if (StartReg > 31) {
+			cout << "Too many values\n";
+			exit(0);
+		}
+	}
+}
+
+void GXSetCullMode(int CullModeReg)
+{
+	if (CullModeReg != 3) { ADDI(3, CullModeReg, 0); }
+	CallBrawlFunc(GX_SET_CULL_MODE);
+}
+
+void GXClearVtxDesc()
+{
+	CallBrawlFunc(GX_CLEAR_VTX_DESC);
+}
+
+void GXSetVtxDesc(int AttributeReg, int TypeReg)
+{
+	if (AttributeReg != 3) { ADDI(3, AttributeReg, 0); }
+	if (TypeReg != 4) { ADDI(4, TypeReg, 0); }
+	CallBrawlFunc(GX_SET_VTX_DESC);
+}
+
+void GXSetVtxAttrFmt(int vtxfmtReg, int attrReg, int countReg, int typeReg, int fracReg)
+{
+	SetArgumentsFromRegs(3, { vtxfmtReg, attrReg, countReg, typeReg, fracReg });
+	CallBrawlFunc(GX_SET_VTX_ATTRIBUTE_FORMAT);
+}
+
+//copies the camera mtx pointed to by r3 into memory pointed to by r4
+//r4 is unchanged
+void GetCameraMtx(int StorageLocReg)
+{
+	ADDI(3, 13, -0x4170); //get camera obj
+	if (StorageLocReg != 4) { ADDI(4, StorageLocReg, 0); }
+	CallBrawlFunc(GET_CAMERA_MTX);
+}
+
+void GXSetCurrentMtx(int IDReg)
+{
+	if (IDReg != 3) { ADDI(3, IDReg, 0); }
+	CallBrawlFunc(GX_SET_CURRENT_MTX);
+}
+
+void GXLoadPosMtxImm(int MtxPtrReg, int IDReg)
+{
+	SetArgumentsFromRegs(3, { MtxPtrReg, IDReg });
+	CallBrawlFunc(GX_LOAD_POS_MTX_IMM);
+}
+
+void GXSetZMode(int CompareEnabledReg, int FuncTypeReg, int UpdateEnabledReg)
+{
+	SetArgumentsFromRegs(3, { CompareEnabledReg, FuncTypeReg, UpdateEnabledReg });
+	CallBrawlFunc(GX_SET_Z_MODE);
+}
+
+void GXSetLineWidth(int WidthReg, int TexOffsetReg)
+{
+	SetArgumentsFromRegs(3, { WidthReg, TexOffsetReg });
+	CallBrawlFunc(GX_SET_LINE_WIDTH);
+}
+
+void GXBegin(int TypeReg, int VtxAttrFmtReg, int NumVertsReg)
+{
+	SetArgumentsFromRegs(3, { TypeReg, VtxAttrFmtReg, NumVertsReg });
+	CallBrawlFunc(GX_BEGIN);
+}
+
+void GFDrawSetupCoord2D()
+{
+	CallBrawlFunc(GF_DRAW_SETUP_COORD_2D);
+}
+
+void GXDrawSetVtxColorPrimEnviroment()
+{
+	CallBrawlFunc(GX_DRAW_SET_VTX_COLOR_PRIM_ENVIROMENT);
+}
+
+void FreeMem(int AddressReg)
+{
+	if (AddressReg != 3) { ADDI(3, AddressReg, 0); }
+	CallBrawlFunc(GF_POOL_FREE);
+}
+
+//EmptyVal is expected value of upper 16 bits if memory is not allocated
+//stores value of EmptyVal into AddressReg
+void FreeMemIfAllocd(int AddressReg, int EmptyVal)
+{
+	LHZ(3, AddressReg, 0);
+	If(3, NOT_EQUAL_I_L, EmptyVal);
+	LWZ(3, AddressReg, 0);
+	FreeMem(3);
+	SetRegister(3, EmptyVal);
+	STW(3, AddressReg, 0);
+	EndIf();
+}
+
+//calls free on a null teminated array of ptrs to allocd memory
+void FreeAllocdArray(int AllocAddressReg)
+{
+	LWZU(3, AllocAddressReg, 4);
+	While(3, NOT_EQUAL_I, 0);
+
+	FreeMem(3);
+	LWZU(3, AllocAddressReg, 4);
+
 	EndWhile();
-	RestoreRegs(2);
-	ForEachData.pop_back();
 }
 
+//location is where to save from, size is how much, saveTo is where to store the alloc ptr - 4
+void SaveMem(int LocationReg, int SizeReg, int SaveToReg)
+{
+	ADDI(5, SizeReg, 8);
+	Allocate(5);
+	STWU(3, SaveToReg, 4);
+	STW(LocationReg, 3, 0);
+	STW(SizeReg, 3, 4);
+	ADDI(3, 3, 8);
+	Memmove(3, LocationReg, SizeReg);
+}
 
+void Increment(int Reg)
+{
+	ADDI(Reg, Reg, 1);
+}
+
+void Decrement(int Reg)
+{
+	ADDI(Reg, Reg, -1);
+}
+
+void WriteStringToMem(string Text, int AddressReg)
+{
+	ADDI(4, AddressReg, -4);
+	for (int i = 0; i < Text.size() - 1; i += 4) {
+		SetRegister(3, Text.substr(i, min(4, (int) Text.size() - i)));
+		STWU(3, 4, 4);
+	}
+}
 
 void ADD(int DestReg, int SourceReg1, int SourceReg2)
 {
@@ -804,6 +1000,16 @@ void DIVW(int DestReg, int DividendReg, int DivisorReg)
 	WriteIntToFile(OpHex);
 }
 
+void DIVWU(int DestReg, int DividendReg, int DivisorReg)
+{
+	OpHex = GetOpSegment(31, 6, 5);
+	OpHex |= GetOpSegment(DestReg, 5, 10);
+	OpHex |= GetOpSegment(DividendReg, 5, 15);
+	OpHex |= GetOpSegment(DivisorReg, 5, 20);
+	OpHex |= GetOpSegment(459, 9, 30);
+	WriteIntToFile(OpHex);
+}
+
 void EQV(int DestReg, int SourceReg1, int SourceReg2)
 {
 	OpHex = GetOpSegment(31, 6, 5);
@@ -843,12 +1049,40 @@ void FADDS(int DestReg, int SourceReg1, int SourceReg2)
 	WriteIntToFile(OpHex);
 }
 
+void FCMPU(int FPReg1, int FPReg2, int CondField)
+{
+	OpHex = GetOpSegment(63, 6, 5);
+	OpHex |= GetOpSegment(CondField, 3, 8);
+	OpHex |= GetOpSegment(FPReg1, 5, 15);
+	OpHex |= GetOpSegment(FPReg2, 5, 20);
+	WriteIntToFile(OpHex);
+}
+
 void FCTIW(int SourceReg, int DestReg)
 {
 	OpHex = GetOpSegment(63, 6, 5);
 	OpHex |= GetOpSegment(DestReg, 5, 10);
 	OpHex |= GetOpSegment(SourceReg, 5, 20);
 	OpHex |= GetOpSegment(14, 10, 30);
+	WriteIntToFile(OpHex);
+}
+
+void FDIV(int FPDestReg, int FPSourceReg1, int FPSourceReg2)
+{
+	OpHex = GetOpSegment(63, 6, 5);
+	OpHex |= GetOpSegment(FPDestReg, 5, 10);
+	OpHex |= GetOpSegment(FPSourceReg1, 5, 15);
+	OpHex |= GetOpSegment(FPSourceReg2, 5, 20);
+	OpHex |= GetOpSegment(18, 5, 30);
+	WriteIntToFile(OpHex);
+}
+
+void FMR(int DestReg, int SourceReg)
+{
+	OpHex = GetOpSegment(63, 6, 5);
+	OpHex |= GetOpSegment(DestReg, 5, 10);
+	OpHex |= GetOpSegment(SourceReg, 5, 20);
+	OpHex |= GetOpSegment(72, 10, 30);
 	WriteIntToFile(OpHex);
 }
 
@@ -862,6 +1096,15 @@ void FMUL(int DestReg, int SourceReg1, int SourceReg2)
 	WriteIntToFile(OpHex);
 }
 
+void FNEG(int DestReg, int SourceReg)
+{
+	OpHex = GetOpSegment(63, 6, 5);
+	OpHex |= GetOpSegment(DestReg, 5, 10);
+	OpHex |= GetOpSegment(SourceReg, 5, 20);
+	OpHex |= GetOpSegment(40, 10, 30);
+	WriteIntToFile(OpHex);
+}
+
 //Rounds a 64-bit, double precision floating-point operand to single precision
 //places result in a floating-point register
 void FRSP(int DestReg, int SourceReg)
@@ -870,6 +1113,16 @@ void FRSP(int DestReg, int SourceReg)
 	OpHex |= GetOpSegment(DestReg, 5, 10);
 	OpHex |= GetOpSegment(SourceReg, 5, 20);
 	OpHex |= GetOpSegment(12, 10, 30);
+	WriteIntToFile(OpHex);
+}
+
+void FSUB(int FPDestReg, int FPSourceReg1, int FPSourceReg2)
+{
+	OpHex = GetOpSegment(59, 6, 5);
+	OpHex |= GetOpSegment(FPDestReg, 5, 10);
+	OpHex |= GetOpSegment(FPSourceReg1, 5, 15);
+	OpHex |= GetOpSegment(FPSourceReg2, 5, 20);
+	OpHex |= GetOpSegment(20, 5, 30);
 	WriteIntToFile(OpHex);
 }
 
@@ -1002,6 +1255,15 @@ void LWZX(int DestReg, int AddressReg1, int AddressReg2)
 	OpHex |= GetOpSegment(AddressReg1, 5, 15);
 	OpHex |= GetOpSegment(AddressReg2, 5, 20);
 	OpHex |= GetOpSegment(23, 10, 30);
+	WriteIntToFile(OpHex);
+}
+
+void LMW(int StartReg, int AddressReg, int Immediate)
+{
+	OpHex = GetOpSegment(46, 6, 5);
+	OpHex |= GetOpSegment(StartReg, 5, 10);
+	OpHex |= GetOpSegment(AddressReg, 5, 15);
+	OpHex |= GetOpSegment(Immediate, 16, 31);
 	WriteIntToFile(OpHex);
 }
 
@@ -1190,6 +1452,15 @@ void STFS(int DestReg, int AddressReg, int Immediate)
 	WriteIntToFile(OpHex);
 }
 
+void STFSU(int DestReg, int AddressReg, int Immediate)
+{
+	OpHex = GetOpSegment(53, 6, 5);
+	OpHex |= GetOpSegment(DestReg, 5, 10);
+	OpHex |= GetOpSegment(AddressReg, 5, 15);
+	OpHex |= GetOpSegment(Immediate, 16, 31);
+	WriteIntToFile(OpHex);
+}
+
 void STH(int DestReg, int AddressReg, int Immediate)
 {
 	OpHex = GetOpSegment(44, 6, 5);
@@ -1225,6 +1496,15 @@ void STHX(int DestReg, int AddressReg1, int AddressReg2)
 	OpHex |= GetOpSegment(AddressReg1, 5, 15);
 	OpHex |= GetOpSegment(AddressReg2, 5, 20);
 	OpHex |= GetOpSegment(407, 10, 30);
+	WriteIntToFile(OpHex);
+}
+
+void STMW(int StartReg, int AddressReg, int Immediate)
+{
+	OpHex = GetOpSegment(47, 6, 5);
+	OpHex |= GetOpSegment(StartReg, 5, 10);
+	OpHex |= GetOpSegment(AddressReg, 5, 15);
+	OpHex |= GetOpSegment(Immediate, 16, 31);
 	WriteIntToFile(OpHex);
 }
 

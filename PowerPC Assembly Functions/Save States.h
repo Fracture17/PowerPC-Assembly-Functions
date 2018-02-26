@@ -29,12 +29,9 @@ void InitializeModules();
 void RestoreCharacterAminObjects();
 void SaveCharacterAnimObjects();
 
-void SaveMem(int LocationReg, int SizeReg, int SaveToReg);
 void RestoreMem(int MemPtrReg);
 void RestoreState(int AllocAddressReg);
 void SaveInstance(int StartReg, int SaveToReg, int TempReg1, int TempReg2);
-void FreeMem(int AddressReg);
-void FreeAllocdArray(int AllocAddressReg);
 void SaveList(int AddressReg, int SaveSizeReg, int SaveToReg, int TempReg1, int TempReg2);
 
 void SaveStateCodes();
