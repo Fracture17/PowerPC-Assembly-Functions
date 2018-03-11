@@ -23,6 +23,8 @@ typedef unsigned int u32;
 #define DRAW_BUFFER_XPOS_OFFSET 0x2C
 #define DRAW_BUFFER_YPOS_OFFSET 0x30
 
+static int MenuID = 0;
+
 ///addresses start
 
 ///Function addresses start
@@ -51,6 +53,8 @@ typedef unsigned int u32;
 #define FRAME_COUNTER_LOC 0x901812A4 //gives the frame count of the match, increments through debug pause
 #define PLAY_INPUT_LOC_START 0x805BC068 //the location of P1's inputs.  Add 4 for the next player during playback
 #define PLAY_BUTTON_LOC_START 0x805BAD04 //the location of P1's buttons.  Add 0x40 for the next player
+#define GCC_CONTROL_STICK_X_START 0x805bad30
+#define GCC_CONTROL_STICK_Y_START 0x805bad31
 #define WII_BASED_CONTROLLER_START 0x804F7880 //P1 wiimote loc, can't affect inputs from here
 #define WII_BASED_CONTROLLER_PORT_OFFSET 0x9A0 //offset between wii controller ports
 #define WII_BASED_CONTROLLER_TYPE_OFFSET 0x28 //offset from Wii contoller of byte containing type of controller
@@ -99,17 +103,38 @@ const int REPLACE_NAME_TIME_ADDRESS = REPLACE_NAME_OLD_TIME_LOC + 4;
 #define WIIMOTE_CONVERSION_TABLE WIIMOTE_CONVERTED_BUTTON_STORAGE_LOC + 8 //16
 #define WIICHUCK_CONVERSION_TABLE WIIMOTE_CONVERSION_TABLE + 16 //16
 #define CLASSIC_CONVERSION_TABLE WIICHUCK_CONVERSION_TABLE + 16 //16
-#define KAPPA_ITEM_FLAG WIICHUCK_CONVERSION_TABLE + 16 //4
-#define DI_DRAW_ALLOC_PTR KAPPA_ITEM_FLAG + 4 //8 * 4 * 4
+#define KAPPA_ITEM_FLAG CLASSIC_CONVERSION_TABLE + 16 //4
+#define DI_DRAW_ALLOC_PTR KAPPA_ITEM_FLAG + 4 //4
+#define LAST_DEBUG_STATE DI_DRAW_ALLOC_PTR + 4 //4
+#define STRING_BUFFER LAST_DEBUG_STATE + 4 //0x100
+#define IASA_OVERLAY_MEM_PTR_LOC STRING_BUFFER + 0x100 //4
+#define IASA_TRIGGER_OVERLAY_COMMAND_PTR_LOC IASA_OVERLAY_MEM_PTR_LOC + 4 //4
+#define IASA_TERMINATE_OVERLAY_COMMAND_PTR_LOC IASA_TRIGGER_OVERLAY_COMMAND_PTR_LOC + 4 //4
+#define IASA_STATE IASA_TERMINATE_OVERLAY_COMMAND_PTR_LOC + 4 //4
+#define IS_IN_GAME_FLAG IASA_STATE + 4 //4
 ///Code Menu Start
-//935ce494
-#define CODE_MENU_CREATED DI_DRAW_ALLOC_PTR + 8 * 4 * 4 //4 (equals 1 if created)
+//935CE52C
+#define CODE_MENU_CREATED IS_IN_GAME_FLAG + 4 //4 (equals 1 if created)
 #define CODE_MENU_CONTROL_FLAG CODE_MENU_CREATED + 4 //4
 #define CODE_MENU_PAGE_ADDRESS CODE_MENU_CONTROL_FLAG + 4 //4
 #define DRAW_SETTINGS_PTR_LOC CODE_MENU_PAGE_ADDRESS + 4 //4
-#define OFF_TEXT_LOC DRAW_SETTINGS_PTR_LOC + 4 //4
+#define DRAW_DELETE_BLOCK_PTR_LOC DRAW_SETTINGS_PTR_LOC + 4 //4
+#define OFF_TEXT_LOC DRAW_DELETE_BLOCK_PTR_LOC + 4 //4
 #define ON_TEXT_LOC OFF_TEXT_LOC + 4 //4
-#define CODE_MENU_SETTINGS ON_TEXT_LOC + 4 //4 * MenuID
+#define SPRINTF_FLOAT_TEXT ON_TEXT_LOC + 4 //4
+#define SPRINTF_INT_TEXT SPRINTF_FLOAT_TEXT + 4 //4
+#define MOVE_FRAME_TIMER_LOC SPRINTF_INT_TEXT + 4 //4
+#define FIRST_MOVE_NUM_WAIT_FRAMES MOVE_FRAME_TIMER_LOC + 4 //4
+#define MOVE_NUM_WAIT_FRAMES FIRST_MOVE_NUM_WAIT_FRAMES + 4 //4
+#define INCREMENT_FRAME_TIMER_LOC MOVE_NUM_WAIT_FRAMES + 4 //4
+#define FIRST_INCREMENT_NUM_WAIT_FRAMES INCREMENT_FRAME_TIMER_LOC + 4 //4
+#define INCREMENT_NUM_WAIT_FRAMES FIRST_INCREMENT_NUM_WAIT_FRAMES + 4 //4
+#define MAIN_BUTTON_MASK_LOC INCREMENT_NUM_WAIT_FRAMES + 4 //8
+#define CODE_MENU_BUTTON_MASK_LOC MAIN_BUTTON_MASK_LOC + 8 //4
+#define CODE_MENU_NORMAL_LINE_COLOR_LOC CODE_MENU_BUTTON_MASK_LOC + 4 //4
+#define CODE_MENU_COMMENT_LINE_COLOR_LOC CODE_MENU_NORMAL_LINE_COLOR_LOC + 4 //4
+#define CODE_MENU_SELECTED_LINE_COLOR_LOC CODE_MENU_COMMENT_LINE_COLOR_LOC + 4 //4
+#define CODE_MENU_SETTINGS CODE_MENU_SELECTED_LINE_COLOR_LOC + 4 //4 * MenuID
 #define CODE_MENU_END CODE_MENU_SETTINGS + 4 * MenuID //0 (just a marker)
 ///Code Menu End
 ///reserved memory for storage end
@@ -151,7 +176,23 @@ const int MENU_SELECTED_TAG_OFFSET = 0x164;
 #define YELLOW 0xFFFF00FF
 #define BLACK 0x000000FF
 #define WHITE 0xFFFFFFFF
+#define PURPLE 0x6E0094FF
 ///colors end
+///button values
+#define BUTTON_DL 0x1
+#define BUTTON_DR 0x2
+#define BUTTON_DD 0x4
+#define BUTTON_DU 0x8
+#define BUTTON_Z 0x10
+#define BUTTON_R 0x20
+#define BUTTON_L 0x40
+#define BUTTON_A 0x100
+#define BUTTON_B 0x200
+#define BUTTON_X 0x400
+#define BUTTON_Y 0x800
+#define BUTTON_START 0x1000
+///button values end
+#define BUTTON_PORT_OFFSET 0x40
 #define WIIMOTE 0
 #define WIICHUCK 1
 #define CLASSIC 2
@@ -188,6 +229,9 @@ const int MENU_SELECTED_TAG_OFFSET = 0x164;
 #define GREATER_OR_EQUAL_I_L 43
 #define NOT_EQUAL_I_L 45
 #define IS_ELSE 20
+#define LT 0
+#define GT 1
+#define EQ 2
 #define MAX_CSTICK_VALUE 0x55
 #define CSTICK_COEFFICIENT 0.011775
 #define TERMINATE_REPLAY_VALUE 0x06000000
@@ -210,6 +254,7 @@ static int JumpLabelNumArray[MAX_JUMPS] = {};
 static int JumpFromArray[MAX_JUMPS] = {};
 static int JumpIndex = 0;
 static vector<int> FPPushRecords;
+static vector<int> CounterLoppRecords;
 ///variables end
 int HexToDec(char x);
 
@@ -232,6 +277,7 @@ void EndWhile();
 void SetRegister(int Register, int value);
 void SetRegister(int Register, string value);
 void SetFloatingRegister(int FPReg, int TempReg1, int TempReg2, float Value);
+void SetFloatingRegister(int FPReg, int TempReg, float Value);
 void LoadWordToReg(int Register, int Address);
 void LoadHalfToReg(int Register, int Address);
 void LoadByteToReg(int Register, int Address);
@@ -249,11 +295,20 @@ void CompleteJumps();
 int CalcBranchOffset(int Location, int Target);
 void StrCpy(int Destination, int Source, int Temp);
 void GeckoStringWrite(char *Buffer, u32 NumBytes, u32 Address);
+void Gecko32BitWrite(int Address, int Value);
+void Gecko8BitWrite(int Address, int Value, int NumTimes = 1);
 void SetGeckoBaseAddress(int Address);
 void SetGeckoPointerAddress(int Address);
+void LoadIntoGeckoPointer(int Address);
+void GeckoIf(u32 Address, int Comparison, int Value);
+void GeckoEndIf();
 //searches for byte, elementOffset is distance between elements, ResultReg returns index if found, else -1
 //StartAddressReg ends with the address of the found element, or an address after the array
 void FindInArray(int ValueReg, int StartAddressReg, int numberOfElements, int elementOffset, int ResultReg, int TempReg);
+//searches for target, elementOffset is distance between elements, ResultReg returns index if found, else -1
+//StartAddressReg ends with the address of the found element, or an address after the array
+//ends when end marker is encountered
+void FindInTerminatedArray(int ValueReg, int StartAddressReg, int endMarker, int elementOffset, int ResultReg, int TempReg, int searchSize);
 void CallBrawlFunc(int Address);
 //r3 returns ptr
 void Allocate(int SizeReg);
@@ -261,6 +316,7 @@ void AllocateIfNotExist(int SizeReg, int AddressReg, int EmptyVal);
 void Memmove(int DestReg, int SourceReg, int SizeReg);
 void SetRegs(int StartReg, vector<int> values);
 void SetArgumentsFromRegs(int StartReg, vector<int> ValueRegs);
+void SetFloatingArgumentsFromRegs(int FPStartReg, vector<int> FPValueRegs);
 void GXSetCullMode(int CullModeReg);
 void GXClearVtxDesc();
 void GXSetVtxDesc(int AttributeReg, int TypeReg);
@@ -283,6 +339,13 @@ void RestoreRegisters();
 void Increment(int Reg);
 void Decrement(int Reg);
 void WriteStringToMem(string Text, int AddressReg);
+void CounterLoop(int CounterReg, int startVal, int endVal, int stepVal);
+void CounterLoopEnd();
+void SprintF(int StrReg, vector<int> ValueRegs);
+void SprintF(int StrReg, vector<int> ValueRegs, vector<int> FPValueRegs);
+void ClampStick(int FPXValReg, int FPYValReg);
+void ConvertIntStickValsToFloating(int StickXReg, int StickYReg, int FPXResultReg, int FPYResultReg, int FPTempReg);
+void ConvertFloatingRegToInt(int FPReg, int ResultReg);
 
 void ADD(int DestReg, int SourceReg1, int SourceReg2);
 void ADDI(int DestReg, int SourceReg, int Immediate);
@@ -306,22 +369,31 @@ void DIVW(int DestReg, int DividendReg, int DivisorReg);
 void DIVWU(int DestReg, int DividendReg, int DivisorReg);
 void EQV(int DestReg, int SourceReg1, int SourceReg2);
 void EXTSB(int DestReg, int SourceReg);
+void FABS(int DestReg, int SourceReg);
 void FADD(int DestReg, int SourceReg1, int SourceReg2);
 void FADDS(int DestReg, int SourceReg1, int SourceReg2);
 void FCMPU(int FPReg1, int FPReg2, int CondField);
 void FMR(int DestReg, int SourceReg);
 void FCTIW(int DestReg, int SourceReg);
 void FDIV(int FPDestReg, int FPSourceReg1, int FPSourceReg2);
+void FDIVS(int FPDestReg, int FPSourceReg1, int FPSourceReg2);
 void FMUL(int DestReg, int SourceReg1, int SourceReg2);
+void FMULS(int DestReg, int SourceReg1, int SourceReg2);
 void FNEG(int DestReg, int SourceReg);
+void FRES(int DestReg, int SourceReg);
 void FRSP(int DestReg, int SourceReg);
+void FRSQRTE(int DestReg, int SourceReg);
 void FSUB(int FPDestReg, int FPSourceReg1, int FPSourceReg2);
+void FSUBS(int FPDestReg, int FPSourceReg1, int FPSourceReg2);
 void LBZ(int DestReg, int AddressReg, int Immediate);
 void LBZU(int DestReg, int AddressReg, int Immediate);
 void LBZUX(int DestReg, int AddressReg1, int AddressReg2);
 void LBZX(int DestReg, int AddressReg1, int AddressReg2);
 void LFD(int DestReg, int AddressReg, int Immediate);
 void LFS(int DestReg, int AddressReg, int Immediate);
+void LFSU(int DestReg, int AddressReg, int Immediate);
+void LFSUX(int DestReg, int AddressReg, int AddressReg2);
+void LFSX(int DestReg, int AddressReg, int AddressReg2);
 void LHZ(int DestReg, int AddressReg, int Immediate);
 void LHZU(int DestReg, int AddressReg, int Immediate);
 void LHZUX(int DestReg, int AddressReg1, int AddressReg2);
@@ -333,6 +405,7 @@ void LWZX(int DestReg, int AddressReg1, int AddressReg2);
 void LMW(int StartReg, int AddressReg, int Immediate);
 void MFCTR(int TargetReg);
 void MFLR(int TargetReg);
+void MR(int DestReg, int SourceReg);
 void MTCTR(int TargetReg);
 void MTLR(int TargetReg);
 void MULLI(int DestReg, int SourceReg, int Immediate);

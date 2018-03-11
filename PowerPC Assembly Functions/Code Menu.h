@@ -3,17 +3,42 @@
 #include "stdafx.h"
 #include "PowerPC Assembly Functions.h"
 
+//active codes
+#define DI_DRAW
+//#define IASA_OVERLAY
+
+#define START_OF_MENU_LOC 0x804E0000
+
+//code menu flags
 #define CODE_MENU_CLOSED 0
+#define CODE_MENU_PRIMED 1
 #define CODE_MENU_OPEN 2
 
+//line types
 #define COMMENT_LINE 0
 #define TOGGLE_LINE 1
 #define SUB_MENU_LINE 2
+#define NUMBER_LINE 3
+#define FLOATING_LINE 4
 
+//default code menu settings
 #define INITIAL_XPOS -400
 #define INITIAL_YPOS -0x100
+#define MOVE_THRESHHOLD 100
+#define INCREMENT_THRESHHOLD 100
+#define TRIGGER_ENTER_SUB_MENU_BUTTON BUTTON_A
+#define TRIGGER_LEAVE_SUB_MENU_BUTTON BUTTON_B
 
-static int MenuID = 0;
+//action types
+#define NO_ACTION 0
+#define MOVE_UP 1
+#define MOVE_DOWN 2
+#define ENTER_SUB_MENU 3
+#define LEAVE_SUB_MENU 4
+#define INCREMENT 5
+#define DECREMENT 6
+
+static vector<int> Defaults;
 
 class Page;
 
@@ -41,12 +66,17 @@ public:
 		WriteTextToFile(x);
 	}
 
+	virtual int GetDefault() {
+		return Default;
+	}
+
+	int Default;
 	Page *SubMenuPtr;
 	int SubMenuOffset;
 	int PageOffset;
-	int ID_;
+	int Index;
 	int type = -1;
-	int Color = WHITE;
+	int Color = 0;
 	int DownOffset = -1;
 	int UpOffset = -1;
 	string Text;
@@ -55,6 +85,7 @@ public:
 	//offsets
 	static const int SIZE = 0;
 	static const int TYPE = 4;
+	static const int COLOR = 8;
 };
 
 class Comment : public Line
@@ -83,11 +114,11 @@ public:
 class Toggle : public Line
 {
 public:
-	Toggle(string Text)
+	Toggle(string Text, bool Default)
 	: Line(Text + ":")
 	{
+		this->Default = Default;
 		type = TOGGLE_LINE;
-		ID_ = MenuID++;
 		Size += 4 * NUM_WORD_ELEMS;
 		Padding = (4 - Size % 4) % 4;
 		Size += Padding;
@@ -96,20 +127,25 @@ public:
 	void WriteLineData()
 	{
 		Line::WriteLineData();
-		WriteIntToFile(ID_);
 		WriteIntToFile(Color);
-		WriteIntToFile(DownOffset);
+		WriteIntToFile(Index);
 		WriteIntToFile(UpOffset);
+		WriteIntToFile(DownOffset);
 		WriteMenuTextToFile(Text);
 		WritePadding();
 	}
 
+	int GetDefault() {
+		return (int) Default;
+	}
+
+	bool Default;
 	static const int NUM_WORD_ELEMS = 6;
-	static const int ID = 8;
-	static const int COLOR = ID + 4;
-	static const int DOWN = COLOR + 4;
-	static const int UP = DOWN + 4;
-	static const int TEXT = UP + 4;
+	static const int COLOR = 8;
+	static const int INDEX = COLOR + 4;
+	static const int UP = INDEX + 4;
+	static const int DOWN = UP + 4;
+	static const int TEXT = DOWN + 4;
 };
 
 class SubMenu : public Line
@@ -132,8 +168,8 @@ public:
 		Line::WriteLineData();
 		WriteIntToFile(Color);
 		WriteIntToFile(SubMenuOffset);
-		WriteIntToFile(DownOffset);
 		WriteIntToFile(UpOffset);
+		WriteIntToFile(DownOffset);
 		WriteMenuTextToFile(Text);
 		WritePadding();
 	}
@@ -141,9 +177,107 @@ public:
 	static const int NUM_WORD_ELEMS = 6;
 	static const int COLOR = 8;
 	static const int SUB_MENU = COLOR + 4;
-	static const int DOWN = SUB_MENU + 4;
-	static const int UP = DOWN + 4;
-	static const int TEXT = UP + 4;
+	static const int UP = SUB_MENU + 4;
+	static const int DOWN = UP + 4;
+	static const int TEXT = DOWN + 4;
+};
+
+class Number : public Line
+{
+public:
+	Number(string Text, int Min, int Max, int Default, int Speed = 1)
+	: Line(Text + ":")
+	{
+		this->Min = Min;
+		this->Max = Max;
+		this->Default = Default;
+		this->Speed = Speed;
+		type = NUMBER_LINE;
+		Size += 4 * NUM_WORD_ELEMS;
+		Padding = (4 - Size % 4) % 4;
+		Size += Padding;
+	}
+
+	void WriteLineData()
+	{
+		Line::WriteLineData();
+		WriteIntToFile(Color);
+		WriteIntToFile(Index);
+		WriteIntToFile(UpOffset);
+		WriteIntToFile(DownOffset);
+		WriteIntToFile(Speed);
+		WriteIntToFile(Min);
+		WriteIntToFile(Max);
+		WriteMenuTextToFile(Text);
+		WritePadding();
+	}
+
+	int GetDefault() {
+		return Default;
+	}
+
+	int Min;
+	int Max;
+	int Default;
+	int Speed;
+	static const int NUM_WORD_ELEMS = 9;
+	static const int COLOR = 8;
+	static const int INDEX = COLOR + 4;
+	static const int UP = INDEX + 4;
+	static const int DOWN = UP + 4;
+	static const int SPEED = DOWN + 4;
+	static const int MIN = SPEED + 4;
+	static const int MAX = MIN + 4;
+	static const int TEXT = MAX + 4;
+};
+
+class Floating : public Line
+{
+public:
+	Floating(string Text, float Min, float Max, float Default, float Speed = 1)
+	: Line(Text + ":")
+	{
+		this->Min = Min;
+		this->Max = Max;
+		this->Default = Default;
+		this->Speed = Speed;
+		type = FLOATING_LINE;
+		Size += 4 * NUM_WORD_ELEMS;
+		Padding = (4 - Size % 4) % 4;
+		Size += Padding;
+	}
+
+	void WriteLineData()
+	{
+		Line::WriteLineData();
+		WriteIntToFile(Color);
+		WriteIntToFile(Index);
+		WriteIntToFile(UpOffset);
+		WriteIntToFile(DownOffset);
+		WriteIntToFile(GetHexFromFloat(Speed));
+		WriteIntToFile(GetHexFromFloat(Min));
+		WriteIntToFile(GetHexFromFloat(Max));
+		WriteMenuTextToFile(Text);
+		WritePadding();
+	}
+
+	int GetDefault() {
+		return GetHexFromFloat(Default);
+	}
+
+	float Min;
+	float Max;
+	float Default;
+	float Speed;
+	static const int NUM_WORD_ELEMS = 9;
+	static const int COLOR = 8;
+	static const int INDEX = COLOR + 4;
+	static const int UP = INDEX + 4;
+	static const int DOWN = UP + 4;
+	static const int SPEED = DOWN + 4;
+	static const int MIN = SPEED + 4;
+	static const int MAX = MIN + 4;
+	static const int TEXT = MAX + 4;
 };
 
 class Page
@@ -152,9 +286,7 @@ public:
 	Page(string Name, vector<Line*> Lines, int ValueXPos) {
 		CalledFromLine = SubMenu(Name, this);
 		this->Lines = Lines;
-		this->Lines[0]->Color = YELLOW;
 		this->ValueXPos = ValueXPos;
-		int CurrentPageOffset = Size;
 		for (auto x : Lines) {
 			x->PageOffset = Size;
 			Size += x->Size;
@@ -177,14 +309,21 @@ public:
 	{
 		vector<int> SelectableLines;
 		GetSelectableLines(SelectableLines);
-		SelectableLines.insert(SelectableLines.begin(), SelectableLines.back());
-		SelectableLines.push_back(SelectableLines[1]);
+		if (SelectableLines.size() > 0) {
+			SelectableLines.insert(SelectableLines.begin(), SelectableLines.back());
+			SelectableLines.push_back(SelectableLines[1]);
 
-		for (int i = 1; i < SelectableLines.size() - 1; i++) {
-			Lines[SelectableLines[i]]->UpOffset = Lines[SelectableLines[i - 1]]->PageOffset;
-			Lines[SelectableLines[i]]->DownOffset = Lines[SelectableLines[i + 1]]->PageOffset;
+			for (int i = 1; i < SelectableLines.size() - 1; i++) {
+				Lines[SelectableLines[i]]->UpOffset = Lines[SelectableLines[i - 1]]->PageOffset;
+				Lines[SelectableLines[i]]->DownOffset = Lines[SelectableLines[i + 1]]->PageOffset;
+			}
+		
+			CurrentLineOffset = Lines[SelectableLines[1]]->PageOffset;
+			Lines[SelectableLines[1]]->Color = 1;
 		}
-		CurrentLineOffset = Lines[0]->PageOffset;
+		else {
+			CurrentLineOffset = NUM_WORD_ELEMS * 4;
+		}
 	}
 
 	void GetSelectableLines(vector<int> &SelectableLines)
@@ -210,11 +349,36 @@ public:
 };
 
 void PrintChar(int SettingsPtrReg, int CharReg);
+void PrintString(int StringPtrReg, int NumCharsReg, int SettingsPtrReg);
 void PrintPage(int PageReg, int SettingPtrReg, int Reg1, int Reg2, int Reg3, int Reg4, int Reg5, int Reg6);
+void PrintFloatingLine(int LinePtrReg, int ValueXPosReg, int SettingsPtrReg, int TempReg1, int TempReg2);
 void PrintToggleLine(int LinePtrReg, int ValueXPosReg, int SettingsPtrReg, int TempReg1, int TempReg2);
+void PrintNumberLine(int LinePtrReg, int ValueXPosReg, int SettingsPtrReg, int TempReg1, int TempReg2);
+void PrintCommentLine(int LinePtrReg, int SettingsPtrReg, int TempReg1, int TempReg2);
 void PrintSubMenuLine(int LinePtrReg, int SettingsPtrReg, int TempReg1, int TempReg2);
 void SetTextColor(int ColorReg, int SettingsPtrReg);
+void SetTextSize(int FPSizeReg, int SettingsPtrReg);
 void CodeMenu();
+void ActualCodes();
+void ControlCodeMenu();
 void PrintCodeMenu();
 void TriggerCodeMenu();
 void CreateMenu(Page MainPage);
+
+void ExecuteAction();
+
+void EnterMenu(int LineReg, int PageReg, int TypeReg, int TempReg1, int TempReg2);
+
+void LeaveMenu(int LineReg, int PageReg, int TempReg1, int TempReg2);
+
+void DecreaseValue(int LineReg, int TypeReg, int TempReg1, int TempReg2, int TempReg3);
+
+void IncreaseValue(int LineReg, int TypeReg, int TempReg1, int TempReg2, int TempReg3);
+
+void MoveUp(int LineReg, int PageReg, int TypeReg, int TempReg1, int TempReg2);
+
+void MoveDown(int LineReg, int PageReg, int TypeReg, int TempReg1, int TempReg2);
+
+void GetActionFromInputs(int ButtonReg, int ControlStickXReg, int ControlStickYReg);
+
+void ControlStickFrameTimerLogic(int FrameReg, int FrameLocReg, int FirstMoveFramesLoc, int MoveFramesLoc, int action);

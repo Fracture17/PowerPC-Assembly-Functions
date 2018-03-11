@@ -3,13 +3,38 @@
 #include "stdafx.h"
 #include "PowerPC Assembly Functions.h"
 
+//graphic buffer constants
+#define GRAPHIC_BUFFER_END_PTR_OFFSET 0
+#define GRAPHIC_BUFFER_PRIMITIVE_OFFSET 4
+#define GRAPHIC_BUFFER_COLOR_OFFSET 8
+#define GRAPHIC_BUFFER_NUM_ELEMS_OFFSET 0xC
+#define GRAPHIC_BUFFER_DRAW_FLAG_OFFSET 0x10
+#define GRAPHIC_BUFFER_POS_START_OFFSET 0x14
+#define GRAPHIC_BUFFER_OVERHEAD_SIZE 0x14
+
+#define TRAJECTORY_BUFFER_SIZE 8 * 512 + GRAPHIC_BUFFER_OVERHEAD_SIZE
+#define SDI_BUFFER_SIZE 8 * 50 + GRAPHIC_BUFFER_OVERHEAD_SIZE
+#define ASDI_BUFFER_SIZE 8 * 3 + GRAPHIC_BUFFER_OVERHEAD_SIZE
+#define MAIN_BUFFER_GRAPHICS_BUFFER_START_OFFSET 8 * 4
+#define MAIN_BUFFER_SIZE 4 * 5 * 8 + MAIN_BUFFER_GRAPHICS_BUFFER_START_OFFSET + 4
+
+#define OTHER_STATE 0
+#define HITSTUN_AND_HITLAG_STATE 1
+#define HITSTUN_STATE 2
+
 void SetupDrawLines(int LineWidthReg);
 void DrawVerticies(int NumVerticiesReg, int AddressReg, int ColorReg);
 void DrawDI();
-void CalcNextPosition(int PX, int PY, int G, int FS, int MFS, int VX, int VY, int XA, int YA);
-void AllocateGraphicBufferIfNotExist(int SizeReg, int AddressReg, int EmptyVal, int primType, int color);
-void Draw();
-void DrawBuffer(int AddressReg);
+void CalcNextPosition();
+void CalcBrakeVectors();
+void AllocateGraphicBuffer(int SizeReg, int AddressReg, int primType, int color);
+void DrawGraphicBuffer(int AddressReg);
 void ResetGraphicBuffer(int AddressReg);
-void AddToGraphicBuffer(int AddressReg, int XPosReg, bool isXFloat, int YPosReg, bool isYFloat);
-void CalcTrajectory();
+void ResetGraphicBuffer(int AddressReg, int Color);
+void AddToGraphicBuffer(int AddressReg, int XPosReg, bool isXFloat, int YPosReg, bool isYFloat, bool shouldSetDrawFlag);
+void SetupDIBuffer();
+void FreeDIBuffer();
+void CalcTrajectory(int bufferReg, int numFramesReg);
+void IsOutOfBounds();
+void SetGraphicBufferDrawFlag(int BufferPtrReg, bool value);
+void SetKnockbackTrajectoryBuffers();

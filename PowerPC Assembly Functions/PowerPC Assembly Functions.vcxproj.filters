@@ -51,6 +51,12 @@
     <ClInclude Include="Code Menu.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="IASA Overlay.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Control Codes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="PowerPC Assembly Functions.cpp">
@@ -84,6 +90,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Code Menu.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="IASA Overlay.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Control Codes.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

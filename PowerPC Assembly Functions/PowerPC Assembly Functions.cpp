@@ -27,6 +27,11 @@ void CodeEnd()
 {
 	CompleteJumps();
 
+	if (IfIndex != 0) {
+		cout << "Ifs not paired" << endl;
+		exit(-1);
+	}
+
 	WPtr.close();
 }
 
@@ -284,6 +289,13 @@ void SetFloatingRegister(int FPReg, int TempReg1, int TempReg2, float Value)
 	STW(TempReg2, TempReg1, 0);
 
 	LFS(FPReg, TempReg1, 0);
+}
+
+void SetFloatingRegister(int FPReg, int TempReg, float Value)
+{
+	SetRegister(TempReg, GetHexFromFloat(Value));
+	STW(TempReg, 1, -0x10);
+	LFS(FPReg, 1, -0x10);
 }
 
 void LoadWordToReg(int Register, int Address)
@@ -544,6 +556,37 @@ void GeckoStringWrite(char *Buffer, u32 NumBytes, u32 Address)
 	}
 }
 
+void Gecko32BitWrite(int Address, int Value)
+{
+	u32 Op = Address & 0x1FFFFFF;
+	if (Address > 0x81000000)
+	{
+		SetGeckoBaseAddress(Address & 0xFE000000);
+	}
+	Op += 0x04000000;
+	WriteIntToFile(Op);
+	WriteIntToFile(Value);
+	if (Address > 0x81000000)
+	{
+		SetGeckoBaseAddress(0x80000000);
+	}
+}
+
+void Gecko8BitWrite(int Address, int Value, int NumTimes)
+{
+	u32 Op = Address & 0x1FFFFFF;
+	if (Address > 0x81000000)
+	{
+		SetGeckoBaseAddress(Address & 0xFE000000);
+	}
+	WriteIntToFile(Op);
+	WriteIntToFile(Value & 0xFF + ((NumTimes - 1) << 16));
+	if (Address > 0x81000000)
+	{
+		SetGeckoBaseAddress(0x80000000);
+	}
+}
+
 void SetGeckoBaseAddress(int Address)
 {
 	WriteIntToFile(0x42000000);
@@ -554,6 +597,47 @@ void SetGeckoPointerAddress(int Address)
 {
 	WriteIntToFile(0x4A000000);
 	WriteIntToFile(Address);
+}
+
+void LoadIntoGeckoPointer(int Address)
+{
+	WriteIntToFile(0x48000000);
+	WriteIntToFile(Address);
+}
+
+void GeckoIf(u32 Address, int Comparison, int Value)
+{
+	u32 Op = Address & 0x1FFFFFF;
+	switch (Comparison) {
+	case NOT_EQUAL:
+		Op += 0x2000000;
+		break;
+	case GREATER:
+		Op += 0x4000000;
+		break;
+	case LESS:
+		Op += 0x6000000;
+		break;
+	}
+	Op += 0x20000000;
+
+	if (Address > 0x81000000)
+	{
+		SetGeckoBaseAddress(Address & 0xFE000000);
+	}
+
+	WriteIntToFile(Op);
+	WriteIntToFile(Value);
+
+	if (Address > 0x81000000)
+	{
+		SetGeckoBaseAddress(0x80000000);
+	}
+}
+
+void GeckoEndIf() {
+	WriteIntToFile(0xE0000000);
+	WriteIntToFile(0x80008000);
 }
 
 void FindInArray(int ValueReg, int StartAddressReg, int numberOfElements, int elementOffset, int ResultReg, int TempReg)
@@ -571,6 +655,34 @@ void FindInArray(int ValueReg, int StartAddressReg, int numberOfElements, int el
 	EndIf(); //found target
 
 	LBZU(TempReg, StartAddressReg, elementOffset);
+	ADDI(ResultReg, ResultReg, 1);
+
+	EndWhile(); //search loop
+
+	SetRegister(ResultReg, -1); //not found
+
+	Label(EndOfSearch);
+}
+
+void FindInTerminatedArray(int ValueReg, int StartAddressReg, int endMarker, int elementOffset, int ResultReg, int TempReg, int searchSize)
+{
+	int EndOfSearch = GetNextLabel();
+
+	SetRegister(ResultReg, 0);
+	if (searchSize == 1) { LBZ(TempReg, StartAddressReg, 0); }
+	else if (searchSize == 2) { LHZ(TempReg, StartAddressReg, 0); }
+	else { LWZ(TempReg, StartAddressReg, 0); }
+	While(TempReg, NOT_EQUAL_I, endMarker); //search loop
+	
+	If(TempReg, EQUAL, ValueReg); //found target
+	
+	JumpToLabel(EndOfSearch);
+
+	EndIf(); //found target
+
+	if (searchSize == 1) { LBZU(TempReg, StartAddressReg, elementOffset); }
+	else if (searchSize == 2) { LHZU(TempReg, StartAddressReg, elementOffset); }
+	else { LWZU(TempReg, StartAddressReg, elementOffset); }
 	ADDI(ResultReg, ResultReg, 1);
 
 	EndWhile(); //search loop
@@ -683,6 +795,20 @@ void SetArgumentsFromRegs(int StartReg, vector<int> ValueRegs)
 		}
 		StartReg++;
 		if (StartReg > 31) {
+			cout << "Too many values\n";
+			exit(0);
+		}
+	}
+}
+
+void SetFloatingArgumentsFromRegs(int FPStartReg, vector<int> FPValueRegs)
+{
+	for (int x : FPValueRegs) {
+		if (x != FPStartReg) {
+			FMR(FPStartReg, x);
+		}
+		FPStartReg++;
+		if (FPStartReg > 31) {
 			cout << "Too many values\n";
 			exit(0);
 		}
@@ -822,6 +948,117 @@ void WriteStringToMem(string Text, int AddressReg)
 		SetRegister(3, Text.substr(i, min(4, (int) Text.size() - i)));
 		STWU(3, 4, 4);
 	}
+}
+
+//start, end, and step have to be 16 bit signed integers
+void CounterLoop(int CounterReg, int startVal, int endVal, int stepVal)
+{
+	if (startVal == endVal) {
+		cout << "loop can't be entered" << endl;
+		exit(-1);
+	}
+	SetRegister(CounterReg, startVal);
+	if (stepVal < 0) {
+		if (startVal < endVal) {
+			cout << "Infinite loop" << endl;
+			exit(-1);
+		}
+
+		While(CounterReg, GREATER_I, endVal);
+	}
+	else if (stepVal > 0) {
+		if (startVal > endVal) {
+			cout << "Infinite loop" << endl;
+			exit(-1);
+		}
+
+		While(CounterReg, LESS_I, endVal);
+	}
+	else {
+		cout << "step value can't be equal to 0" << endl;
+		exit(-1);
+	}
+
+
+	CounterLoppRecords.push_back(stepVal << 16 | CounterReg);
+}
+
+void CounterLoopEnd()
+{
+	int CounterReg = CounterLoppRecords.back() & 0x1F;
+	int stepVal = CounterLoppRecords.back() >> 16;
+
+	ADDI(CounterReg, CounterReg, stepVal);
+	EndWhile(); //button union loop
+
+	CounterLoppRecords.pop_back();
+}
+
+//r3 returns num chars, max string length 0x100
+void SprintF(int StrReg, vector<int> ValueRegs)
+{
+	if (ValueRegs.size() > 6) {
+		cout << "Too many arguments (sprintf)" << endl;
+		exit(-1);
+	}
+	SetRegister(3, STRING_BUFFER);
+	SetArgumentsFromRegs(4, { StrReg });
+	SetArgumentsFromRegs(5, ValueRegs);
+	WriteIntToFile(0x4cc63182); //clclr 6, 6
+	CallBrawlFunc(0x803f89fc); //sprintf
+}
+
+//r3 returns num chars, max string length 0x100
+void SprintF(int StrReg, vector<int> ValueRegs, vector<int> FPValueRegs)
+{
+	if (ValueRegs.size() > 6 || FPValueRegs.size() > 8) {
+		cout << "Too many arguments (sprintf floating)" << endl;
+		exit(-1);
+	}
+	SetRegister(3, STRING_BUFFER);
+	SetArgumentsFromRegs(4, { StrReg });
+	SetArgumentsFromRegs(5, ValueRegs);
+	SetFloatingArgumentsFromRegs(1, FPValueRegs);
+	CMP(1, 1, 1);
+	//WriteIntToFile(0x4cc63182); //clclr 6, 6
+	CallBrawlFunc(0x803f89fc); //sprintf
+}
+
+void ClampStick(int FPXValReg, int FPYValReg)
+{
+	STFS(FPXValReg, 1, -0x30);
+	STFS(FPYValReg, 1, -0x2C);
+	ADDI(3, 1, -0x30);
+	CallBrawlFunc(0x8004819c); //clamp stick
+	LFS(FPXValReg, 1, -0x30);
+	LFS(FPYValReg, 1, -0x2C);
+}
+
+void ConvertIntStickValsToFloating(int StickXReg, int StickYReg, int FPXResultReg, int FPYResultReg, int FPTempReg)
+{
+	SetRegister(4, 0x43300000);
+	STW(4, 1, -0x30);
+	LFD(FPTempReg, 2, -0x7B10);
+
+	EXTSB(4, StickXReg);
+	XORIS(4, 4, 0x8000);
+	STW(4, 1, -0x2C);
+	LFD(FPXResultReg, 1, -0x30);
+	
+	EXTSB(4, StickYReg);
+	XORIS(4, 4, 0x8000);
+	STW(4, 1, -0x2C);
+	LFD(FPYResultReg, 1, -0x30);
+
+	FSUBS(FPXResultReg, FPXResultReg, FPTempReg);
+	FSUBS(FPYResultReg, FPYResultReg, FPTempReg);
+}
+
+void ConvertFloatingRegToInt(int FPReg, int ResultReg)
+{
+	FCTIW(FPReg, FPReg);
+	STFD(FPReg, 1, -0x30);
+	LWZ(ResultReg, 1, -0x2C);
 }
 
 void ADD(int DestReg, int SourceReg1, int SourceReg2)
@@ -1029,6 +1266,15 @@ void EXTSB(int DestReg, int SourceReg)
 	WriteIntToFile(OpHex);
 }
 
+void FABS(int DestReg, int SourceReg)
+{
+	OpHex = GetOpSegment(63, 6, 5);
+	OpHex |= GetOpSegment(DestReg, 5, 10);
+	OpHex |= GetOpSegment(SourceReg, 5, 20);
+	OpHex |= GetOpSegment(264, 10, 30);
+	WriteIntToFile(OpHex);
+}
+
 void FADD(int DestReg, int SourceReg1, int SourceReg2)
 {
 	OpHex = GetOpSegment(63, 6, 5);
@@ -1077,6 +1323,16 @@ void FDIV(int FPDestReg, int FPSourceReg1, int FPSourceReg2)
 	WriteIntToFile(OpHex);
 }
 
+void FDIVS(int FPDestReg, int FPSourceReg1, int FPSourceReg2)
+{
+	OpHex = GetOpSegment(59, 6, 5);
+	OpHex |= GetOpSegment(FPDestReg, 5, 10);
+	OpHex |= GetOpSegment(FPSourceReg1, 5, 15);
+	OpHex |= GetOpSegment(FPSourceReg2, 5, 20);
+	OpHex |= GetOpSegment(18, 5, 30);
+	WriteIntToFile(OpHex);
+}
+
 void FMR(int DestReg, int SourceReg)
 {
 	OpHex = GetOpSegment(63, 6, 5);
@@ -1096,12 +1352,31 @@ void FMUL(int DestReg, int SourceReg1, int SourceReg2)
 	WriteIntToFile(OpHex);
 }
 
+void FMULS(int DestReg, int SourceReg1, int SourceReg2)
+{
+	OpHex = GetOpSegment(59, 6, 5);
+	OpHex |= GetOpSegment(DestReg, 5, 10);
+	OpHex |= GetOpSegment(SourceReg1, 5, 15);
+	OpHex |= GetOpSegment(SourceReg2, 5, 25);
+	OpHex |= GetOpSegment(25, 5, 30);
+	WriteIntToFile(OpHex);
+}
+
 void FNEG(int DestReg, int SourceReg)
 {
 	OpHex = GetOpSegment(63, 6, 5);
 	OpHex |= GetOpSegment(DestReg, 5, 10);
 	OpHex |= GetOpSegment(SourceReg, 5, 20);
 	OpHex |= GetOpSegment(40, 10, 30);
+	WriteIntToFile(OpHex);
+}
+
+void FRES(int DestReg, int SourceReg)
+{
+	OpHex = GetOpSegment(59, 6, 5);
+	OpHex |= GetOpSegment(DestReg, 5, 10);
+	OpHex |= GetOpSegment(SourceReg, 5, 20);
+	OpHex |= GetOpSegment(24, 10, 30);
 	WriteIntToFile(OpHex);
 }
 
@@ -1116,7 +1391,26 @@ void FRSP(int DestReg, int SourceReg)
 	WriteIntToFile(OpHex);
 }
 
+void FRSQRTE(int DestReg, int SourceReg)
+{
+	OpHex = GetOpSegment(63, 6, 5);
+	OpHex |= GetOpSegment(DestReg, 5, 10);
+	OpHex |= GetOpSegment(SourceReg, 5, 20);
+	OpHex |= GetOpSegment(26, 10, 30);
+	WriteIntToFile(OpHex);
+}
+
 void FSUB(int FPDestReg, int FPSourceReg1, int FPSourceReg2)
+{
+	OpHex = GetOpSegment(63, 6, 5);
+	OpHex |= GetOpSegment(FPDestReg, 5, 10);
+	OpHex |= GetOpSegment(FPSourceReg1, 5, 15);
+	OpHex |= GetOpSegment(FPSourceReg2, 5, 20);
+	OpHex |= GetOpSegment(20, 5, 30);
+	WriteIntToFile(OpHex);
+}
+
+void FSUBS(int FPDestReg, int FPSourceReg1, int FPSourceReg2)
 {
 	OpHex = GetOpSegment(59, 6, 5);
 	OpHex |= GetOpSegment(FPDestReg, 5, 10);
@@ -1179,6 +1473,35 @@ void LFS(int DestReg, int AddressReg, int Immediate)
 	OpHex |= GetOpSegment(DestReg, 5, 10);
 	OpHex |= GetOpSegment(AddressReg, 5, 15);
 	OpHex |= GetOpSegment(Immediate, 16, 31);
+	WriteIntToFile(OpHex);
+}
+
+void LFSU(int DestReg, int AddressReg, int Immediate)
+{
+	OpHex = GetOpSegment(49, 6, 5);
+	OpHex |= GetOpSegment(DestReg, 5, 10);
+	OpHex |= GetOpSegment(AddressReg, 5, 15);
+	OpHex |= GetOpSegment(Immediate, 16, 31);
+	WriteIntToFile(OpHex);
+}
+
+void LFSUX(int DestReg, int AddressReg, int AddressReg2)
+{
+	OpHex = GetOpSegment(31, 6, 5);
+	OpHex |= GetOpSegment(DestReg, 5, 10);
+	OpHex |= GetOpSegment(AddressReg, 5, 15);
+	OpHex |= GetOpSegment(AddressReg2, 5, 20);
+	OpHex |= GetOpSegment(567, 10, 30);
+	WriteIntToFile(OpHex);
+}
+
+void LFSX(int DestReg, int AddressReg, int AddressReg2)
+{
+	OpHex = GetOpSegment(31, 6, 5);
+	OpHex |= GetOpSegment(DestReg, 5, 10);
+	OpHex |= GetOpSegment(AddressReg, 5, 15);
+	OpHex |= GetOpSegment(AddressReg2, 5, 20);
+	OpHex |= GetOpSegment(535, 10, 30);
 	WriteIntToFile(OpHex);
 }
 
@@ -1283,6 +1606,11 @@ void MFLR(int TargetReg)
 	OpHex |= GetOpSegment(8 << 5, 10, 20); //spr
 	OpHex |= GetOpSegment(339, 10, 30);
 	WriteIntToFile(OpHex);
+}
+
+void MR(int DestReg, int SourceReg)
+{
+	ADDI(DestReg, SourceReg, 0);
 }
 
 void MTCTR(int TargetReg)

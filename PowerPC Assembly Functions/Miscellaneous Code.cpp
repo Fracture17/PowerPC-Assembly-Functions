@@ -2,6 +2,70 @@
 #include "PowerPC Assembly Functions.h"
 #include "Miscellaneous Code.h"
 
+void FixTr4shTeamToggle()
+{
+	//logic
+	//use r3, r12, r4
+	//r31 has menu ptr?
+	ASMStart(0x8068a494);
+	//sets S4 toggle
+	//LoadWordToReg(3, 0x805A00E0);
+	//LWZ(3, 3, 0x10);
+	LBZ(4, 31, 0x5CB); //S4 toggle
+	LBZ(12, 31, 0x5C8); //team flag
+	/*If(12, EQUAL_I, 0); {
+		SetRegister(4, 0);
+	}EndIf();*/
+	XOR(4, 4, 12);
+	STB(4, 31, 0x5CB);
+
+	ASMEnd(0x7fe3fb78); //mr r3, r31
+
+
+	//save flag
+	//use r4, r5, r0
+	//r3 has menu ptr
+	ASMStart(0x806846e0);
+
+	LBZ(4, 3, 0x5CB);
+	LoadWordToReg(5, 0x805A00E0);
+	LWZ(5, 5, 0x10);
+	STB(4, 5, 0x30); //S4 toggle
+
+	ASMEnd(0x9421ff10); //stwu sp, sp, -0xF0
+
+
+	//clear flag
+	//r3 has menu ptr
+	//use r4, r5
+	ASMStart(0x80684480);
+
+	LoadWordToReg(4, 0x805A00E0);
+	LWZ(4, 4, 0x10);
+	LBZ(4, 4, 0x30); //get flag
+	STB(4, 3, 0x5CB); //set flag
+
+	ASMEnd(0x9421ffd0); //stwu sp, sp, -0x30
+
+
+
+	//fix toggle
+	//use r4, r3, r5
+	ASMStart(0x80686c04);
+
+	LoadWordToReg(3, 0x805A00E0);
+	LWZ(3, 3, 0x10);
+	LBZ(4, 3, 0x30); //S4 toggle
+	LBZ(5, 3, 0x33); //team flag
+
+	SetRegister(3, 0x9018a0e4); //pyotr state mem
+	STB(4, 3, 1);
+	XOR(4, 4, 5);
+	STB(4, 3, 0);
+
+	ASMEnd(0x889d05c8); //lbz r4, r29, 0x5C8
+}
+
 void StopPokemonTrainerSwitch()
 {
 	ASMStart(0x80a8c390);
