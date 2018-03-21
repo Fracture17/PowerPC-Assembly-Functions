@@ -105,7 +105,7 @@ void TriggerIASAOverlay()
 
 	LoadWordToReg(reg1, IS_IN_GAME_FLAG);
 	If(reg1, EQUAL_I, 1); {
-		LoadWordToReg(reg1, CODE_MENU_SETTINGS + 4 * 1);
+		LoadWordToReg(reg1, START_OF_CODE_MENU_SETTINGS);
 		If(reg1, EQUAL_I, 1); {
 			LWZ(reg2, 4, 0);
 

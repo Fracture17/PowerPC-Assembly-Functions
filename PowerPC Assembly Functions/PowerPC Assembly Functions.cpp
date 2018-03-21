@@ -755,6 +755,13 @@ void SaveRegisters(vector<int> FPRegs)
 	STMW(3, 1, 8);
 }
 
+void SaveRegisters(int NumFPRegs)
+{
+	vector<int> FPRegs(NumFPRegs);
+	iota(FPRegs.begin(), FPRegs.end(), 0);
+	SaveRegisters(FPRegs);
+}
+
 void RestoreRegisters()
 {
 	int stackSize = 29 * 4 + FPPushRecords.size() * 8 + 8 + 8;
@@ -943,11 +950,29 @@ void Decrement(int Reg)
 
 void WriteStringToMem(string Text, int AddressReg)
 {
-	ADDI(4, AddressReg, -4);
 	for (int i = 0; i < Text.size() - 1; i += 4) {
-		SetRegister(3, Text.substr(i, min(4, (int) Text.size() - i)));
-		STWU(3, 4, 4);
+		SetRegister(4, Text.substr(i, min(4, (int) Text.size() - i)));
+		STW(4, AddressReg, i);
 	}
+}
+
+void WriteVectorToMem(vector<int> Values, int AddressReg)
+{
+	int offset = 0;
+	for (int x : Values) {
+		SetRegister(4, x);
+		STW(4, AddressReg, offset);
+		offset += 4;
+	}
+}
+
+void WriteVectorToMem(vector<float> Values, int AddressReg)
+{
+	vector<int> V;
+	for (float x : Values) {
+		V.push_back(GetHexFromFloat(x));
+	}
+	WriteVectorToMem(V, AddressReg);
 }
 
 //start, end, and step have to be 16 bit signed integers
@@ -1059,6 +1084,108 @@ void ConvertFloatingRegToInt(int FPReg, int ResultReg)
 	FCTIW(FPReg, FPReg);
 	STFD(FPReg, 1, -0x30);
 	LWZ(ResultReg, 1, -0x2C);
+}
+
+void AddValueToByteArray(u32 value, vector<u8> &Array)
+{
+	for (int i = 0; i < 4; i++) {
+		Array.push_back((value >> (3 * 8)) & 0xFF);
+		value <<= 8;
+	}
+}
+
+void AddValueToByteArray(u16 value, vector<u8> &Array)
+{
+	for (int i = 0; i < 2; i++) {
+		Array.push_back((value >> 8) & 0xFF);
+		value <<= 8;
+	}
+}
+
+void AddValueToByteArray(u8 value, vector<u8> &Array)
+{
+	Array.push_back(value);
+}
+
+void AddValueToByteArray(int value, vector<u8> &Array)
+{
+	for (int i = 0; i < 4; i++) {
+		Array.push_back((value >> (3 * 8)) & 0xFF);
+		value <<= 8;
+	}
+}
+
+void AddValueToByteArray(short value, vector<u8> &Array)
+{
+	for (int i = 0; i < 2; i++) {
+		Array.push_back((value >> 8) & 0xFF);
+		value <<= 8;
+	}
+}
+
+void AddValueToByteArray(char value, vector<u8> &Array)
+{
+	Array.push_back(value);
+}
+
+void DrawPrimitive(int type, vector<float> Positions, int Color, int VTXAttrFrmt)
+{
+	vector<int> Colors(Positions.size() / 2, Color);
+	DrawPrimitive(type, Positions, Colors, VTXAttrFrmt);
+}
+
+void DrawPrimitive(int type, vector<float> Positions, vector<int> Colors, int VTXAttrFrmt)
+{
+	if (Positions.size() != Colors.size() * 2) {
+		cout << "Number of Positions and Colors don't match";
+		exit(-1);
+	}
+
+	SetRegs(3, { type, VTXAttrFrmt, (int) Colors.size() });
+	GXBegin(3, 4, 5);
+
+	SetRegister(3, 0xCC010000);
+	SetRegister(6, GetHexFromFloat(0.5));
+	float lastX = Positions[0] - 1, lastY = Positions[1] - 1, lastC = Colors[0] - 1;
+	for (int p = 0, c = 0; c < Colors.size(); p += 2, c++) {
+		if (Positions[p] != lastX) { SetRegister(4, GetHexFromFloat(Positions[p])); lastX = Positions[p]; }
+		if (Positions[p + 1] != lastY) { SetRegister(5, GetHexFromFloat(Positions[p + 1])); lastY = Positions[p+1]; }
+		if (Colors[c] != lastC) { SetRegister(7, Colors[c]); lastC = Colors[c]; }
+		STW(4, 3, -0x8000);
+		STW(5, 3, -0x8000);
+		STW(6, 3, -0x8000);
+		STW(7, 3, -0x8000);
+	}
+}
+
+void LoadVal(int AddressReg, int size, int offset, int ResultReg)
+{
+	if (size == 1) { LBZ(ResultReg, AddressReg, offset); }
+	else if (size == 2) { LHZ(ResultReg, AddressReg, offset); }
+	else { LWZ(ResultReg, AddressReg, offset); }
+}
+
+void GetValueFromPtrPath(int StartingAddress, vector<int> Path, int ResultReg)
+{
+	LoadWordToReg(ResultReg, StartingAddress);
+	GetValueFromPtrPath(Path, ResultReg, ResultReg);
+}
+
+void GetValueFromPtrPath(vector<int> Path, int StartingReg, int ResultReg)
+{
+	LWZ(ResultReg, StartingReg, Path[0]);
+	int i = 1;
+	for (; i < Path.size() - 2; i++) {
+		LWZ(ResultReg, ResultReg, Path[i]);
+	}
+	LoadVal(ResultReg, Path.back(), Path[i], ResultReg);
+}
+
+void ABS(int DestReg, int SourceReg, int tempReg)
+{
+	SRAWI(tempReg, SourceReg, 31);
+	ADD(DestReg, SourceReg, tempReg);
+	XOR(DestReg, DestReg, tempReg);
 }
 
 void ADD(int DestReg, int SourceReg1, int SourceReg2)
@@ -1420,6 +1547,30 @@ void FSUBS(int FPDestReg, int FPSourceReg1, int FPSourceReg2)
 	WriteIntToFile(OpHex);
 }
 
+void LBA(int DestReg, int AddressReg, int Immediate)
+{
+	LBZ(DestReg, AddressReg, Immediate);
+	EXTSB(DestReg, DestReg);
+}
+
+void LBAU(int DestReg, int AddressReg, int Immediate)
+{
+	LBZU(DestReg, AddressReg, Immediate);
+	EXTSB(DestReg, DestReg);
+}
+
+void LBAUX(int DestReg, int AddressReg1, int AddressReg2)
+{
+	LBZUX(DestReg, AddressReg1, AddressReg2);
+	EXTSB(DestReg, DestReg);
+}
+
+void LBAX(int DestReg, int AddressReg1, int AddressReg2)
+{
+	LBZX(DestReg, AddressReg1, AddressReg2);
+	EXTSB(DestReg, DestReg);
+}
+
 void LBZ(int DestReg, int AddressReg, int Immediate)
 {
 	OpHex = GetOpSegment(34, 6, 5);
@@ -1610,7 +1761,7 @@ void MFLR(int TargetReg)
 
 void MR(int DestReg, int SourceReg)
 {
-	ADDI(DestReg, SourceReg, 0);
+	OR(DestReg, SourceReg, SourceReg);
 }
 
 void MTCTR(int TargetReg)
@@ -1721,6 +1872,16 @@ void RLWNM(int DestReg, int SourceReg, int ShiftReg, int MaskStart, int MaskEnd)
 	OpHex |= GetOpSegment(ShiftReg, 5, 20);
 	OpHex |= GetOpSegment(MaskStart, 5, 25);
 	OpHex |= GetOpSegment(MaskEnd, 5, 30);
+	WriteIntToFile(OpHex);
+}
+
+void SRAWI(int DestReg, int SourceReg, int ShiftNum)
+{
+	OpHex = GetOpSegment(31, 6, 5);
+	OpHex |= GetOpSegment(SourceReg, 5, 10);
+	OpHex |= GetOpSegment(DestReg, 5, 15);
+	OpHex |= GetOpSegment(ShiftNum, 5, 20);
+	OpHex |= GetOpSegment(824, 10, 30);
 	WriteIntToFile(OpHex);
 }
 

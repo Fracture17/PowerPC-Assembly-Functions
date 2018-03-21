@@ -2,6 +2,7 @@
 
 #include "stdafx.h"
 #include "PowerPC Assembly Functions.h"
+#include "Code Menu.h"
 
 #define IASA_BUFFER_LENGTH 20
 #define IASA_BUFFER_SIZE IASA_BUFFER_LENGTH * 8

@@ -3,179 +3,299 @@
 
 #define FP_REGISTERS int FPReg1 = 0, FPReg2 = 2, FPReg3 = 3, FPReg4 = 4, PX = 5, PY = 6, G = 7, FS = 8, MFS = 9, VX = 10, VY = 11, XA = 12, YA = 13, StaticFP1 = 14, StaticFP2 = 15, StaticFP3 = 16, TopBound = 17, LowBound = 18, LeftBound = 19, RightBound = 20;
 
-/*
-void CodeMenuTest()
-{
-	ASMStart(0x800b0888);
-
-	ASMEnd();
-
-	//ASMStart(0x800b0884);
-	ASMStart(0x800b088c);
-	SaveRegisters();
-
-	int Reg1 = 31;
-	int Reg2 = 30;
-
-	SetRegister(Reg1, 0x80002800);
-	LWZ(Reg2, Reg1, 4);
-	If(Reg2, NOT_EQUAL_I, 0); //create
-
-	SetRegs(3, { 1, 0x2A, 0x2B });
-	CallBrawlFunc(0x800b8930); //create
-	STW(3, Reg1, 0);
-
-	SetRegs(4, { 0x200, 1 });
-	CallBrawlFunc(0x800b8b08); //allocMsgBuffer
-
-	LWZ(3, Reg1, 0);
-	SetRegister(4, 0x928929e0);
-	CallBrawlFunc(0x800b8c7c); //setMsgData
-
-	SetRegister(Reg2, 0);
-	STW(Reg2, Reg1, 4);
-
-	EndIf(); //create
-
-	LWZ(Reg2, Reg1, 0);
-	If(Reg2, LESS_I, 0); //draw
-
-	LWZ(3, Reg1, 0);
-	LWZ(3, 3, 8);
-	SetRegs(4, { 0, 9 });
-	CallBrawlFunc(0x8006a964); //SetDefaultEnv
-
-
-
-	CallBrawlFunc(0x80019FA4); //(getManager[cameraManager])
-
-	CallBrawlFunc(0x80018DE4); //(setGX[camera])
-
-
-	LWZ(3, Reg1, 0);
-	LWZ(3, 3, 8);
-	SetRegister(4, 0x01000000);
-	STW(4, 3, 0x4C);
-	SetRegister(4, GetHexFromFloat(0.0625));
-	//SetRegister(4, GetHexFromFloat(1));
-	STW(4, 3, 0x50);
-	SetRegister(4, GetHexFromFloat(1));
-	STW(4, 3, 0x68);
-	SetRegister(4, GetHexFromFloat(1));
-	STW(4, 3, 0x24);
-	SetRegister(4, GetHexFromFloat(1));
-	STW(4, 3, 0x28);
-	SetRegister(4, GetHexFromFloat(0.973585));
-	STW(4, 3, 0x58);
-	SetRegister(4, GetHexFromFloat(0));
-	STW(4, 3, 0x5C);
-	SetRegister(4, GetHexFromFloat(0));
-	STW(4, 3, 0x2C);
-	SetRegister(4, GetHexFromFloat(0));
-	STW(4, 3, 0x30);
-	SetRegister(4, GetHexFromFloat(0));
-	STW(4, 3, 0x34);
-	SetRegister(4, 1);
-	STW(4, 3, 0x38);
-	SetRegister(4, 1);
-	STW(4, 3, 0x3C);
-	SetRegister(4, RED);
-	STW(4, 3, 8);
-	SetRegister(4, RED);
-	STW(4, 3, 0xC);
-	SetRegister(4, RED);
-	STW(4, 3, 0x10);
-	SetRegister(4, RED);
-	STW(4, 3, 0x14);
-	SetRegister(4, 0x80497d7c);
-	STW(4, 3, 0x48);
-	SetRegister(4, 0);
-	STW(4, 3, 0x40);
-
-
-	float XPos = 0;
-	for (char x : "Infinite Shields   ")
-	{
-		LWZ(3, Reg1, 0);
-		LWZ(3, 3, 8);
-		SetRegister(4, x);
-		CallBrawlFunc(0x8006fe50); //printChar
-	}
-
-	SetRegister(4, 0xFFFFFFFF);
-	STW(4, 3, 8);
-	SetRegister(4, 0xFFFFFFFF);
-	STW(4, 3, 0xC);
-	SetRegister(4, 0xFFFFFFFF);
-	STW(4, 3, 0x10);
-	SetRegister(4, 0xFFFFFFFF);
-	STW(4, 3, 0x14);
-
-	for (char x : "P1   ")
-	{
-		LWZ(3, Reg1, 0);
-		LWZ(3, 3, 8);
-		SetRegister(4, x);
-		CallBrawlFunc(0x8006fe50); //printChar
-	}
-
-	for (char x : "P2   ")
-	{
-		LWZ(3, Reg1, 0);
-		LWZ(3, 3, 8);
-		SetRegister(4, x);
-		CallBrawlFunc(0x8006fe50); //printChar
-	}
-
-	for (char x : "P3   ")
-	{
-		LWZ(3, Reg1, 0);
-		LWZ(3, 3, 8);
-		SetRegister(4, x);
-		CallBrawlFunc(0x8006fe50); //printChar
-	}
-
-	for (char x : "P4   ")
-	{
-		LWZ(3, Reg1, 0);
-		LWZ(3, 3, 8);
-		SetRegister(4, x);
-		CallBrawlFunc(0x8006fe50); //printChar
-	}
-
-	EndIf(); //draw
-
-	RestoreRegisters();
-	ASMEnd(0x80010014);
-}
-*/
 void DrawDI()
 {
-	int CounterReg = 31;
-	int BufferPtrReg = 30;
-	int Reg1 = 29;
-	
-	LoadWordToReg(Reg1, IS_IN_GAME_FLAG);
-	If(Reg1, EQUAL_I, 1); //is in game
+	SetHitStart();
 
-	LoadWordToReg(Reg1, CODE_MENU_SETTINGS);
-	If(Reg1, EQUAL_I, 1); //toggle is on
+	AddToSDIBuffer();
 
-	SetKnockbackTrajectoryBuffers();
+	AddToASDIBuffer();
 
-	SetRegister(14, 20);
-	SetupDrawLines(14);
+	SetTrajectoryBuffers();
 
-	LoadWordToReg(BufferPtrReg, DI_DRAW_ALLOC_PTR);
-	ADDI(BufferPtrReg, BufferPtrReg, MAIN_BUFFER_GRAPHICS_BUFFER_START_OFFSET - 4);
-	CounterLoop(CounterReg, 0, 8 * 5, 1); {
-		LWZU(Reg1, BufferPtrReg, 4);
-		DrawGraphicBuffer(Reg1);
+	AddNewCharacterBuffer();
+}
+
+
+void DrawTrajectories()
+{
+	//can't use r28 because Chase uses it in correctDamageVector
+	//don't use r16 - r18 for same reason
+	int reg1 = 31;
+	int reg2 = 30;
+	int reg3 = 29;
+	int reg4 = 27;
+	int reg5 = 26;
+	int reg6 = 25;
+	int DIBufferReg = 24;
+	int CounterReg = 23;
+	int GraphicBufferReg = 22;
+	int CharacterBufferReg = 21;
+	int MainBufferReg = 20;
+
+	FP_REGISTERS
+
+	LoadWordToReg(reg1, IS_IN_GAME_FLAG);
+	If(reg1, EQUAL_I, 1); {
+		LoadWordToReg(reg1, DI_DRAW_INDEX);
+		If(reg1, EQUAL_I, 1); {
+			SetRegister(reg1, 20);
+			SetupDrawLines(reg1);
+
+			LoadWordToReg(reg2, IS_DEBUG_PAUSED);
+
+			LoadWordToReg(MainBufferReg, MAIN_BUFFER_PTR);
+			LWZU(CharacterBufferReg, MainBufferReg, 4);
+			While(CharacterBufferReg, NOT_EQUAL_I, 0); {
+				LWZ(reg1, CharacterBufferReg, CHR_BUFFER_HITSTUN_FRAMES_PTR_OFFSET);
+				LWZ(reg1, reg1, 0);
+				OR(reg1, reg1, reg2); //union of debug state and hitstun
+				If(reg1, GREATER_I, 0); {
+					//in hitstun or debug paused
+					LWZ(DIBufferReg, CharacterBufferReg, CHR_BUFFER_DI_BUFFER_PTR_OFFSET);
+					If(reg2, EQUAL_I, 1); {
+						//is debug paused
+						LWZ(reg1, DIBufferReg, DI_BUFFER_NORMAL_START_OFFSET);
+						ResetGraphicBuffer(reg1, BLUE);
+
+						LWZ(reg1, CharacterBufferReg, CHR_BUFFER_FIGHTER_INPUT_PTR_OFFSET);
+						MR(3, reg1);
+						CallBrawlFunc(0x80048250); //update IPHuman
+						LFS(XA, reg1, 0x10); //stickX
+						LFS(YA, reg1, 0x14); //stickY
+
+						LWZ(reg6, CharacterBufferReg, CHR_BUFFER_IP_SWITCH_PTR_OFFSET);
+						LFS(StaticFP1, reg6, 8); //stickX
+						LFS(StaticFP2, reg6, 0xC); //stickY
+						STFS(XA, reg6, 8);
+						STFS(YA, reg6, 0xC);
+						LWZ(reg1, CharacterBufferReg, CHR_BUFFER_KB_VECTOR_PTR_OFFSET);
+						LWZ(reg5, CharacterBufferReg, CHR_BUFFER_XVEL_OFFSET);
+						LWZ(reg3, reg1, 8); //save xvel
+						STW(reg5, reg1, 8);
+						LWZ(reg5, CharacterBufferReg, CHR_BUFFER_YVEL_OFFSET);
+						LWZ(reg4, reg1, 0xC); //save yvel
+						STW(reg5, reg1, 0xC);
+						SetRegister(3, 0x80b897bc);
+						LWZ(4, MainBufferReg, -4);
+						CallBrawlFunc(0x808778d8); //correctDamageVector
+						//restore
+						STW(reg3, reg1, 8);
+						STW(reg4, reg1, 0xC);
+						STFS(StaticFP1, reg6, 8);
+						STFS(StaticFP2, reg6, 0xC);
+					}EndIf();
+
+					LWZU(GraphicBufferReg, DIBufferReg, DI_BUFFER_SDI_START_OFFSET);
+					CounterLoop(CounterReg, 0, 4, 1); {
+						DrawGraphicBuffer(GraphicBufferReg);
+						LWZU(GraphicBufferReg, DIBufferReg, 4);
+					}CounterLoopEnd();
+
+					If(reg2, NOT_EQUAL_I, 0); {
+						//debug draw
+						DrawGraphicBuffer(GraphicBufferReg);
+					}EndIf();
+				}EndIf();
+
+				LWZU(CharacterBufferReg, MainBufferReg, 8);
+			}EndWhile();
+		}EndIf();
+	}EndIf();
+}
+
+void SetHitStart()
+{
+	//r30 = module ptr
+	//r31 = damage log
+	ASMStart(0x808761e8);
+
+	WriteIntToFile(0x4e800421); //bctrl
+
+	SaveRegisters();
+
+	int reg1 = 29;
+	int reg2 = 28;
+	int reg3 = 27;
+	int reg4 = 26;
+	int reg5 = 25;
+	int DIBufferReg = 15;
+	int CharacterBufferReg = 14;
+
+	FindCharacterBuffer(30, CharacterBufferReg);
+
+	LWZ(reg1, CharacterBufferReg, CHR_BUFFER_HITSTUN_FRAMES_PTR_OFFSET);
+	LWZ(reg1, reg1, 0);
+	STW(reg1, CharacterBufferReg, CHR_BUFFER_HITSTUN_FRAMES_OFFSET);
+
+	LWZ(reg1, CharacterBufferReg, CHR_BUFFER_POS_PTR_OFFSET);
+	LWZ(reg2, reg1, 0xC);
+	LWZ(reg3, reg1, 0x10);
+	STW(reg2, CharacterBufferReg, CHR_BUFFER_XPOS_OFFSET);
+	STW(reg3, CharacterBufferReg, CHR_BUFFER_YPOS_OFFSET);
+
+	LWZ(reg1, 31, 0xC);
+	STW(reg1, CharacterBufferReg, CHR_BUFFER_XVEL_OFFSET);
+
+	LWZ(reg1, 31, 0x10);
+	STW(reg1, CharacterBufferReg, CHR_BUFFER_YVEL_OFFSET);
+
+	LWZ(DIBufferReg, CharacterBufferReg, CHR_BUFFER_DI_BUFFER_PTR_OFFSET);
+
+	LWZ(reg1, DIBufferReg, DI_BUFFER_SDI_START_OFFSET);
+	ResetGraphicBuffer(reg1);
+
+	LWZ(reg1, DIBufferReg, DI_BUFFER_ASDI_START_OFFSET);
+	ResetGraphicBuffer(reg1);
+
+	LWZ(reg1, DIBufferReg, DI_BUFFER_NORMAL_START_OFFSET);
+	ResetGraphicBuffer(reg1, BLUE);
+
+	LWZ(reg1, DIBufferReg, DI_BUFFER_CURRENT_START_OFFSET);
+	ResetGraphicBuffer(reg1, YELLOW);
+
+	RestoreRegisters();
+	ASMEnd();
+}
+
+void AddToSDIBuffer()
+{
+	//f0 = new xpos
+	//f2 = new ypos
+	//r30 = module ptr
+	//can use r12, r3
+	ASMStart(0x80876c84);
+
+	FindCharacterBuffer(30, 12);
+
+	STFS(0, 12, CHR_BUFFER_XPOS_OFFSET);
+	STFS(2, 12, CHR_BUFFER_YPOS_OFFSET);
+
+	LWZ(12, 12, CHR_BUFFER_DI_BUFFER_PTR_OFFSET);
+	LWZ(12, 12, DI_BUFFER_SDI_START_OFFSET);
+	AddToGraphicBuffer(12, 0, true, 2, true, true);
+
+	ASMEnd(0xd0410014); //stfs f2, sp, 0x14
+}
+
+void AddToASDIBuffer()
+{
+	//f1 = old xpos
+	//f3 = old ypos
+	//f0 + f1 = new xpos
+	//f2 = new ypos
+	//r31 = module ptr
+	//use f3, r3, r12
+	ASMStart(0x80876fec);
+	SaveRegisters();
+
+	int reg1 = 30;
+	int reg2 = 29;
+	int CharacterBufferReg = 15;
+	int DIBufferReg = 14;
+
+	FindCharacterBuffer(31, CharacterBufferReg);
+
+	LWZ(DIBufferReg, CharacterBufferReg, CHR_BUFFER_DI_BUFFER_PTR_OFFSET);
+	LWZ(reg1, DIBufferReg, DI_BUFFER_ASDI_START_OFFSET);
+	AddToGraphicBuffer(reg1, 1, true, 3, true, true);
+
+	FADDS(3, 0, 1);
+
+	STFS(3, CharacterBufferReg, CHR_BUFFER_XPOS_OFFSET);
+	STFS(2, CharacterBufferReg, CHR_BUFFER_YPOS_OFFSET);
+
+	AddToGraphicBuffer(reg1, 3, true, 2, true, false);
+
+	RestoreRegisters();
+	ASMEnd(0xc0610018); //lfs f3, sp, 0x18
+}
+
+void SetTrajectoryBuffers()
+{
+	//r29 = module ptr
+	ASMStart(0x80877b48);
+	SaveRegisters(30); //reduce number saved later
+
+	int reg1 = 31;
+	int reg2 = 30;
+	int reg3 = 28;
+	int reg4 = 27;
+	int reg5 = 26;
+	int reg6 = 25;
+	int DIBufferReg = 15;
+	int CharacterBufferReg = 14;
+
+	FP_REGISTERS
+
+	FindCharacterBuffer(29, CharacterBufferReg);
+
+	LoadByteToReg(reg3, IS_DEBUG_PAUSED + 3);
+
+	LFS(G, CharacterBufferReg, CHR_BUFFER_GRAVITY_OFFSET);
+	LFS(MFS, CharacterBufferReg, CHR_BUFFER_MFS_OFFSET);
+	LFS(VX, CharacterBufferReg, CHR_BUFFER_XVEL_OFFSET);
+	LFS(VY, CharacterBufferReg, CHR_BUFFER_YVEL_OFFSET);
+	LWZ(DIBufferReg, CharacterBufferReg, CHR_BUFFER_DI_BUFFER_PTR_OFFSET);
+	LWZ(reg1, DIBufferReg, DI_BUFFER_NORMAL_START_OFFSET);
+
+	CounterLoop(reg6, 0, 2, 1); {
+		LFS(PX, CharacterBufferReg, CHR_BUFFER_XPOS_OFFSET);
+		LFS(PY, CharacterBufferReg, CHR_BUFFER_YPOS_OFFSET);
+
+		LWZ(reg2, CharacterBufferReg, CHR_BUFFER_HITSTUN_FRAMES_OFFSET);
+		SetFloatingRegister(FS, 3, 0);
+		//LWZ(reg2, reg2, 0);
+		CalcTrajectory(reg1, reg2);
+
+		LWZ(reg1, CharacterBufferReg, CHR_BUFFER_KB_VECTOR_PTR_OFFSET);
+		LFS(VX, reg1, 0x8);
+		LFS(VY, reg1, 0xC);
+
+		If(reg3, NOT_EQUAL_I, 0); {
+			//is debug paused
+			LWZ(reg1, DIBufferReg, DI_BUFFER_DEBUG_START_OFFSET);
+			ResetGraphicBuffer(reg1, PURPLE);
+			SetRegister(reg3, 0);
+		}Else(); {
+			LWZ(reg1, DIBufferReg, DI_BUFFER_CURRENT_START_OFFSET);
+		}EndIf();
 	}CounterLoopEnd();
 
-	EndIf(); //toggle is on
+	RestoreRegisters();
+	ASMEnd(0xe3e10088); //psq_l stuff
+}
 
-	EndIf(); //is in game
+void CreateDIBuffer(int CharacterBufferReg, int reg1, int reg2, int reg3)
+{
+	SetRegister(reg1, DI_BUFFER_SIZE + 0x10);
+	Allocate(reg1);
+	STW(3, CharacterBufferReg, CHR_BUFFER_DI_BUFFER_PTR_OFFSET);
+	MR(reg1, 3);
+
+	//allocate buffers
+	ADDI(reg2, reg1, DI_BUFFER_SDI_START_OFFSET);
+	SetRegister(reg3, SDI_BUFFER_SIZE);
+	AllocateGraphicBuffer(reg3, reg2, PRIMITIVE_LINE, RED);
+
+	ADDI(reg2, reg1, DI_BUFFER_ASDI_START_OFFSET);
+	SetRegister(reg3, ASDI_BUFFER_SIZE);
+	AllocateGraphicBuffer(reg3, reg2, PRIMITIVE_LINE, GREEN);
+
+	ADDI(reg2, reg1, DI_BUFFER_NORMAL_START_OFFSET);
+	SetRegister(reg3, TRAJECTORY_BUFFER_SIZE);
+	AllocateGraphicBuffer(reg3, reg2, PRIMITIVE_LINE, BLUE);
+
+	ADDI(reg2, reg1, DI_BUFFER_CURRENT_START_OFFSET);
+	SetRegister(reg3, TRAJECTORY_BUFFER_SIZE);
+	AllocateGraphicBuffer(reg3, reg2, PRIMITIVE_LINE, YELLOW);
+
+	ADDI(reg2, reg1, DI_BUFFER_DEBUG_START_OFFSET);
+	SetRegister(reg3, TRAJECTORY_BUFFER_SIZE);
+	AllocateGraphicBuffer(reg3, reg2, PRIMITIVE_LINE, PURPLE);
+
+	SetRegister(reg2, 0);
+	STW(reg2, reg1, DI_BUFFER_SIZE); //set end for freeing
 }
 
 void DrawGraphicBuffer(int AddressReg)
@@ -265,7 +385,7 @@ void AddToGraphicBuffer(int AddressReg, int XPosReg, bool isXFloat, int YPosReg,
 	}
 }
 
-void SetupDIBuffer()
+void SetupCharacterBuffer()
 {
 	int reg1 = 31;
 	int reg2 = 30;
@@ -275,42 +395,21 @@ void SetupDIBuffer()
 	int reg6 = 26;
 	int reg7 = 25;
 
-	SetRegister(reg1, MAIN_BUFFER_SIZE);
+	SetRegister(reg1, CHARACTER_BUFFER_SIZE);
 	Allocate(reg1);
-	SetRegister(reg1, DI_DRAW_ALLOC_PTR);
+	SetRegister(reg1, MAIN_BUFFER_PTR);
 	STW(3, reg1, 0);
 
-	ADDI(reg1, 3, -4);
-	ADDI(reg3, 3, MAIN_BUFFER_GRAPHICS_BUFFER_START_OFFSET);
-	SetRegister(reg4, 0);
-	SetRegister(reg5, SDI_BUFFER_SIZE);
-	SetRegister(reg6, ASDI_BUFFER_SIZE);
-	SetRegister(reg7, TRAJECTORY_BUFFER_SIZE);
-	CounterLoop(reg2, 0, 8, 1); {
-		AllocateGraphicBuffer(reg5, reg3, 0xB0, RED); //sdi
-		ADDI(reg3, reg3, 4);
-		AllocateGraphicBuffer(reg6, reg3, 0xB0, GREEN); //asdi
-		ADDI(reg3, reg3, 4);
-		AllocateGraphicBuffer(reg7, reg3, 0xB0, BLUE); //normal trajectory
-		ADDI(reg3, reg3, 4);
-		AllocateGraphicBuffer(reg7, reg3, 0xB0, YELLOW); //DI trajectory
-		ADDI(reg3, reg3, 4);
-		AllocateGraphicBuffer(reg7, reg3, 0xB0, PURPLE); //projected debug trajectory
-		ADDI(reg3, reg3, 4);
-		STWU(reg4, reg1, 4); //flags
-	}CounterLoopEnd();
-	STW(reg4, reg3, 0); //set last to 0 for freeing
+	SetRegister(reg1, 0);
+	STW(reg1, 3, 0); //clear first slot
+	STW(reg1, 3, 4); //clear first slot
 }
 
-void FreeDIBuffer()
+void FreeDIBuffer(int BufferReg, int reg1)
 {
-	int reg1 = 31;
-	int reg2 = 30;
-
-	LoadWordToReg(reg1, DI_DRAW_ALLOC_PTR);
-	ADDI(reg2, reg1, MAIN_BUFFER_GRAPHICS_BUFFER_START_OFFSET);
-	FreeAllocdArray(reg2); //free graphics buffers
-	FreeMem(reg1); //free main buffer
+	ADDI(reg1, BufferReg, -4);
+	FreeAllocdArray(reg1);
+	FreeMem(BufferReg);
 }
 
 //numFramesReg is set to 0
@@ -335,7 +434,7 @@ void CalcTrajectory(int bufferReg, int numFramesReg)
 		CalcNextPosition();
 
 		IsOutOfBounds();
-		If(3, EQUAL_I, 0); {
+		If(3, EQUAL_I, 1); {
 			SetRegister(3, RED);
 			STW(3, bufferReg, GRAPHIC_BUFFER_COLOR_OFFSET);
 		}EndIf();
@@ -350,16 +449,20 @@ void IsOutOfBounds()
 {
 	FP_REGISTERS
 
-	SetRegister(3, 0);
-	FCMPU(PX, LeftBound, 0);
-	BC(8, BRANCH_IF_TRUE, LT); //branch to end
-	FCMPU(PX, RightBound, 0);
-	BC(6, BRANCH_IF_TRUE, GT); //branch to end
+	SetRegister(3, 1);
 	FCMPU(PY, TopBound, 0);
+	BC(7, BRANCH_IF_FALSE, GT); //branch to next
+	SetFloatingRegister(XA, 4, 2.4); //4 instructions
+	FCMPU(VY, XA, 0);
+	BC(8, BRANCH_IF_TRUE, GT); //branch to end
+	//next
+	FCMPU(PX, LeftBound, 0);
+	BC(6, BRANCH_IF_TRUE, LT); //branch to end
+	FCMPU(PX, RightBound, 0);
 	BC(4, BRANCH_IF_TRUE, GT); //branch to end
 	FCMPU(PY, LowBound, 0);
 	BC(2, BRANCH_IF_TRUE, LT); //branch to end
-	SetRegister(3, 1);
+	SetRegister(3, 0);
 	//end
 }
 
@@ -368,508 +471,6 @@ void SetGraphicBufferDrawFlag(int BufferPtrReg, bool value)
 	SetRegister(3, value);
 	STW(3, BufferPtrReg, GRAPHIC_BUFFER_DRAW_FLAG_OFFSET);
 }
-
-void SetKnockbackTrajectoryBuffers()
-{
-	int reg1 = 31;
-	int reg2 = 30;
-	int reg3 = 29;
-	int reg4 = 28;
-	int reg5 = 27;
-	int StickPtrReg = 26;
-	int DebugBufferReg = 25;
-	int DIBufferReg = 24;
-	int NoDIBufferReg = 23;
-	int ASDIBufferReg = 22;
-	int SDIBufferReg = 21;
-	int StateReg = 20;
-	int StatePtr = 19;
-	int GraphicBufferPtr = 18;
-	int ModuleReg = 17;
-	int HitstunFramesReg = 16;
-	int HitstunLocReg = 15;
-	int CharCounterReg = 14;
-
-	FP_REGISTERS
-
-	int NextFighter = GetNextLabel();
-
-	SetRegister(HitstunLocReg, 0x901AE000 + 0xE0 - 0x5A0);
-	SetRegister(StickPtrReg, GCC_CONTROL_STICK_X_START - 0x40);
-	LoadWordToReg(StatePtr, DI_DRAW_ALLOC_PTR);
-	ADDI(GraphicBufferPtr, StatePtr, MAIN_BUFFER_GRAPHICS_BUFFER_START_OFFSET - 4);
-	ADDI(StatePtr, StatePtr, -4);
-
-	CounterLoop(CharCounterReg, 0, 8, 1); {
-		LWZU(StateReg, StatePtr, 4);
-		LoadWordToReg(reg1, 0x80B87C28);
-		ANDI(reg2, CharCounterReg, 1);
-		If(reg2, EQUAL_I, 0); {
-			ADDI(StickPtrReg, StickPtrReg, 0x40);
-		}EndIf();
-		RLWINM(reg2, CharCounterReg, 31, 30, 31); //>>1
-		SetArgumentsFromRegs(3, { reg1, reg2 });
-		CallBrawlFunc(0x80815c40); //getEntryID
-
-		If(3, GREATER_OR_EQUAL_I, 0); {
-			MR(4, 3);
-			MR(3, reg1);
-			SetRegister(5, 0);
-			ANDI(reg2, CharCounterReg, 1);
-			If(reg2, EQUAL_I, 0); {
-				//main fighter
-				ADDI(HitstunLocReg, HitstunLocReg, 0x5A0);
-				CallBrawlFunc(0x80814f20); //getFighter
-			}Else(); {
-				//sub fighter
-				ADDI(HitstunLocReg, HitstunLocReg, 0x2D0);
-				CallBrawlFunc(0x80814fb8); //getSubFighter
-			}EndIf();
-
-			If(3, NOT_EQUAL_I, 0); {
-				//if fighter or subfighter exists
-				LWZ(HitstunFramesReg, HitstunLocReg, 0); //hitstun frames
-				If(HitstunFramesReg, GREATER_I, 0); {
-					LWZ(SDIBufferReg, GraphicBufferPtr, 4);
-					LWZ(ASDIBufferReg, GraphicBufferPtr, 8);
-					LWZ(NoDIBufferReg, GraphicBufferPtr, 0xC);
-					LWZ(DIBufferReg, GraphicBufferPtr, 0x10);
-					LWZU(DebugBufferReg, GraphicBufferPtr, 0x14);
-
-					LWZ(ModuleReg, 3, 0x60);
-					LWZ(ModuleReg, ModuleReg, 0xD8);
-
-					LWZ(reg1, ModuleReg, 0x38); //soDamageModuleActor
-
-					LWZ(reg3, ModuleReg, 0xC); //posture module
-					LFS(PX, reg3, 0xC);
-					LFS(PY, reg3, 0x10);
-
-					LWZ(reg3, ModuleReg, 0x7C); //kineticGeneric module
-					LWZ(reg4, reg3, 0x58);
-					LFS(FS, reg4, 0xC);
-					LFS(G, reg4, 0x10);
-					LFS(MFS, reg4, 0x14);
-					FNEG(MFS, MFS);
-
-					LWZ(reg4, reg3, 0x7C);
-					LFS(VX, reg4, 0x8);
-					LFS(VY, reg4, 0xC);
-					LFS(XA, reg4, 0x10); //XA
-					LFS(YA, reg4, 0x14); //YA
-
-					LWZ(reg3, reg4, 0x10); //XA
-					LWZ(reg4, reg4, 0x14); //YA
-					OR(reg4, reg3, reg4);
-					If(reg4, EQUAL_I, 0); { //not moving yet
-						//clear buffers
-						ResetGraphicBuffer(ASDIBufferReg);
-						ResetGraphicBuffer(NoDIBufferReg, BLUE);
-						ResetGraphicBuffer(DIBufferReg, YELLOW);
-					}EndIf();
-
-					LWZ(reg3, ModuleReg, 0x44); //stop module
-					LBZ(reg3, reg3, 0x1C);
-					If(reg3, NOT_EQUAL_I, 0); {
-						//in hitlag
-						LoadByteToReg(reg2, LAST_DEBUG_STATE + 3);
-						If(reg2, EQUAL_I, 0); {
-							If(StateReg, NOT_EQUAL_I, HITSTUN_AND_HITLAG_STATE); { //first hitlag frame
-								SetRegister(StateReg, HITSTUN_AND_HITLAG_STATE);
-								ResetGraphicBuffer(SDIBufferReg);
-							}EndIf();
-
-							AddToGraphicBuffer(SDIBufferReg, PX, true, PY, true, true);
-						}EndIf();
-						AddToGraphicBuffer(ASDIBufferReg, PX, true, PY, true, false);
-					}Else(); If(reg4, NOT_EQUAL_I, 0); {
-						If(StateReg, NOT_EQUAL_I, HITSTUN_STATE); {
-							SetRegister(StateReg, HITSTUN_STATE);
-							//get start pos
-							FSUBS(PX, PX, VX);
-							FSUBS(PY, PY, VY);
-							FSUBS(PY, PY, FS);
-							//asdi
-							AddToGraphicBuffer(ASDIBufferReg, PX, true, PY, true, true);
-							//di
-							//save changing fpregs
-							FMR(StaticFP1, PX);
-							FMR(StaticFP2, PY);
-							FMR(StaticFP3, FS);
-							MR(reg5, HitstunFramesReg);
-							FSUBS(VX, VX, XA);
-							FSUBS(VY, VY, YA);
-							CalcTrajectory(DIBufferReg, reg5);
-							//no di
-							//restore changed fpregs
-							FMR(PX, StaticFP1);
-							FMR(PY, StaticFP2);
-							FMR(FS, StaticFP3);
-							LFS(VX, reg1, 0xC8);
-							LFS(VY, reg1, 0xCC);
-							CalcTrajectory(NoDIBufferReg, HitstunFramesReg);
-						}EndIf();
-					}EndIf(); EndIf();
-
-					LoadWordToReg(reg2, IS_DEBUG_PAUSED);
-					If(reg2, NOT_EQUAL_I, 0); {
-						//is in debug pause
-						ResetGraphicBuffer(DebugBufferReg, PURPLE);
-
-						//get hitstun frames
-						LFS(FPReg1, reg1, 0xD8);
-						ConvertFloatingRegToInt(FPReg1, HitstunFramesReg);
-
-						LFS(StaticFP1, reg1, 0xC8); //VX
-						LFS(StaticFP2, reg1, 0xCC); //VY
-						FMR(1, StaticFP2);
-						FMR(2, StaticFP1);
-						//call atan, takes f1, f2, changes all volitile fpregs, returns angle in radians in f1
-						CallBrawlFunc(0x803fd0b0);
-						FMR(StaticFP3, 1); //V angle
-						//LFS(StaticFP3, reg1, 0xD0);
-						//LFS(FPReg1, reg1, 0xD4);
-						//FNEG(FPReg1, FPReg1);
-						//FMULS(StaticFP3, StaticFP3, FPReg1);
-
-						LBZ(reg3, StickPtrReg, 0); //SX
-						LBZ(reg2, StickPtrReg, 1); //SY
-						ConvertIntStickValsToFloating(reg3, reg2, XA, YA, FPReg3);
-						ClampStick(XA, YA);
-						FMULS(FPReg3, XA, XA); //SX^2
-						FMULS(FPReg4, YA, YA); //SY^2
-						FADDS(FPReg3, FPReg3, FPReg4); //SX^2 + SY^2 = S^2
-						FRSQRTE(FPReg3, FPReg3); //1 / S
-						FRES(FPReg3, FPReg3); //S
-
-						SetFloatingRegister(FPReg4, 3, 1.0025);
-						FABS(FPReg1, FPReg3); //|S|
-						FCMPU(FPReg1, FPReg4, 0); //if |S| > 1.0025
-						BC(4, BRANCH_IF_FALSE, GT);
-						FDIVS(FPReg4, FPReg4, FPReg3); //1.0025 / |S|
-						FMULS(XA, XA, FPReg4);
-						FMULS(YA, YA, FPReg4);
-						//branch to here
-
-						LFS(FPReg1, reg1, 0xBC);
-						SetFloatingRegister(FPReg2, 3, 0.03);
-						FMULS(FPReg1, FPReg1, FPReg2);
-
-						//FMULS(FPReg1, StaticFP1, StaticFP1); //VX^2
-						//FMULS(FPReg2, StaticFP2, StaticFP2); //VY^2
-						//FADDS(VX, FPReg1, FPReg2); //VX^2 + VY^2
-						//FMR(1, VX);
-						//CallBrawlFunc(0x8003db58); //rsqrt
-						//FMULS(FPReg1, 1, VX); //V^2 * (1 / V) = V
-
-						FMULS(StaticFP2, XA, StaticFP2); //SX * VY
-						FMULS(StaticFP1, YA, StaticFP1); //SY * VX
-						FSUBS(StaticFP1, StaticFP1, StaticFP2); //-(SX * VY) + (SY * VX) = cross
-						//FSUBS(StaticFP1, StaticFP2, StaticFP1); //(SX * VY) - (SY * VX) = cross
-						FDIVS(StaticFP1, StaticFP1, FPReg1); //|cross| / V = val
-
-						//cap value (apparently don't need to)
-
-
-						FABS(FPReg2, StaticFP1); //|val|
-						FMULS(StaticFP1, StaticFP1, FPReg2);
-						SetFloatingRegister(FPReg2, 3, 0.314159265);
-						FMULS(StaticFP1, StaticFP1, FPReg2);
-						FADDS(StaticFP1, StaticFP1, StaticFP3); //V angle + val
-						FMR(StaticFP2, FPReg1); //move V
-						//call sin
-						FMR(1, StaticFP1);
-						CallBrawlFunc(0x804009e0);
-						FMULS(StaticFP3, 1, StaticFP2); //sin(V angle + val) * V
-						//call cos
-						FMR(1, StaticFP1);
-						CallBrawlFunc(0x804004d8);
-						FMULS(VX, 1, StaticFP2); //cos(V angle + val) * V
-						FMR(VY, StaticFP3);
-
-						LWZ(reg1, ASDIBufferReg, GRAPHIC_BUFFER_END_PTR_OFFSET);
-						LFS(PX, reg1, -4);
-						LFS(PY, reg1, 0);
-
-						LWZ(reg3, ModuleReg, 0x7C); //kineticGeneric module
-						LWZ(reg4, reg3, 0x58);
-						LFS(G, reg4, 0x10);
-						FMR(FS, G); //always this when first hit
-						LFS(MFS, reg4, 0x14);
-						FNEG(MFS, MFS);
-
-						CalcTrajectory(DebugBufferReg, HitstunFramesReg);
-					}Else(); {
-						SetGraphicBufferDrawFlag(DebugBufferReg, false);
-					}EndIf();
-
-					JumpToLabel(NextFighter);
-				}EndIf();
-			}EndIf();
-		}EndIf();
-
-		SetRegister(StateReg, OTHER_STATE);
-		//clear draw flags
-		CounterLoop(reg1, 0, 5, 1); {
-			LWZU(reg2, GraphicBufferPtr, 4);
-			SetGraphicBufferDrawFlag(reg2, false);
-		}CounterLoopEnd();
-
-		Label(NextFighter);
-		STW(StateReg, StatePtr, 0); //store state
-	}CounterLoopEnd();
-}
-
-/*
-void CalcTrajectory()
-{
-	int Reg1 = 31;
-	int Reg2 = 30;
-	int Reg3 = 29;
-	int Reg4 = 28;
-	int Reg5 = 27;
-	int BufferSizeReg = 21;
-	int PosDataPtrReg = 20;
-	int PositionBufferPtrReg = 19;
-	int CharCounterReg = 18;
-	int ColorReg = 17;
-	int HitstunFramesReg = 16;
-	int HitstunLocReg = 15;
-	int ModuleReg = 14;
-
-	//floating regs
-	int PX = 0;
-	int PY = 1;
-	int G = 2;
-	int FS = 3;
-	int MFS = 4;
-	int VX = 5;
-	int VY = 6;
-	int XA = 7;
-	int YA = 8;
-	int PosCompFPReg = 9;
-	int FPReg1 = 10;
-	int FPReg2 = 11;
-	int FPReg3 = 12;
-	int FPReg4 = 13;
-
-
-	SetRegister(BufferSizeReg, POSITION_BUFFER_SIZE);
-	SetRegister(PositionBufferPtrReg, DI_DRAW_ALLOC_PTR);
-	SetRegister(HitstunLocReg, 0x901AE000 + 0xE0 - 0x5A0);
-	SetRegister(CharCounterReg, 0);
-	While(CharCounterReg, LESS_I, 8); //character loop
-
-	LoadWordToReg(Reg1, 0x80B87C28);
-	RLWINM(Reg2, CharCounterReg, 31, 30, 31); //>>1
-	SetArgumentsFromRegs(3, { Reg1, Reg2 });
-	CallBrawlFunc(0x80815c40); //getEntryID
-
-	If(3, GREATER_OR_EQUAL_I, 0); //fighter exists
-
-	ADDI(4, 3, 0);
-	ADDI(3, Reg1, 0);
-	SetRegister(5, 0);
-	ANDI(Reg2, CharCounterReg, 1);
-	If(Reg2, EQUAL_I, 0); //is main fighter
-	ADDI(HitstunLocReg, HitstunLocReg, 0x5A0);
-	CallBrawlFunc(0x80814f20); //getFighter
-	Else(); //is main fighter
-	ADDI(HitstunLocReg, HitstunLocReg, 0x2D0);
-	CallBrawlFunc(0x80814fb8); //getSubFighter
-	EndIf(); //is main fighter
-
-	If(3, NOT_EQUAL_I, 0); //fighter or subFighter exists
-
-	LWZ(HitstunFramesReg, HitstunLocReg, 0); //hitstun frames
-	If(HitstunFramesReg, GREATER_I, 0); //in hitstun
-
-	LWZ(ModuleReg, 3, 0x60);
-
-	LWZ(ModuleReg, ModuleReg, 0xD8);
-	LWZ(Reg3, ModuleReg, 0xC); //posture module
-	LFS(PX, Reg3, 0xC);
-	LFS(PY, Reg3, 0x10);
-
-	LWZ(Reg3, ModuleReg, 0x7C); //kineticGeneric module
-	LWZ(Reg4, Reg3, 0x58);
-	LFS(FS, Reg4, 0xC);
-	LFS(G, Reg4, 0x10);
-	LFS(MFS, Reg4, 0x14);
-
-	LWZ(Reg4, Reg3, 0x7C);
-	LFS(VX, Reg4, 0x8);
-	LFS(VY, Reg4, 0xC);
-	LFS(XA, Reg4, 0x10);
-	LFS(YA, Reg4, 0x14);
-
-	FNEG(MFS, MFS);
-
-	LWZ(Reg3, ModuleReg, 0x44); //stop module
-	LBZ(Reg3, Reg3, 0x1C);
-	If(Reg3, NOT_EQUAL_I, 0); //in hitlag
-
-	//delete non SDI buffers
-	SetRegister(Reg1, 0);
-	ADDI(Reg2, PositionBufferPtrReg, 4);
-	While(Reg1, LESS_I, 3); //delete loop
-
-	FreeMemIfAllocd(Reg2, 0xCCCCCCCC);
-
-	ADDI(Reg2, Reg2, 4);
-	ADDI(Reg1, Reg1, 1);
-	EndWhile(); //delete loop
-
-	AllocateGraphicBufferIfNotExist(BufferSizeReg, PositionBufferPtrReg, 0xCCCCCCCC, 0xB0, RED);
-	LWZ(Reg1, PositionBufferPtrReg, 0); //SDI buffer
-	LWZ(Reg2, Reg1, 0xC); //flag
-	If(Reg2, EQUAL_I, 1); //reset SDI
-	ResetGraphicBuffer(Reg1);
-	EndIf(); //reset SDI
-
-	AddToGraphicBuffer(Reg1, PX, true, PY, true);
-
-	STFS(VX, Reg1, 4);
-	STFS(VY, Reg1, 8);
-
-	Else(); //in hitlag
-
-	LHZ(Reg1, PositionBufferPtrReg, 0xC); //hitstun buffer
-	If(Reg1, EQUAL_I_L, 0xCCCC); //buffer does not exist
-
-	SetRegister(Reg1, 0);
-	ADDI(Reg2, PositionBufferPtrReg, 0);
-	While(Reg1, LESS_I, 4); //create buffer loop
-
-	AllocateGraphicBufferIfNotExist(BufferSizeReg, Reg2, 0xCCCCCCCC, 0xB0, GREEN);
-
-	ADDI(Reg2, Reg2, 4);
-	ADDI(Reg1, Reg1, 1);
-	EndWhile(); //create buffer loop
-
-	LWZ(Reg1, PositionBufferPtrReg, 0); //SDI
-	SetRegister(Reg2, 1);
-	STW(Reg2, Reg1, 0xC); //SDI flag
-	LWZ(Reg2, Reg1, 0x1C); //num elems
-	If(Reg2, EQUAL_I, 0); //just created
-
-	AddToGraphicBuffer(Reg1, PX, true, PY, true);
-	STFS(VX, Reg1, 4);
-	STFS(VY, Reg1, 8);
-
-	EndIf(); //just created
-
-	LWZ(Reg2, Reg1, 0); //end ptr
-	LWZ(Reg3, Reg2, -4); //X
-	LWZ(Reg4, Reg2, 0); //Y
-
-	LWZ(Reg1, PositionBufferPtrReg, 4); //ASDI
-	AddToGraphicBuffer(Reg1, Reg3, false, Reg4, false); //pos at end of hitlag
-	AddToGraphicBuffer(Reg1, PX, true, PY, true); //current pos
-
-	//save changed fpregs
-	FMR(FPReg1, PX);
-	FMR(FPReg2, PY);
-	FMR(FPReg3, FS);
-
-	LWZ(Reg1, PositionBufferPtrReg, 8); //DI buffer
-	STW(HitstunFramesReg, Reg1, 0x1C); //set numm elems
-	SetRegister(Reg2, YELLOW);
-	STW(Reg2, Reg1, 0x18);
-	SetRegister(Reg2, 0);
-	LWZ(Reg3, Reg1, 0);
-	While(Reg2, LESS, HitstunFramesReg); //calc pos loop
-
-	STFSU(PX, Reg3, 4);
-	STFSU(PY, Reg3, 4);
-
-	CalcNextPosition(PX, PY, G, FS, MFS, VX, VY, XA, YA);
-
-	ADDI(Reg2, Reg2, 1);
-	EndWhile(); //calc pos loop
-
-	//restore changed fpregs
-	FMR(PX, FPReg1);
-	FMR(PY, FPReg2);
-	FMR(FS, FPReg3);
-
-	//load VX, VY
-	LWZ(Reg1, PositionBufferPtrReg, 0); //SDI
-	LFS(VX, Reg1, 4);
-	LFS(VY, Reg1, 8);
-
-	//calc XA, YA
-	FMULS(FPReg1, VX, VX); //VX^2
-	FMULS(FPReg2, VY, VY); //VY^2
-	FADDS(FPReg1, FPReg1, FPReg2); //VX^2 + VY^2
-	
-	FMR(FPReg4, 0);
-	FMR(FPReg3, 1);
-	FMR(1, FPReg1);
-	CallBrawlFunc(0x80400b48); //sqrt
-	//use rsqrt at 0x8003db58
-	//takes f0, changes f0 - f4
-	//returns 1 / root(x)
-	//x * (1 / root(x)) == root(x)
-	FMR(FPReg1, 1);
-	FMR(0, FPReg4);
-	FMR(1, FPReg3);
-	SetRegister(Reg1, GetHexFromFloat(-0.051));
-	STW(Reg1, 1, -4);
-	LFS(FPReg2, 1, -4); //-0.051
-	FADD(FPReg2, FPReg1, FPReg2); //Vi - 0.051
-	FDIVS(FPReg1, FPReg2, FPReg1); //Vf / Vi
-	SetRegister(Reg1, GetHexFromFloat(-1));
-	STW(Reg1, 1, -4);
-	LFS(FPReg2, 1, -4); //-1
-	FADDS(FPReg1, FPReg1, FPReg2); //Vf/Vi - 1
-	FMULS(XA, VX, FPReg1); //VX * Vm
-	FMULS(YA, VY, FPReg1); //VY * Vm
-
-	LWZ(Reg1, PositionBufferPtrReg, 0xC); //no DI buffer
-	STW(HitstunFramesReg, Reg1, 0x1C); //set numm elems
-	SetRegister(Reg2, BLUE);
-	STW(Reg2, Reg1, 0x18);
-	SetRegister(Reg2, 0);
-	LWZ(Reg3, Reg1, 0);
-	While(Reg2, LESS, HitstunFramesReg); //calc pos loop
-
-	STFSU(PX, Reg3, 4);
-	STFSU(PY, Reg3, 4);
-
-	CalcNextPosition(PX, PY, G, FS, MFS, VX, VY, XA, YA);
-
-	ADDI(Reg2, Reg2, 1);
-	EndWhile(); //calc pos loop
-
-	EndIf(); //buffer does not exist
-	EndIf(); //in hitlag
-
-	ADDI(PositionBufferPtrReg, PositionBufferPtrReg, 0x10);
-
-	//jump to end of loop
-	int DeleteSkip = GetNextLabel();
-	JumpToLabel(DeleteSkip);
-
-	EndIf(); //in hitstun
-	EndIf(); //fighter or subFighter exists
-	EndIf(); //fighter exists
-
-	SetRegister(Reg1, 0);
-	While(Reg1, LESS_I, 4); //delete loop
-
-	FreeMemIfAllocd(PositionBufferPtrReg, 0xCCCCCCCC);
-
-	ADDI(PositionBufferPtrReg, PositionBufferPtrReg, 4);
-	ADDI(Reg1, Reg1, 1);
-	EndWhile(); //delete loop
-
-	Label(DeleteSkip);
-
-	ADDI(CharCounterReg, CharCounterReg, 1);
-	EndWhile(); //character loop
-}
-*/
 
 //updates all input to be that of the next frame
 void CalcNextPosition()

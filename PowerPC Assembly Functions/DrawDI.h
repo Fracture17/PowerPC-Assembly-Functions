@@ -2,6 +2,8 @@
 
 #include "stdafx.h"
 #include "PowerPC Assembly Functions.h"
+#include "Code Menu.h"
+#include "Control Codes.h"
 
 //graphic buffer constants
 #define GRAPHIC_BUFFER_END_PTR_OFFSET 0
@@ -16,7 +18,14 @@
 #define SDI_BUFFER_SIZE 8 * 50 + GRAPHIC_BUFFER_OVERHEAD_SIZE
 #define ASDI_BUFFER_SIZE 8 * 3 + GRAPHIC_BUFFER_OVERHEAD_SIZE
 #define MAIN_BUFFER_GRAPHICS_BUFFER_START_OFFSET 8 * 4
-#define MAIN_BUFFER_SIZE 4 * 5 * 8 + MAIN_BUFFER_GRAPHICS_BUFFER_START_OFFSET + 4
+#define CHARACTER_BUFFER_SIZE (8 + 1) * 4 * 2
+
+const int DI_BUFFER_SDI_START_OFFSET = 0;
+const int DI_BUFFER_ASDI_START_OFFSET = DI_BUFFER_SDI_START_OFFSET + 4;
+const int DI_BUFFER_NORMAL_START_OFFSET = DI_BUFFER_ASDI_START_OFFSET + 4;
+const int DI_BUFFER_CURRENT_START_OFFSET = DI_BUFFER_NORMAL_START_OFFSET + 4;
+const int DI_BUFFER_DEBUG_START_OFFSET = DI_BUFFER_CURRENT_START_OFFSET + 4;
+const int DI_BUFFER_SIZE = DI_BUFFER_DEBUG_START_OFFSET + 4;
 
 #define OTHER_STATE 0
 #define HITSTUN_AND_HITLAG_STATE 1
@@ -25,6 +34,13 @@
 void SetupDrawLines(int LineWidthReg);
 void DrawVerticies(int NumVerticiesReg, int AddressReg, int ColorReg);
 void DrawDI();
+void DrawTrajectories();
+void SetHitStart();
+void AddToSDIBuffer();
+void AddToASDIBuffer();
+void SetTrajectoryBuffers();
+void CreateDIBuffer(int CharacterBufferReg, int reg1, int reg2, int reg3);
+void AddNewCharacterBuffer();
 void CalcNextPosition();
 void CalcBrakeVectors();
 void AllocateGraphicBuffer(int SizeReg, int AddressReg, int primType, int color);
@@ -32,9 +48,8 @@ void DrawGraphicBuffer(int AddressReg);
 void ResetGraphicBuffer(int AddressReg);
 void ResetGraphicBuffer(int AddressReg, int Color);
 void AddToGraphicBuffer(int AddressReg, int XPosReg, bool isXFloat, int YPosReg, bool isYFloat, bool shouldSetDrawFlag);
-void SetupDIBuffer();
-void FreeDIBuffer();
+void SetupCharacterBuffer();
+void FreeDIBuffer(int BufferReg, int reg1);
 void CalcTrajectory(int bufferReg, int numFramesReg);
 void IsOutOfBounds();
 void SetGraphicBufferDrawFlag(int BufferPtrReg, bool value);
-void SetKnockbackTrajectoryBuffers();

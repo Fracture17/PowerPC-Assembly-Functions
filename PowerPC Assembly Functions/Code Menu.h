@@ -4,28 +4,96 @@
 #include "PowerPC Assembly Functions.h"
 
 //active codes
-#define DI_DRAW
-//#define IASA_OVERLAY
+extern int DI_DRAW_INDEX;
+extern int DEBUG_MODE_INDEX;
+extern int DISPLAY_HITBOXES_INDEX;
+extern int DISPLAY_COLLISION_INDEX;
+extern int DISPLAY_LEDGEGRAB_INDEX;
+extern int CHARACTER_SELECT_P1_INDEX;
+extern int CHARACTER_SELECT_P2_INDEX;
+extern int CHARACTER_SELECT_P3_INDEX;
+extern int CHARACTER_SELECT_P4_INDEX;
+extern int COSTUME_SELECT_P1_INDEX;
+extern int COSTUME_SELECT_P2_INDEX;
+extern int COSTUME_SELECT_P3_INDEX;
+extern int COSTUME_SELECT_P4_INDEX;
+extern int INFINITE_SHIELDS_P1_INDEX;
+extern int INFINITE_SHIELDS_P2_INDEX;
+extern int INFINITE_SHIELDS_P3_INDEX;
+extern int INFINITE_SHIELDS_P4_INDEX;
+extern int CAMERA_LOCK_INDEX;
+extern vector<int> Defaults;
 
-#define START_OF_MENU_LOC 0x804E0000
+const vector<string> CHARACTER_LIST = { "Mario", "Donkey Kong", "Link", "Samus", "Zero Suit Samus", "Yoshi", "Kirby", "Fox", "Pikachu", "Luigi", "Captain Falcon",
+										"Ness", "Bowser", "Peach", "Zelda", "Shiek", "Ice Climbers", "Popo", "Nana", "Marth", "Mr. Game and Watch", "Falco", "Ganondorf",
+										"Wario", "Metaknight", "Pit", "Olimar", "Lucas", "Diddy Kong", "Charizard", "SquirlTail", "Ivysaur", "King DeDeDe", "Lucario",
+										"Ike", "R.O.B.", "Jigglypuff", "Toon Link", "Wolf", "Roy", "MewTwo" };
+const vector<u16> CHARACTER_ID_LIST = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 30, 32, 34, 35, 36,
+										37, 38, 39, 40, 41, 50, 51 };
+
+static const int START_OF_CODE_MENU = 0x804E0000;
+static const int CURRENT_PAGE_PTR_LOC = START_OF_CODE_MENU; //4
+//colors
+static const int COLOR_ARRAY_START = CURRENT_PAGE_PTR_LOC + 4; //4 * num colors
+static const u8 NORMAL_LINE_COLOR_OFFSET = 0;
+static const u8 HIGHLIGHTED_LINE_COLOR_OFFSET = NORMAL_LINE_COLOR_OFFSET + 4;
+static const u8 COMMENT_LINE_COLOR_OFFSET = HIGHLIGHTED_LINE_COLOR_OFFSET + 4;
+
+static const int MOVE_FRAME_TIMER_LOC = COLOR_ARRAY_START + 0xC; //4
+static const int INCREMENT_FRAME_TIMER_LOC = MOVE_FRAME_TIMER_LOC + 4; //4
+static const int FRAME_ADVANCE_FRAME_TIMER = INCREMENT_FRAME_TIMER_LOC + 4; //4
+
+static const int PREV_CODE_MENU_CONTROL_FLAG = FRAME_ADVANCE_FRAME_TIMER + 4; //4
+static const int CODE_MENU_CONTROL_FLAG = PREV_CODE_MENU_CONTROL_FLAG + 4; //4
+
+static const int CODE_MENU_BUTTON_MASK_LOC = CODE_MENU_CONTROL_FLAG + 4; //4
+static const int BUTTON_ACTIVATOR_MASK_LOC = CODE_MENU_BUTTON_MASK_LOC + 4; //4
+static const int MAIN_BUTTON_MASK_LOC = BUTTON_ACTIVATOR_MASK_LOC + 4; //8
+
+static const int OLD_DEBUG_STATE_LOC = MAIN_BUTTON_MASK_LOC + 8; //4
+static const int OLD_CAMERA_LOCK_STATE_LOC = OLD_DEBUG_STATE_LOC + 4; //4
+
+static const int OLD_CAMERA_POS_LOC = OLD_CAMERA_LOCK_STATE_LOC + 4; //4
+
+static const int CHARACTER_SWITCHER_ARRAY_LOC = OLD_CAMERA_POS_LOC + 4; //0x10
+static const int INIFINITE_SHIELDS_ARRAY_LOC = CHARACTER_SWITCHER_ARRAY_LOC + 0x10; //0x10
+
+static const int DRAW_SETTINGS_BUFFER_LOC = INIFINITE_SHIELDS_ARRAY_LOC + 0x10; //0x200
+
+static const int START_OF_CODE_MENU_SETTINGS = DRAW_SETTINGS_BUFFER_LOC + 0x200;
+
+extern int MenuID;
+
+#define CODE_MENU_GECKO_IF(MenuIndex) if(MenuIndex != -1) {\
+									GeckoIf(MenuIndex, EQUAL, 1); {
+#define CODE_MENU_GECKO_ENDIF }GeckoEndIf(); }
+
 
 //code menu flags
 #define CODE_MENU_CLOSED 0
 #define CODE_MENU_PRIMED 1
-#define CODE_MENU_OPEN 2
+#define CODE_MENU_TRIGGERED 2
+#define CODE_MENU_OPEN 3
 
 //line types
 #define COMMENT_LINE 0
-#define TOGGLE_LINE 1
+#define SELECTION_LINE 1
 #define SUB_MENU_LINE 2
-#define NUMBER_LINE 3
+#define INTEGER_LINE 3
 #define FLOATING_LINE 4
 
 //default code menu settings
-#define INITIAL_XPOS -400
-#define INITIAL_YPOS -0x100
-#define MOVE_THRESHHOLD 100
-#define INCREMENT_THRESHHOLD 100
+#define INITIAL_XPOS -200
+#define INITIAL_YPOS -150
+#define LINE_HEIGHT 18
+#define MOVE_THRESHHOLD 65
+#define INCREMENT_THRESHHOLD 50
+#define MOVE_NUM_WAIT_FRAMES 5
+#define FIRST_MOVE_NUM_WAIT_FRAMES 15
+#define INCREMENT_NUM_WAIT_FRAMES 5
+#define FIRST_INCREMENT_NUM_WAIT_FRAMES 15
+#define FRAME_ADVANCE_NUM_WAIT_FRAMES 4
+#define FIRST_FRAME_ADVANCE_NUM_WAIT_FRAMES 12
 #define TRIGGER_ENTER_SUB_MENU_BUTTON BUTTON_A
 #define TRIGGER_LEAVE_SUB_MENU_BUTTON BUTTON_B
 
@@ -37,8 +105,13 @@
 #define LEAVE_SUB_MENU 4
 #define INCREMENT 5
 #define DECREMENT 6
+#define EXIT_MENU 7
+
+#define FRAMES_UNTIL_SLOW_MOTION 12
+#define FRAMES_WAITED_DURING_SLOW_MOTION 3
 
 static vector<int> Defaults;
+static fstream MenuFile("C:\\Program Files (x86)\\WinImage\\cm.bin", fstream::out | fstream::binary);
 
 class Page;
 
@@ -47,105 +120,172 @@ class Line
 public:
 	Line() {}
 
-	Line(string Text) {
-		this->Text = Text;
-		Size = Text.size() + 1;
+	Line(string Text, u16 TextOffset, u8 type, u8 flags, u8 ColorOffset, u16 Index) {
+		this->Text = Text + "\0"s;
+		this->type = type;
+		this->Flags = flags;
+		this->Color = ColorOffset;
+		this->TextOffset = TextOffset;
+		this->Index = Index;
+		Size = Text.size() + TextOffset + 1;
+
+		Padding = (4 - Size % 4) % 4;
+		Size += Padding;
 	}
 
 	virtual void WriteLineData()
 	{
-		WriteIntToFile(Size);
-		WriteIntToFile(type);
+		WriteLineData({});
+	}
+
+	void WriteLineData(vector<u8> SelectionOffsets)
+	{
+		vector<u8> output;
+		AddValueToByteArray(Size, output);
+		AddValueToByteArray(type, output);
+		AddValueToByteArray(Flags, output);
+		AddValueToByteArray(Color, output);
+		AddValueToByteArray(TextOffset, output);
+		AddValueToByteArray(Index, output);
+		if (type != COMMENT_LINE) {
+			AddValueToByteArray(UpOffset, output);
+			AddValueToByteArray(DownOffset, output);
+			if (type == SUB_MENU_LINE) {
+				AddValueToByteArray(SubMenuOffset, output);
+			}
+			else {
+				AddValueToByteArray(Default, output);
+				AddValueToByteArray(Max, output);
+				if (type == INTEGER_LINE || type == FLOATING_LINE) {
+					AddValueToByteArray(Min, output);
+					AddValueToByteArray(Speed, output);
+				}
+			}
+		}
+		copy(output.begin(), output.end(), ostreambuf_iterator<char>(MenuFile));
+		copy(SelectionOffsets.begin(), SelectionOffsets.end(), ostreambuf_iterator<char>(MenuFile));
+		MenuFile << Text;
+		WritePadding();
 	}
 
 	void WritePadding() {
-		string x = "";
 		for (int i = 0; i < Padding; i++) {
-			x += "\0"s;
+			MenuFile << '\0';
 		}
-		WriteTextToFile(x);
 	}
 
-	virtual int GetDefault() {
-		return Default;
-	}
-
-	int Default;
+	u16 Index = 0;
+	u32 Default;
+	u32 Max;
+	u32 Min;
+	u32 Speed;
 	Page *SubMenuPtr;
-	int SubMenuOffset;
+	u16 SubMenuOffset;
 	int PageOffset;
-	int Index;
-	int type = -1;
-	int Color = 0;
-	int DownOffset = -1;
-	int UpOffset = -1;
+	u8 type;
+	u8 Color;
+	u8 Flags = 0;
+	u8 TextOffset;
+	u16 DownOffset;
+	u16 UpOffset;
 	string Text;
-	int Size;
+	u16 Size;
 	int Padding;
 	//offsets
-	static const int SIZE = 0;
-	static const int TYPE = 4;
-	static const int COLOR = 8;
+	static const int SIZE = 0; //2
+	static const int TYPE = SIZE + 2; //1
+	static const int FLAGS = TYPE + 1; //1
+	static const int COLOR = FLAGS + 1; //1
+	static const int TEXT_OFFSET = COLOR + 1; //1
+	static const int INDEX = TEXT_OFFSET + 1; //2
+	static const int COMMENT_LINE_TEXT_START = INDEX + 2;
+	static const int UP = INDEX + 2; //2
+	static const int DOWN = UP + 2; //2
+	static const int SUB_MENU = DOWN + 2; //2
+	static const int SUB_MENU_LINE_TEXT_START = SUB_MENU + 2;
+	static const int DEFAULT = DOWN + 2; //4
+	static const int MAX = DEFAULT + 4; //4
+	static const int SELECTION_LINE_OFFSETS_START = MAX + 4;
+	static const int MIN = MAX + 4; //4
+	static const int SPEED = MIN + 4; //4
+	static const int NUMBER_LINE_TEXT_START = SPEED + 4;
 };
 
 class Comment : public Line
 {
 public:
 	Comment(string Text)
-	: Line(Text)
-	{
-		type = COMMENT_LINE;
-		Size += 4 * NUM_WORD_ELEMS;
-		Padding = (4 - Size % 4) % 4;
-		Size += Padding;
-	}
+	: Line(Text, COMMENT_LINE_TEXT_START, COMMENT_LINE, 0, COMMENT_LINE_COLOR_OFFSET, 0) {}
 
 	void WriteLineData()
 	{
 		Line::WriteLineData();
-		WriteMenuTextToFile(Text);
-		WritePadding();
 	}
-
-	static const int NUM_WORD_ELEMS = 2;
-	static const int TEXT = 8;
 };
 
-class Toggle : public Line
+class Selection : public Line
 {
 public:
-	Toggle(string Text, bool Default)
-	: Line(Text + ":")
+	Selection(string Text, vector<string> Options, vector<u16> Values, int Default, int &Index)
+	: Line(CreateSelectionString(Text + ":  %s", Options), SELECTION_LINE_OFFSETS_START + Options.size() * 4, SELECTION_LINE, 0, NORMAL_LINE_COLOR_OFFSET, MenuID)
 	{
+		if (Options.size() != Values.size()) {
+			cout << "Mismatched values" << endl;
+			exit(-1);
+		}
+		u16 offset = Text.size() + 5 + 1 + SELECTION_LINE_OFFSETS_START + Options.size() * 4;
+		for (int i = 0; i < Options.size(); i++) {
+			AddValueToByteArray(offset, OptionOffsets);
+			AddValueToByteArray(Values[i], OptionOffsets);
+			offset += Options[i].size() + 1;
+		}
+		Index = MenuID + START_OF_CODE_MENU_SETTINGS;
+		MenuID += 8;
 		this->Default = Default;
-		type = TOGGLE_LINE;
-		Size += 4 * NUM_WORD_ELEMS;
-		Padding = (4 - Size % 4) % 4;
-		Size += Padding;
+		Defaults.push_back(Default);
+		Defaults.push_back(Values[Default]);
+		this->Max = Options.size() - 1;
+	}
+
+	Selection(string Text, vector<string> Options, int Default, int &Index)
+		: Selection(Text, Options, CreateVector(Options), Default, Index) {}
+
+	Selection(string Text, vector<string> Options, vector<u16> Values, string Default, int &Index)
+		: Selection(Text, Options, Values, distance(Options.begin(), find(Options.begin(), Options.end(), Default)), Index) {}
+
+	Selection(string Text, vector<string> Options, string Default, int &Index)
+		: Selection(Text, Options, distance(Options.begin(), find(Options.begin(), Options.end(), Default)), Index) {}
+
+	string CreateSelectionString(string Text, vector<string> Options)
+	{
+		for (string x : Options) {
+			Text += "\0"s + x;
+		}
+		return Text;
+	}
+
+	vector<u16> CreateVector(vector<string> x) 
+	{
+		vector<u16> Values;
+		for (u16 i = 0; i < x.size(); i++) {
+			Values.push_back(i);
+		}
+		return Values;
 	}
 
 	void WriteLineData()
 	{
-		Line::WriteLineData();
-		WriteIntToFile(Color);
-		WriteIntToFile(Index);
-		WriteIntToFile(UpOffset);
-		WriteIntToFile(DownOffset);
-		WriteMenuTextToFile(Text);
-		WritePadding();
+		Line::WriteLineData(OptionOffsets);
 	}
 
-	int GetDefault() {
-		return (int) Default;
-	}
+	vector<u8> OptionOffsets;
+};
 
-	bool Default;
-	static const int NUM_WORD_ELEMS = 6;
-	static const int COLOR = 8;
-	static const int INDEX = COLOR + 4;
-	static const int UP = INDEX + 4;
-	static const int DOWN = UP + 4;
-	static const int TEXT = DOWN + 4;
+class Toggle : public Selection
+{
+public:
+	Toggle(string Text, bool Default, int &Index)
+		: Selection(Text,  { "OFF", "ON" }, Default, Index) {}
 };
 
 class SubMenu : public Line
@@ -154,139 +294,51 @@ public:
 	SubMenu() {}
 
 	SubMenu(string Text, Page* SubMenuPtr)
-	: Line(Text + " >")
+	: Line(Text + " >", SUB_MENU_LINE_TEXT_START, SUB_MENU_LINE, 0, NORMAL_LINE_COLOR_OFFSET, 0)
 	{
-		type = SUB_MENU_LINE;
 		this->SubMenuPtr = SubMenuPtr;
-		Size += 4 * NUM_WORD_ELEMS;
-		Padding = (4 - Size % 4) % 4;
-		Size += Padding;
 	}
-
-	void WriteLineData()
-	{
-		Line::WriteLineData();
-		WriteIntToFile(Color);
-		WriteIntToFile(SubMenuOffset);
-		WriteIntToFile(UpOffset);
-		WriteIntToFile(DownOffset);
-		WriteMenuTextToFile(Text);
-		WritePadding();
-	}
-
-	static const int NUM_WORD_ELEMS = 6;
-	static const int COLOR = 8;
-	static const int SUB_MENU = COLOR + 4;
-	static const int UP = SUB_MENU + 4;
-	static const int DOWN = UP + 4;
-	static const int TEXT = DOWN + 4;
 };
 
-class Number : public Line
+class Integer : public Line
 {
 public:
-	Number(string Text, int Min, int Max, int Default, int Speed = 1)
-	: Line(Text + ":")
+	Integer(string Text, int Min, int Max, int Default, int Speed, int &Index)
+	: Line(Text + ":  %d", NUMBER_LINE_TEXT_START, INTEGER_LINE, 0, NORMAL_LINE_COLOR_OFFSET, MenuID)
 	{
+		Index = MenuID + START_OF_CODE_MENU_SETTINGS;
+		MenuID += 4;
 		this->Min = Min;
 		this->Max = Max;
 		this->Default = Default;
+		Defaults.push_back(Default);
 		this->Speed = Speed;
-		type = NUMBER_LINE;
-		Size += 4 * NUM_WORD_ELEMS;
-		Padding = (4 - Size % 4) % 4;
-		Size += Padding;
 	}
-
-	void WriteLineData()
-	{
-		Line::WriteLineData();
-		WriteIntToFile(Color);
-		WriteIntToFile(Index);
-		WriteIntToFile(UpOffset);
-		WriteIntToFile(DownOffset);
-		WriteIntToFile(Speed);
-		WriteIntToFile(Min);
-		WriteIntToFile(Max);
-		WriteMenuTextToFile(Text);
-		WritePadding();
-	}
-
-	int GetDefault() {
-		return Default;
-	}
-
-	int Min;
-	int Max;
-	int Default;
-	int Speed;
-	static const int NUM_WORD_ELEMS = 9;
-	static const int COLOR = 8;
-	static const int INDEX = COLOR + 4;
-	static const int UP = INDEX + 4;
-	static const int DOWN = UP + 4;
-	static const int SPEED = DOWN + 4;
-	static const int MIN = SPEED + 4;
-	static const int MAX = MIN + 4;
-	static const int TEXT = MAX + 4;
 };
 
 class Floating : public Line
 {
 public:
-	Floating(string Text, float Min, float Max, float Default, float Speed = 1)
-	: Line(Text + ":")
+	Floating(string Text, float Min, float Max, float Default, float Speed, int &Index)
+	: Line(Text + ":  %f", NUMBER_LINE_TEXT_START, FLOATING_LINE, 0, NORMAL_LINE_COLOR_OFFSET, MenuID)
 	{
-		this->Min = Min;
-		this->Max = Max;
-		this->Default = Default;
-		this->Speed = Speed;
-		type = FLOATING_LINE;
-		Size += 4 * NUM_WORD_ELEMS;
-		Padding = (4 - Size % 4) % 4;
-		Size += Padding;
+		Index = MenuID + START_OF_CODE_MENU_SETTINGS;
+		MenuID += 4;
+		this->Min = GetHexFromFloat(Min);
+		this->Max = GetHexFromFloat(Max);
+		this->Default = GetHexFromFloat(Default);
+		Defaults.push_back(GetHexFromFloat(Default));
+		this->Speed = GetHexFromFloat(Speed);
 	}
-
-	void WriteLineData()
-	{
-		Line::WriteLineData();
-		WriteIntToFile(Color);
-		WriteIntToFile(Index);
-		WriteIntToFile(UpOffset);
-		WriteIntToFile(DownOffset);
-		WriteIntToFile(GetHexFromFloat(Speed));
-		WriteIntToFile(GetHexFromFloat(Min));
-		WriteIntToFile(GetHexFromFloat(Max));
-		WriteMenuTextToFile(Text);
-		WritePadding();
-	}
-
-	int GetDefault() {
-		return GetHexFromFloat(Default);
-	}
-
-	float Min;
-	float Max;
-	float Default;
-	float Speed;
-	static const int NUM_WORD_ELEMS = 9;
-	static const int COLOR = 8;
-	static const int INDEX = COLOR + 4;
-	static const int UP = INDEX + 4;
-	static const int DOWN = UP + 4;
-	static const int SPEED = DOWN + 4;
-	static const int MIN = SPEED + 4;
-	static const int MAX = MIN + 4;
-	static const int TEXT = MAX + 4;
 };
 
 class Page
 {
 public:
-	Page(string Name, vector<Line*> Lines, int ValueXPos) {
+	Page(string Name, vector<Line*> Lines) {
 		CalledFromLine = SubMenu(Name, this);
 		this->Lines = Lines;
-		this->ValueXPos = ValueXPos;
+		Size = NUM_WORD_ELEMS * 4;
 		for (auto x : Lines) {
 			x->PageOffset = Size;
 			Size += x->Size;
@@ -297,9 +349,10 @@ public:
 	
 	void WritePage()
 	{
-		WriteIntToFile(ValueXPos);
-		WriteIntToFile(CurrentLineOffset);
-		WriteIntToFile(PrevPageOffset);
+		vector<u8> output;
+		AddValueToByteArray(CurrentLineOffset, output);
+		AddValueToByteArray(PrevPageOffset, output);
+		copy(output.begin(), output.end(), ostreambuf_iterator<char>(MenuFile));
 		for (auto x : Lines) {
 			x->WriteLineData();
 		}
@@ -319,7 +372,7 @@ public:
 			}
 		
 			CurrentLineOffset = Lines[SelectableLines[1]]->PageOffset;
-			Lines[SelectableLines[1]]->Color = 1;
+			Lines[SelectableLines[1]]->Color = HIGHLIGHTED_LINE_COLOR_OFFSET;
 		}
 		else {
 			CurrentLineOffset = NUM_WORD_ELEMS * 4;
@@ -335,50 +388,38 @@ public:
 		}
 	}
 
-	int ValueXPos;
-	int CurrentLineOffset;
-	int Size = NUM_WORD_ELEMS * 4;
-	int PrevPageOffset = 0;
+	u32 CurrentLineOffset;
+	u32 Size;
+	u32 PrevPageOffset = 0;
 	vector<Line*> Lines;
 	SubMenu CalledFromLine;
-	static const int NUM_WORD_ELEMS = 3;
-	static const int XPOS = 0;
-	static const int CURRENT_LINE = XPOS + 4;
+	static const int NUM_WORD_ELEMS = 2;
+	static const int CURRENT_LINE = 0;
 	static const int PREV_PAGE = CURRENT_LINE + 4;
 	static const int FIRST_LINE_OFFSET = NUM_WORD_ELEMS * 4;
 };
 
 void PrintChar(int SettingsPtrReg, int CharReg);
 void PrintString(int StringPtrReg, int NumCharsReg, int SettingsPtrReg);
+void DrawBlackBackground();
 void PrintPage(int PageReg, int SettingPtrReg, int Reg1, int Reg2, int Reg3, int Reg4, int Reg5, int Reg6);
-void PrintFloatingLine(int LinePtrReg, int ValueXPosReg, int SettingsPtrReg, int TempReg1, int TempReg2);
-void PrintToggleLine(int LinePtrReg, int ValueXPosReg, int SettingsPtrReg, int TempReg1, int TempReg2);
-void PrintNumberLine(int LinePtrReg, int ValueXPosReg, int SettingsPtrReg, int TempReg1, int TempReg2);
-void PrintCommentLine(int LinePtrReg, int SettingsPtrReg, int TempReg1, int TempReg2);
-void PrintSubMenuLine(int LinePtrReg, int SettingsPtrReg, int TempReg1, int TempReg2);
+void PrintCodeMenuLine(int LinePtrReg, int SettingsPtrReg, int ColorArrayPtrReg, int CodeMenuSettingsPtrReg, int TempReg1, int TempReg2);
 void SetTextColor(int ColorReg, int SettingsPtrReg);
 void SetTextSize(int FPSizeReg, int SettingsPtrReg);
 void CodeMenu();
 void ActualCodes();
 void ControlCodeMenu();
 void PrintCodeMenu();
-void TriggerCodeMenu();
+void PrimeCodeMenu();
 void CreateMenu(Page MainPage);
-
-void ExecuteAction();
-
+void ExecuteAction(int ActionReg);
+void ExitMenu();
 void EnterMenu(int LineReg, int PageReg, int TypeReg, int TempReg1, int TempReg2);
-
 void LeaveMenu(int LineReg, int PageReg, int TempReg1, int TempReg2);
-
 void DecreaseValue(int LineReg, int TypeReg, int TempReg1, int TempReg2, int TempReg3);
-
 void IncreaseValue(int LineReg, int TypeReg, int TempReg1, int TempReg2, int TempReg3);
-
-void MoveUp(int LineReg, int PageReg, int TypeReg, int TempReg1, int TempReg2);
-
-void MoveDown(int LineReg, int PageReg, int TypeReg, int TempReg1, int TempReg2);
-
-void GetActionFromInputs(int ButtonReg, int ControlStickXReg, int ControlStickYReg);
-
-void ControlStickFrameTimerLogic(int FrameReg, int FrameLocReg, int FirstMoveFramesLoc, int MoveFramesLoc, int action);
+void Move(int LineReg, int PageReg, int NextLineOffset, int TempReg1, int TempReg2);
+void GetActionFromInputs(int ButtonReg, int ControlStickXReg, int ControlStickYReg, int ResultReg);
+void SetControlStickAction(int StickValReg, int TimerLoc, int NumWaitFrames, int FirstTimeNumWaitFrames, int Threshhold, int PositiveAction, int NegativeAction, int ResultReg);
+void ApplyMenuSetting(int Index, int Destination, int reg1, int reg2, int size = 4);
+void GetArrayValueFromIndex(int ArrayLoc, int IndexReg, int min, int max, int ResultReg = 3);

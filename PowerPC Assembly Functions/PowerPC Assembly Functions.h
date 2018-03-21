@@ -6,9 +6,12 @@
 #include <algorithm>
 #include <numeric>
 #include <string>
+#include <iostream>
 using namespace std;
 
 typedef unsigned int u32;
+typedef unsigned short u16;
+typedef unsigned char u8;
 
 //set to 1 if debugging.  records positions every frame and compares them during replay
 #define IS_DEBUGGING 0
@@ -23,7 +26,7 @@ typedef unsigned int u32;
 #define DRAW_BUFFER_XPOS_OFFSET 0x2C
 #define DRAW_BUFFER_YPOS_OFFSET 0x30
 
-static int MenuID = 0;
+const vector<float> DEFAULT_CAMERA_MATRIX = { 1,0,0,0, 0,1,0,0, 0,0,1,-64 };
 
 ///addresses start
 
@@ -104,38 +107,15 @@ const int REPLACE_NAME_TIME_ADDRESS = REPLACE_NAME_OLD_TIME_LOC + 4;
 #define WIICHUCK_CONVERSION_TABLE WIIMOTE_CONVERSION_TABLE + 16 //16
 #define CLASSIC_CONVERSION_TABLE WIICHUCK_CONVERSION_TABLE + 16 //16
 #define KAPPA_ITEM_FLAG CLASSIC_CONVERSION_TABLE + 16 //4
-#define DI_DRAW_ALLOC_PTR KAPPA_ITEM_FLAG + 4 //4
-#define LAST_DEBUG_STATE DI_DRAW_ALLOC_PTR + 4 //4
-#define STRING_BUFFER LAST_DEBUG_STATE + 4 //0x100
+#define MAIN_BUFFER_PTR KAPPA_ITEM_FLAG + 4 //4
+#define STRING_BUFFER MAIN_BUFFER_PTR + 4 //0x100
 #define IASA_OVERLAY_MEM_PTR_LOC STRING_BUFFER + 0x100 //4
 #define IASA_TRIGGER_OVERLAY_COMMAND_PTR_LOC IASA_OVERLAY_MEM_PTR_LOC + 4 //4
 #define IASA_TERMINATE_OVERLAY_COMMAND_PTR_LOC IASA_TRIGGER_OVERLAY_COMMAND_PTR_LOC + 4 //4
 #define IASA_STATE IASA_TERMINATE_OVERLAY_COMMAND_PTR_LOC + 4 //4
 #define IS_IN_GAME_FLAG IASA_STATE + 4 //4
 ///Code Menu Start
-//935CE52C
-#define CODE_MENU_CREATED IS_IN_GAME_FLAG + 4 //4 (equals 1 if created)
-#define CODE_MENU_CONTROL_FLAG CODE_MENU_CREATED + 4 //4
-#define CODE_MENU_PAGE_ADDRESS CODE_MENU_CONTROL_FLAG + 4 //4
-#define DRAW_SETTINGS_PTR_LOC CODE_MENU_PAGE_ADDRESS + 4 //4
-#define DRAW_DELETE_BLOCK_PTR_LOC DRAW_SETTINGS_PTR_LOC + 4 //4
-#define OFF_TEXT_LOC DRAW_DELETE_BLOCK_PTR_LOC + 4 //4
-#define ON_TEXT_LOC OFF_TEXT_LOC + 4 //4
-#define SPRINTF_FLOAT_TEXT ON_TEXT_LOC + 4 //4
-#define SPRINTF_INT_TEXT SPRINTF_FLOAT_TEXT + 4 //4
-#define MOVE_FRAME_TIMER_LOC SPRINTF_INT_TEXT + 4 //4
-#define FIRST_MOVE_NUM_WAIT_FRAMES MOVE_FRAME_TIMER_LOC + 4 //4
-#define MOVE_NUM_WAIT_FRAMES FIRST_MOVE_NUM_WAIT_FRAMES + 4 //4
-#define INCREMENT_FRAME_TIMER_LOC MOVE_NUM_WAIT_FRAMES + 4 //4
-#define FIRST_INCREMENT_NUM_WAIT_FRAMES INCREMENT_FRAME_TIMER_LOC + 4 //4
-#define INCREMENT_NUM_WAIT_FRAMES FIRST_INCREMENT_NUM_WAIT_FRAMES + 4 //4
-#define MAIN_BUTTON_MASK_LOC INCREMENT_NUM_WAIT_FRAMES + 4 //8
-#define CODE_MENU_BUTTON_MASK_LOC MAIN_BUTTON_MASK_LOC + 8 //4
-#define CODE_MENU_NORMAL_LINE_COLOR_LOC CODE_MENU_BUTTON_MASK_LOC + 4 //4
-#define CODE_MENU_COMMENT_LINE_COLOR_LOC CODE_MENU_NORMAL_LINE_COLOR_LOC + 4 //4
-#define CODE_MENU_SELECTED_LINE_COLOR_LOC CODE_MENU_COMMENT_LINE_COLOR_LOC + 4 //4
-#define CODE_MENU_SETTINGS CODE_MENU_SELECTED_LINE_COLOR_LOC + 4 //4 * MenuID
-#define CODE_MENU_END CODE_MENU_SETTINGS + 4 * MenuID //0 (just a marker)
+
 ///Code Menu End
 ///reserved memory for storage end
 
@@ -178,6 +158,9 @@ const int MENU_SELECTED_TAG_OFFSET = 0x164;
 #define WHITE 0xFFFFFFFF
 #define PURPLE 0x6E0094FF
 ///colors end
+///primitive types
+#define PRIMITIVE_LINE 0xB0
+#define PRIMITIVE_QUAD 0x80
 ///button values
 #define BUTTON_DL 0x1
 #define BUTTON_DR 0x2
@@ -191,6 +174,7 @@ const int MENU_SELECTED_TAG_OFFSET = 0x164;
 #define BUTTON_X 0x400
 #define BUTTON_Y 0x800
 #define BUTTON_START 0x1000
+#define BUTTON_DPAD 0xF
 ///button values end
 #define BUTTON_PORT_OFFSET 0x40
 #define WIIMOTE 0
@@ -335,10 +319,12 @@ void FreeAllocdArray(int AllocAddressReg);
 void SaveMem(int LocationReg, int SizeReg, int SaveToReg);
 void SaveRegisters();
 void SaveRegisters(vector<int> FPRegs);
+void SaveRegisters(int NumFPRegs);
 void RestoreRegisters();
 void Increment(int Reg);
 void Decrement(int Reg);
 void WriteStringToMem(string Text, int AddressReg);
+void WriteVectorToMem(vector<float> Values, int AddressReg);
 void CounterLoop(int CounterReg, int startVal, int endVal, int stepVal);
 void CounterLoopEnd();
 void SprintF(int StrReg, vector<int> ValueRegs);
@@ -346,7 +332,19 @@ void SprintF(int StrReg, vector<int> ValueRegs, vector<int> FPValueRegs);
 void ClampStick(int FPXValReg, int FPYValReg);
 void ConvertIntStickValsToFloating(int StickXReg, int StickYReg, int FPXResultReg, int FPYResultReg, int FPTempReg);
 void ConvertFloatingRegToInt(int FPReg, int ResultReg);
+void AddValueToByteArray(u32 value, vector<u8> &Array);
+void AddValueToByteArray(u16 value, vector<u8> &Array);
+void AddValueToByteArray(u8 value, vector<u8> &Array);
+void AddValueToByteArray(int value, vector<u8> &Array);
+void AddValueToByteArray(short value, vector<u8> &Array);
+void AddValueToByteArray(char value, vector<u8> &Array);
+void DrawPrimitive(int type, vector<float> Positions, vector<int> Colors, int VTXAttrFrmt);
+void DrawPrimitive(int type, vector<float> Positions, int Color, int VTXAttrFrmt);
+void LoadVal(int AddressReg, int size, int offset = 0, int ResultReg = 3);
+void GetValueFromPtrPath(vector<int> Path, int StartingReg, int ResultReg = 3);
+void GetValueFromPtrPath(int StartingAddress, vector<int> Path, int ResultReg = 3);
 
+void ABS(int DestReg, int SourceReg, int tempReg);
 void ADD(int DestReg, int SourceReg1, int SourceReg2);
 void ADDI(int DestReg, int SourceReg, int Immediate);
 void ADDIS(int DestReg, int SourceReg, int Immediate);
@@ -385,6 +383,10 @@ void FRSP(int DestReg, int SourceReg);
 void FRSQRTE(int DestReg, int SourceReg);
 void FSUB(int FPDestReg, int FPSourceReg1, int FPSourceReg2);
 void FSUBS(int FPDestReg, int FPSourceReg1, int FPSourceReg2);
+void LBA(int DestReg, int AddressReg, int Immediate);
+void LBAU(int DestReg, int AddressReg, int Immediate);
+void LBAUX(int DestReg, int AddressReg1, int AddressReg2);
+void LBAX(int DestReg, int AddressReg1, int AddressReg2);
 void LBZ(int DestReg, int AddressReg, int Immediate);
 void LBZU(int DestReg, int AddressReg, int Immediate);
 void LBZUX(int DestReg, int AddressReg1, int AddressReg2);
@@ -418,6 +420,8 @@ void ORI(int DestReg, int SourceReg, int Immediate);
 void ORIS(int DestReg, int SourceReg, int Immediate);
 void RLWINM(int DestReg, int SourceReg, int ShiftNum, int MaskStart, int MaskEnd);
 void RLWNM(int DestReg, int SourceReg, int ShiftReg, int MaskStart, int MaskEnd);
+void SRAWI(int DestReg, int SourceReg, int ShiftNum);
+void STB(int SourceReg, int AddressReg, int Immediate);
 void STB(int SourceReg, int AddressReg, int Immediate);
 void STBU(int SourceReg, int AddressReg, int Immediate);
 void STBUX(int SourceReg, int AddressReg1, int AddressReg2);
