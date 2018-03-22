@@ -57,6 +57,11 @@ void StartMatch()
 	int reg2 = 30;
 	int reg3 = 29;
 	int reg4 = 28;
+	int reg5 = 27;
+	int reg6 = 26;
+	int reg7 = 25;
+	int reg8 = 24;
+	int reg9 = 23;
 
 	//allocate memory
 #ifdef IASA_OVERLAY
@@ -65,6 +70,10 @@ void StartMatch()
 
 	if (DI_DRAW_INDEX != -1) {
 		SetupCharacterBuffer();
+	}
+
+	if (INFINITE_FRIENDLIES_INDEX != -1) {
+		InfiniteFriendlies(reg1, reg2, reg3, reg4, reg5, reg6, reg7, reg8, reg9);
 	}
 
 	//set in game flag
@@ -98,6 +107,21 @@ void EndMatch()
 	FreeIASABuffers();
 #endif
 
+	//reload stage
+	if (INFINITE_FRIENDLIES_INDEX != -1) {
+		LoadWordToReg(reg1, INFINITE_FRIENDLIES_INDEX);
+		If(reg1, GREATER_I, 0); {
+			If(reg1, GREATER_I, 1); {
+				SetRegister(reg1, 1);
+				SetRegister(reg2, INFINITE_FRIENDLIES_FLAG_LOC);
+				STW(reg1, reg2, 0);
+			}EndIf();
+			LoadWordToReg(reg1, 0x805b4fd8 + 0xd4);
+			LWZ(reg1, reg1, 0x10);
+			SetRegister(reg2, 2);
+			STW(reg2, reg1, 8);
+		}EndIf();
+	}
 
 	LoadWordToReg(MainBufferReg, MAIN_BUFFER_PTR);
 	LWZU(CharacterBufferReg, MainBufferReg, 4);
@@ -259,4 +283,68 @@ void FindEndOfCharacterBuffers(int TargetReg, int ResultReg)
 void GetCharacterValue(int CharacterBufferReg, vector<int> ValuePath, int ResultReg)
 {
 	GetValueFromPtrPath(ValuePath, CharacterBufferReg, ResultReg);
+}
+
+void InfiniteFriendlies(int reg1, int reg2, int reg3, int reg4, int reg5, int reg6, int reg7, int reg8, int reg9)
+{
+	LoadWordToReg(reg1, reg2, INFINITE_FRIENDLIES_FLAG_LOC);
+	If(reg1, EQUAL_I, 1); {
+		SetRegister(reg1, 0);
+		STW(reg1, reg2, 0); //clear flag
+
+		LoadWordToReg(reg1, INFINITE_FRIENDLIES_INDEX);
+		If(reg1, EQUAL_I, 2); {
+			//random stage
+			GetLegalStagesArray(reg1, reg2, reg3, reg4, reg5, reg6, reg7, reg8, reg9);
+			MR(3, reg4);
+			CallBrawlFunc(0x8003fc7c); //randi
+			//RandomCapped(reg4, reg1);
+			LoadWordToReg(reg2, 0x805a00e0);
+			LBZX(3, reg3, 3);
+			LWZ(reg2, reg2, 8);
+			CallBrawlFunc(0x800af614); //exchangeMuStageForScStage
+			STH(3, reg2, 0x1A);
+		}EndIf();
+	}EndIf();
+}
+
+//reg4 contains total size
+//reg3 contains start address
+void GetLegalStagesArray(int reg1, int reg2, int reg3, int reg4, int reg5, int reg6, int reg7, int reg8, int reg9)
+{
+	SetRegister(reg1, 0x806b9298);
+	LoadWordToReg(reg2, 0x805A00E0);
+	LWZ(reg2, reg2, 0x24);
+	ADDI(reg2, reg2, 2064);
+	SetRegister(reg3, STRING_BUFFER);
+	SetRegister(reg4, 0);
+	LWZ(reg8, reg2, 0x24);
+	LWZ(reg9, reg2, 0x20);
+	AddLegalStagesToArray(reg1, reg9, reg8, reg3, reg4, reg5, reg6, reg7);
+	ADDI(reg1, reg1, 8);
+	AddLegalStagesToArray(reg1, reg9, reg8, reg3, reg4, reg5, reg6, reg7);
+}
+
+void AddLegalStagesToArray(int StageListReg, int LegalStageHighMaskReg, int LegalStageLowMaskReg, int ArrayReg, int PosReg, int reg2, int reg3, int reg4)
+{
+	LBZ(4, StageListReg, 4); //num stages
+	LWZ(reg2, StageListReg, 0); //list ptr
+	SetRegister(3, 1);
+	While(4, GREATER_I, 0); {
+		Decrement(4);
+		LBZX(reg3, reg2, 4);
+		If(reg3, GREATER_OR_EQUAL_I, 31); {
+			ADDI(reg4, reg3, -23);
+			RLWNM(reg4, 3, reg4, 0, 31);
+			AND(reg4, reg4, LegalStageHighMaskReg);
+		}Else(); {
+			RLWNM(reg4, 3, reg3, 0, 31);
+			AND(reg4, reg4, LegalStageLowMaskReg);
+		}EndIf();
+		
+		If(reg4, NOT_EQUAL_I, 0); {
+			STBX(reg3, ArrayReg, PosReg);
+			Increment(PosReg);
+		}EndIf();
+	}EndWhile();
 }

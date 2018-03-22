@@ -239,6 +239,7 @@ static int JumpFromArray[MAX_JUMPS] = {};
 static int JumpIndex = 0;
 static vector<int> FPPushRecords;
 static vector<int> CounterLoppRecords;
+static vector<int> StackIteratorRecords;
 ///variables end
 int HexToDec(char x);
 
@@ -343,6 +344,12 @@ void DrawPrimitive(int type, vector<float> Positions, int Color, int VTXAttrFrmt
 void LoadVal(int AddressReg, int size, int offset = 0, int ResultReg = 3);
 void GetValueFromPtrPath(vector<int> Path, int StartingReg, int ResultReg = 3);
 void GetValueFromPtrPath(int StartingAddress, vector<int> Path, int ResultReg = 3);
+void AllocateStack(int size, int Address, int TempReg = 3);
+void PushOnStack(int ValueReg, int StackReg, int TempReg = 3);
+void PopOffStack(int ResultReg, int StatckReg, int TempReg = 3);
+void IterateStack(int ResultReg, int StackReg, int TempReg);
+void IterateStackEnd();
+void RandomCapped(int HighReg, int reg1, int ResultReg = 3);
 
 void ABS(int DestReg, int SourceReg, int tempReg);
 void ADD(int DestReg, int SourceReg1, int SourceReg2);
@@ -407,10 +414,12 @@ void LWZX(int DestReg, int AddressReg1, int AddressReg2);
 void LMW(int StartReg, int AddressReg, int Immediate);
 void MFCTR(int TargetReg);
 void MFLR(int TargetReg);
+void MOD(int DestReg, int SourceReg1, int SourceReg2);
 void MR(int DestReg, int SourceReg);
 void MTCTR(int TargetReg);
 void MTLR(int TargetReg);
 void MULLI(int DestReg, int SourceReg, int Immediate);
+void MULLW(int DestReg, int SourceReg1, int SourceReg2);
 void NEG(int DestReg, int SourceReg);
 void NOP();
 void NOR(int DestReg, int SourceReg1, int SourceReg2);

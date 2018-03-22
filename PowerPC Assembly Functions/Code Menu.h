@@ -22,13 +22,16 @@ extern int INFINITE_SHIELDS_P2_INDEX;
 extern int INFINITE_SHIELDS_P3_INDEX;
 extern int INFINITE_SHIELDS_P4_INDEX;
 extern int CAMERA_LOCK_INDEX;
+extern int INFINITE_FRIENDLIES_INDEX;
 extern vector<int> Defaults;
 
+#define MAX_SUBPAGE_DEPTH 20
+
 const vector<string> CHARACTER_LIST = { "Mario", "Donkey Kong", "Link", "Samus", "Zero Suit Samus", "Yoshi", "Kirby", "Fox", "Pikachu", "Luigi", "Captain Falcon",
-										"Ness", "Bowser", "Peach", "Zelda", "Shiek", "Ice Climbers", "Popo", "Nana", "Marth", "Mr. Game and Watch", "Falco", "Ganondorf",
-										"Wario", "Metaknight", "Pit", "Olimar", "Lucas", "Diddy Kong", "Charizard", "SquirlTail", "Ivysaur", "King DeDeDe", "Lucario",
-										"Ike", "R.O.B.", "Jigglypuff", "Toon Link", "Wolf", "Roy", "MewTwo" };
-const vector<u16> CHARACTER_ID_LIST = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 30, 32, 34, 35, 36,
+										"Ness", "Bowser", "Peach", "Zelda", "Shiek", "Ice Climbers", "Popo", "Marth", "Mr. Game and Watch", "Falco", "Ganondorf",
+										"Wario", "Metaknight", "Pit", "Olimar", "Lucas", "Diddy Kong", "Charizard", "SquirlTail", "Ivysaur", "DeDeDe", "Lucario",
+										"Ike", "R.O.B.", "Jigglypuff", "Toon Link", "Wolf", "Roy", "Mewtwo" };
+const vector<u16> CHARACTER_ID_LIST = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 30, 32, 34, 35, 36,
 										37, 38, 39, 40, 41, 50, 51 };
 
 static const int START_OF_CODE_MENU = 0x804E0000;
@@ -37,16 +40,19 @@ static const int CURRENT_PAGE_PTR_LOC = START_OF_CODE_MENU; //4
 static const int COLOR_ARRAY_START = CURRENT_PAGE_PTR_LOC + 4; //4 * num colors
 static const u8 NORMAL_LINE_COLOR_OFFSET = 0;
 static const u8 HIGHLIGHTED_LINE_COLOR_OFFSET = NORMAL_LINE_COLOR_OFFSET + 4;
-static const u8 COMMENT_LINE_COLOR_OFFSET = HIGHLIGHTED_LINE_COLOR_OFFSET + 4;
+static const u8 CHANGED_LINE_COLOR_OFFSET = HIGHLIGHTED_LINE_COLOR_OFFSET + 4;
+static const u8 CHANGED_AND_HIGHLIGHTED_LINE_COLOR_OFFSET = CHANGED_LINE_COLOR_OFFSET + 4;
+static const u8 COMMENT_LINE_COLOR_OFFSET = CHANGED_AND_HIGHLIGHTED_LINE_COLOR_OFFSET + 4;
 
-static const int MOVE_FRAME_TIMER_LOC = COLOR_ARRAY_START + 0xC; //4
+static const int MOVE_FRAME_TIMER_LOC = COLOR_ARRAY_START + 0x14; //4
 static const int INCREMENT_FRAME_TIMER_LOC = MOVE_FRAME_TIMER_LOC + 4; //4
 static const int FRAME_ADVANCE_FRAME_TIMER = INCREMENT_FRAME_TIMER_LOC + 4; //4
 
 static const int PREV_CODE_MENU_CONTROL_FLAG = FRAME_ADVANCE_FRAME_TIMER + 4; //4
 static const int CODE_MENU_CONTROL_FLAG = PREV_CODE_MENU_CONTROL_FLAG + 4; //4
+static const int INFINITE_FRIENDLIES_FLAG_LOC = CODE_MENU_CONTROL_FLAG + 4; //4
 
-static const int CODE_MENU_BUTTON_MASK_LOC = CODE_MENU_CONTROL_FLAG + 4; //4
+static const int CODE_MENU_BUTTON_MASK_LOC = INFINITE_FRIENDLIES_FLAG_LOC + 4; //4
 static const int BUTTON_ACTIVATOR_MASK_LOC = CODE_MENU_BUTTON_MASK_LOC + 4; //4
 static const int MAIN_BUTTON_MASK_LOC = BUTTON_ACTIVATOR_MASK_LOC + 4; //8
 
@@ -55,7 +61,9 @@ static const int OLD_CAMERA_LOCK_STATE_LOC = OLD_DEBUG_STATE_LOC + 4; //4
 
 static const int OLD_CAMERA_POS_LOC = OLD_CAMERA_LOCK_STATE_LOC + 4; //4
 
-static const int CHARACTER_SWITCHER_ARRAY_LOC = OLD_CAMERA_POS_LOC + 4; //0x10
+static const int RESET_LINES_STACK_LOC = OLD_CAMERA_POS_LOC + 4; // 4 * MAX_SUBPAGE_DEPTH + 8
+
+static const int CHARACTER_SWITCHER_ARRAY_LOC = RESET_LINES_STACK_LOC + 4 * MAX_SUBPAGE_DEPTH + 8; //0x10
 static const int INIFINITE_SHIELDS_ARRAY_LOC = CHARACTER_SWITCHER_ARRAY_LOC + 0x10; //0x10
 
 static const int DRAW_SETTINGS_BUFFER_LOC = INIFINITE_SHIELDS_ARRAY_LOC + 0x10; //0x200
@@ -68,7 +76,6 @@ extern int MenuID;
 									GeckoIf(MenuIndex, EQUAL, 1); {
 #define CODE_MENU_GECKO_ENDIF }GeckoEndIf(); }
 
-
 //code menu flags
 #define CODE_MENU_CLOSED 0
 #define CODE_MENU_PRIMED 1
@@ -76,11 +83,12 @@ extern int MenuID;
 #define CODE_MENU_OPEN 3
 
 //line types
-#define COMMENT_LINE 0
-#define SELECTION_LINE 1
-#define SUB_MENU_LINE 2
-#define INTEGER_LINE 3
-#define FLOATING_LINE 4
+#define SELECTION_LINE 0
+#define INTEGER_LINE 1
+#define FLOATING_LINE 2
+#define HAS_VALUE_LIMIT 2
+#define SUB_MENU_LINE 3
+#define COMMENT_LINE 4
 
 //default code menu settings
 #define INITIAL_XPOS -200
@@ -96,6 +104,8 @@ extern int MenuID;
 #define FIRST_FRAME_ADVANCE_NUM_WAIT_FRAMES 12
 #define TRIGGER_ENTER_SUB_MENU_BUTTON BUTTON_A
 #define TRIGGER_LEAVE_SUB_MENU_BUTTON BUTTON_B
+#define TRIGGER_RESET_LINE_BUTTON BUTTON_X
+#define TRIGGER_RESET_PAGE_BUTTON BUTTON_Y
 
 //action types
 #define NO_ACTION 0
@@ -106,6 +116,8 @@ extern int MenuID;
 #define INCREMENT 5
 #define DECREMENT 6
 #define EXIT_MENU 7
+#define RESET_LINE 8
+#define RESET_PAGE 9
 
 #define FRAMES_UNTIL_SLOW_MOTION 12
 #define FRAMES_WAITED_DURING_SLOW_MOTION 3
@@ -352,6 +364,7 @@ public:
 		vector<u8> output;
 		AddValueToByteArray(CurrentLineOffset, output);
 		AddValueToByteArray(PrevPageOffset, output);
+		AddValueToByteArray(NumChangedLines, output);
 		copy(output.begin(), output.end(), ostreambuf_iterator<char>(MenuFile));
 		for (auto x : Lines) {
 			x->WriteLineData();
@@ -391,11 +404,13 @@ public:
 	u32 CurrentLineOffset;
 	u32 Size;
 	u32 PrevPageOffset = 0;
+	u32 NumChangedLines = 0;
 	vector<Line*> Lines;
 	SubMenu CalledFromLine;
-	static const int NUM_WORD_ELEMS = 2;
-	static const int CURRENT_LINE = 0;
-	static const int PREV_PAGE = CURRENT_LINE + 4;
+	static const int NUM_WORD_ELEMS = 3;
+	static const int CURRENT_LINE_OFFSET = 0;
+	static const int PREV_PAGE = CURRENT_LINE_OFFSET + 4;
+	static const int NUM_CHANGED_LINES = PREV_PAGE + 4;
 	static const int FIRST_LINE_OFFSET = NUM_WORD_ELEMS * 4;
 };
 
@@ -413,11 +428,13 @@ void PrintCodeMenu();
 void PrimeCodeMenu();
 void CreateMenu(Page MainPage);
 void ExecuteAction(int ActionReg);
+void ResetLine(int LineReg, int PageReg, int StackReg, int TypeReg, int TempReg1, int TempReg2, int TempReg3);
+void ResetPage(int StackReg, int TempReg1, int TempReg2, int TempReg3, int TempReg4, int TempReg5, int TempReg6);
 void ExitMenu();
 void EnterMenu(int LineReg, int PageReg, int TypeReg, int TempReg1, int TempReg2);
-void LeaveMenu(int LineReg, int PageReg, int TempReg1, int TempReg2);
-void DecreaseValue(int LineReg, int TypeReg, int TempReg1, int TempReg2, int TempReg3);
-void IncreaseValue(int LineReg, int TypeReg, int TempReg1, int TempReg2, int TempReg3);
+void LeaveMenu(int PageReg, int TempReg1, int TempReg2, int TempReg3, int TempReg4, int TempReg5, int TempReg6);
+void DecreaseValue(int LineReg, int PageReg, int TypeReg, int TempReg1, int TempReg2, int TempReg3, int TempReg4, int TempReg5);
+void IncreaseValue(int LineReg, int PageReg, int TypeReg, int TempReg1, int TempReg2, int TempReg3, int TempReg4, int TempReg5);
 void Move(int LineReg, int PageReg, int NextLineOffset, int TempReg1, int TempReg2);
 void GetActionFromInputs(int ButtonReg, int ControlStickXReg, int ControlStickYReg, int ResultReg);
 void SetControlStickAction(int StickValReg, int TimerLoc, int NumWaitFrames, int FirstTimeNumWaitFrames, int Threshhold, int PositiveAction, int NegativeAction, int ResultReg);

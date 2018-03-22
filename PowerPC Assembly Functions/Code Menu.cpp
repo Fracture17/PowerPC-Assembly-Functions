@@ -20,6 +20,7 @@ int INFINITE_SHIELDS_P2_INDEX = -1;
 int INFINITE_SHIELDS_P3_INDEX = -1;
 int INFINITE_SHIELDS_P4_INDEX = -1;
 int CAMERA_LOCK_INDEX = -1;
+int INFINITE_FRIENDLIES_INDEX = -1;
 
 void CodeMenu()
 {
@@ -71,6 +72,7 @@ void CodeMenu()
 	MainLines.push_back(&P4.CalledFromLine);
 	MainLines.push_back(new Toggle("Draw DI", false, DI_DRAW_INDEX));
 	MainLines.push_back(&DebugMode.CalledFromLine);
+	MainLines.push_back(new Selection("Infinite Friendlies", { "OFF", "Same Stage", "Random Stage" }, 0, INFINITE_FRIENDLIES_INDEX));
 	//Lines.push_back(new Toggle("IASA Overlay", false));
 	Page Main("Main", MainLines);
 
@@ -104,6 +106,8 @@ void CreateMenu(Page MainPage)
 	//line colors
 	AddValueToByteArray(WHITE, Header); //normal line color
 	AddValueToByteArray(YELLOW, Header); //highlighted line color
+	AddValueToByteArray(BLUE, Header); //changed line color
+	AddValueToByteArray(YELLOW, Header); //changed and highlighted line color
 	AddValueToByteArray(GREEN, Header); //comment line color
 	//frame timers
 	AddValueToByteArray(0, Header); //move frame timer
@@ -112,6 +116,7 @@ void CreateMenu(Page MainPage)
 	//control flags
 	AddValueToByteArray(CODE_MENU_CLOSED, Header); //prev flag
 	AddValueToByteArray(CODE_MENU_CLOSED, Header); //current flag
+	AddValueToByteArray(0, Header); //infinite friendlies flag
 	//button mask
 	AddValueToByteArray(0, Header); //code menu mask
 	AddValueToByteArray(0, Header); //button activator mask
@@ -122,6 +127,9 @@ void CreateMenu(Page MainPage)
 	AddValueToByteArray(0, Header); //camera lock state
 	//old camera pos
 	AddValueToByteArray(0, Header); //old camera pos
+	//reset line stack
+	AddValueToByteArray(RESET_LINES_STACK_LOC, Header); //reset line stack
+	for (int i = 0; i < MAX_SUBPAGE_DEPTH + 1; i++) { AddValueToByteArray(0, Header); }
 	//address arrays
 	//character switcher
 	AddValueToByteArray(CHARACTER_SELECT_P1_INDEX, Header); //P1
@@ -393,11 +401,14 @@ void ExecuteAction(int ActionReg)
 	int TypeReg = 7;
 	int TempReg2 = 8;
 	int TempReg3 = 9;
+	int TempReg4 = 10;
+	int TempReg5 = 11;
+	int TempReg6 = 12;
 
 	int move = GetNextLabel();
 
 	LoadWordToReg(PageReg, CURRENT_PAGE_PTR_LOC);
-	LWZ(LineReg, PageReg, Page::CURRENT_LINE);
+	LWZ(LineReg, PageReg, Page::CURRENT_LINE_OFFSET);
 	ADD(LineReg, LineReg, PageReg);
 	LBZ(TypeReg, LineReg, Line::TYPE);
 
@@ -419,13 +430,26 @@ void ExecuteAction(int ActionReg)
 
 	//change value
 	If(ActionReg, EQUAL_I, INCREMENT); //increment
-	IncreaseValue(LineReg, TypeReg, TempReg1, TempReg2, TempReg3);
+	IncreaseValue(LineReg, PageReg, TypeReg, TempReg1, TempReg2, TempReg3, TempReg4, TempReg5);
 	EndIf(); //increment
 	
 	If(ActionReg, EQUAL_I, DECREMENT); //decrement
-	DecreaseValue(LineReg, TypeReg, TempReg1, TempReg2, TempReg3);
+	DecreaseValue(LineReg, PageReg, TypeReg, TempReg1, TempReg2, TempReg3, TempReg4, TempReg5);
 	EndIf(); //decrement
 
+
+	//reset to defaults
+	SetRegister(TempReg1, RESET_LINES_STACK_LOC);
+	If(ActionReg, EQUAL_I, RESET_LINE); {
+		ResetLine(LineReg, PageReg, TempReg1, TypeReg, TempReg2, TempReg3, TempReg4);
+	}EndIf();
+
+	If(ActionReg, EQUAL_I, RESET_PAGE); {
+		PushOnStack(PageReg, TempReg1, TempReg2);
+	}EndIf();
+
+	//reset page if applicable
+	ResetPage(TempReg1, TempReg2, TempReg3, TempReg4, TempReg5, TempReg6, 3);
 
 	//navigate menu
 	If(ActionReg, EQUAL_I, ENTER_SUB_MENU); {
@@ -433,12 +457,49 @@ void ExecuteAction(int ActionReg)
 	}EndIf();
 
 	If(ActionReg, EQUAL_I, LEAVE_SUB_MENU); {
-		LeaveMenu(LineReg, PageReg, TempReg1, TempReg2);
+		LeaveMenu(PageReg, TempReg1, TempReg2, TempReg3, TempReg4, TempReg5, TempReg6);
 	}EndIf();
 
 	If(ActionReg, EQUAL_I, EXIT_MENU); {
 		ExitMenu();
 	}EndIf();
+}
+
+void ResetLine(int LineReg, int PageReg, int StackReg, int TypeReg, int TempReg1, int TempReg2, int TempReg3)
+{
+	LBZ(TempReg2, LineReg, Line::COLOR);
+	LWZ(TempReg1, PageReg, Page::NUM_CHANGED_LINES);
+	RLWINM(TempReg3, TempReg2, 29, 31, 31);
+	ANDI(TempReg2, TempReg2, ~0x8);
+	SUBF(TempReg1, TempReg1, TempReg3);
+	STB(TempReg2, LineReg, Line::COLOR);
+	STW(TempReg1, PageReg, Page::NUM_CHANGED_LINES);
+
+	If(TypeReg, LESS_OR_EQUAL_I, HAS_VALUE_LIMIT); {
+		SetRegister(TempReg3, START_OF_CODE_MENU_SETTINGS);
+		LWZ(TempReg1, LineReg, Line::DEFAULT);
+		LHZ(TempReg2, LineReg, Line::INDEX);
+		STWX(TempReg1, TempReg3, TempReg2);
+	}Else(); If(TypeReg, EQUAL_I, SUB_MENU_LINE); {
+		LHZ(TempReg1, LineReg, Line::SUB_MENU);
+		ADD(TempReg1, TempReg1, PageReg);
+		PushOnStack(TempReg1, StackReg, TempReg2);
+	}EndIf(); EndIf();
+}
+
+void ResetPage(int StackReg, int TempReg1, int TempReg2, int TempReg3, int TempReg4, int TempReg5, int TempReg6)
+{
+	IterateStack(TempReg1, StackReg, TempReg2); {
+		SetRegister(TempReg6, 1);
+		ADDI(TempReg2, TempReg1, Page::FIRST_LINE_OFFSET); //first line
+		While(TempReg6, NOT_EQUAL_I, 0); {
+			LBZ(TempReg3, TempReg2, Line::TYPE);
+			ResetLine(TempReg2, TempReg1, StackReg, TempReg3, TempReg4, TempReg5, TempReg6);
+
+			LHZ(TempReg6, TempReg2, Line::SIZE);
+			ADD(TempReg2, TempReg2, TempReg6); //next line
+		}EndWhile();
+	}IterateStackEnd();
 }
 
 void ExitMenu()
@@ -462,7 +523,7 @@ void EnterMenu(int LineReg, int PageReg, int TypeReg, int TempReg1, int TempReg2
 	}EndIf();
 }
 
-void LeaveMenu(int LineReg, int PageReg, int TempReg1, int TempReg2)
+void LeaveMenu(int PageReg, int TempReg1, int TempReg2, int TempReg3, int TempReg4, int TempReg5, int TempReg6)
 {
 	LWZ(TempReg1, PageReg, Page::PREV_PAGE);
 	If(TempReg1, EQUAL_I, 0); {
@@ -472,103 +533,160 @@ void LeaveMenu(int LineReg, int PageReg, int TempReg1, int TempReg2)
 		SetRegister(TempReg2, IS_DEBUG_PAUSED);
 		STW(TempReg1, TempReg2, 0);
 	}Else(); {
-		ADD(TempReg1, PageReg, TempReg1);
-		SetRegister(TempReg2, CURRENT_PAGE_PTR_LOC);
-		STW(TempReg1, TempReg2, 0);
+		ADD(TempReg2, PageReg, TempReg1);
+		SetRegister(TempReg1, CURRENT_PAGE_PTR_LOC);
+		STW(TempReg2, TempReg1, 0);
+
+		//reg2 == super page
+		LWZ(TempReg1, TempReg2, Page::CURRENT_LINE_OFFSET);
+		ADD(TempReg1, TempReg1, TempReg2); //super page current line
+		LBZ(TempReg3, TempReg1, Line::COLOR); //color of super line
+		RLWINM(TempReg4, TempReg3, 29, 31, 31);
+		LWZ(TempReg5, TempReg2, Page::NUM_CHANGED_LINES); //super page num changed lines
+		ANDI(TempReg3, TempReg3, ~0x8);
+		SUBF(TempReg5, TempReg5, TempReg4);
+		LWZ(TempReg4, PageReg, Page::NUM_CHANGED_LINES);
+		SetRegister(TempReg6, 0);
+		If(TempReg4, NOT_EQUAL_I, 0); {
+			SetRegister(TempReg6, 1);
+		}EndIf();
+		ADD(TempReg5, TempReg5, TempReg6);
+		RLWINM(TempReg6, TempReg6, 3, 0, 31); //<<3
+		STW(TempReg5, TempReg2, Page::NUM_CHANGED_LINES);
+		OR(TempReg3, TempReg3, TempReg6);
+		STB(TempReg3, TempReg1, Line::COLOR);
 	}EndIf();
 }
 
-void DecreaseValue(int LineReg, int TypeReg, int TempReg1, int TempReg2, int TempReg3)
+void DecreaseValue(int LineReg, int PageReg, int TypeReg, int TempReg1, int TempReg2, int TempReg3, int TempReg4, int TempReg5)
 {
 	LHZ(TempReg1, LineReg, Line::INDEX);
 	SetRegister(TempReg2, START_OF_CODE_MENU_SETTINGS);
 
-	If(TypeReg, EQUAL_I, SELECTION_LINE); {
-		//selection
-		LWZUX(TempReg1, TempReg2, TempReg1); //get setting
-		Decrement(TempReg1);
+	If(TypeReg, LESS_OR_EQUAL_I, HAS_VALUE_LIMIT); {
+		//has a value to change
+		If(TypeReg, EQUAL_I, SELECTION_LINE); {
+			//selection
+			LWZUX(TempReg1, TempReg2, TempReg1); //get setting
+			Decrement(TempReg1);
 
-		If(TempReg1, LESS_I, 0); {
-			LWZ(TempReg1, LineReg, Line::MAX);
-		}EndIf();
-		STW(TempReg1, TempReg2, 0);
-
-		RLWINM(TempReg3, TempReg1, 2, 0, 31); //<< 2
-		ADDI(TempReg1, LineReg, Selection::SELECTION_LINE_OFFSETS_START + 2);
-		LHZX(TempReg1, TempReg1, TempReg3); //get mapped value
-		STW(TempReg1, TempReg2, 4);
-	}Else(); If(TypeReg, EQUAL_I, INTEGER_LINE); {
-		//integer
-		LWZUX(TempReg1, TempReg2, TempReg1); //get setting
-		LWZ(TempReg3, LineReg, Integer::SPEED);
-		SUBF(TempReg1, TempReg1, TempReg3);
-
-		LWZ(TempReg3, LineReg, Integer::MIN);
-		If(TempReg1, LESS, TempReg3); {
-			STW(TempReg3, TempReg2, 0);
-		}Else(); {
+			If(TempReg1, LESS_I, 0); {
+				LWZ(TempReg1, LineReg, Line::MAX);
+			}EndIf();
 			STW(TempReg1, TempReg2, 0);
-		}EndIf();
-	}Else(); If(TypeReg, EQUAL_I, FLOATING_LINE); {
-		//floating
-		LFSUX(2, TempReg2, TempReg1); //get setting
-		LFS(1, LineReg, Floating::SPEED);
-		FSUB(1, 2, 1);
 
-		LFS(2, LineReg, Floating::MIN);
-		FCMPU(1, 2, 0);
-		BC(3, BRANCH_IF_FALSE, LT);
-		STFS(2, TempReg2, 0);
-		B(2);
-		STFS(1, TempReg2, 0);
-	}EndIf(); EndIf(); EndIf(); //done
+			RLWINM(TempReg3, TempReg1, 2, 0, 31); //<< 2
+			ADDI(TempReg1, LineReg, Selection::SELECTION_LINE_OFFSETS_START + 2);
+			LHZX(TempReg1, TempReg1, TempReg3); //get mapped value
+			STW(TempReg1, TempReg2, 4);
+		}Else(); If(TypeReg, EQUAL_I, INTEGER_LINE); {
+			//integer
+			LWZUX(TempReg1, TempReg2, TempReg1); //get setting
+			LWZ(TempReg3, LineReg, Integer::SPEED);
+			SUBF(TempReg1, TempReg1, TempReg3);
+
+			LWZ(TempReg3, LineReg, Integer::MIN);
+			If(TempReg1, LESS, TempReg3); {
+				STW(TempReg3, TempReg2, 0);
+			}Else(); {
+				STW(TempReg1, TempReg2, 0);
+			}EndIf();
+		}Else(); {
+			//floating
+			LFSUX(2, TempReg2, TempReg1); //get setting
+			LFS(1, LineReg, Floating::SPEED);
+			FSUB(1, 2, 1);
+
+			LFS(2, LineReg, Floating::MIN);
+			FCMPU(1, 2, 0);
+			BC(3, BRANCH_IF_FALSE, LT);
+			STFS(2, TempReg2, 0);
+			B(2);
+			STFS(1, TempReg2, 0);
+		}EndIf(); EndIf(); //done
+
+		//set changed flag
+		LWZ(TempReg1, TempReg2, 0);
+		LBZ(TempReg2, LineReg, Line::COLOR);
+		LWZ(TempReg3, LineReg, Line::DEFAULT);
+		LWZ(TempReg5, PageReg, Page::NUM_CHANGED_LINES);
+		RLWINM(TempReg4, TempReg2, 29, 31, 31);
+		ANDI(TempReg2, TempReg2, ~0x8);
+		If(TempReg1, NOT_EQUAL, TempReg3); {
+			//not default
+			Increment(TempReg5);
+			ORI(TempReg2, TempReg2, 0x8);
+		}EndIf();
+		SUBF(TempReg5, TempReg5, TempReg4);
+		STB(TempReg2, LineReg, Line::COLOR);
+		STW(TempReg5, PageReg, Page::NUM_CHANGED_LINES);
+	}EndIf();
 }
 
-void IncreaseValue(int LineReg, int TypeReg, int TempReg1, int TempReg2, int TempReg3)
+void IncreaseValue(int LineReg, int PageReg, int TypeReg, int TempReg1, int TempReg2, int TempReg3, int TempReg4, int TempReg5)
 {
 	LHZ(TempReg1, LineReg, Line::INDEX);
 	SetRegister(TempReg2, START_OF_CODE_MENU_SETTINGS);
 
-	If(TypeReg, EQUAL_I, SELECTION_LINE); {
-		//selection
-		LWZUX(TempReg1, TempReg2, TempReg1); //get setting
-		Increment(TempReg1);
+	If(TypeReg, LESS_OR_EQUAL_I, HAS_VALUE_LIMIT); {
+		//has a value to change
+		If(TypeReg, EQUAL_I, SELECTION_LINE); {
+			//selection
+			LWZUX(TempReg1, TempReg2, TempReg1); //get setting
+			Increment(TempReg1);
 
-		LWZ(TempReg3, LineReg, Line::MAX);
-		If(TempReg1, GREATER, TempReg3); {
-			SetRegister(TempReg1, 0);
-		}EndIf();
-		STW(TempReg1, TempReg2, 0);
-
-		RLWINM(TempReg3, TempReg1, 2, 0, 31); //<< 2
-		ADDI(TempReg1, LineReg, Selection::SELECTION_LINE_OFFSETS_START + 2);
-		LHZX(TempReg1, TempReg1, TempReg3); //get mapped value
-		STW(TempReg1, TempReg2, 4);
-	}Else(); If(TypeReg, EQUAL_I, INTEGER_LINE); {
-		//integer
-		LWZUX(TempReg1, TempReg2, TempReg1); //get setting
-		LWZ(TempReg3, LineReg, Integer::SPEED);
-		ADD(TempReg1, TempReg1, TempReg3);
-
-		LWZ(TempReg3, LineReg, Integer::MAX);
-		If(TempReg1, GREATER, TempReg3); {
-			STW(TempReg3, TempReg2, 0);
-		}Else(); {
+			LWZ(TempReg3, LineReg, Line::MAX);
+			If(TempReg1, GREATER, TempReg3); {
+				SetRegister(TempReg1, 0);
+			}EndIf();
 			STW(TempReg1, TempReg2, 0);
-		}EndIf();
-	}Else(); If(TypeReg, EQUAL_I, FLOATING_LINE); {
-		//floating
-		LFSUX(2, TempReg2, TempReg1); //get setting
-		LFS(1, LineReg, Floating::SPEED);
-		FADD(1, 1, 2);
 
-		LFS(2, LineReg, Floating::MAX);
-		FCMPU(1, 2, 0);
-		BC(3, BRANCH_IF_FALSE, GT);
-		STFS(2, TempReg2, 0);
-		B(2);
-		STFS(1, TempReg2, 0);
-	}EndIf(); EndIf(); EndIf(); //done
+			RLWINM(TempReg3, TempReg1, 2, 0, 31); //<< 2
+			ADDI(TempReg1, LineReg, Selection::SELECTION_LINE_OFFSETS_START + 2);
+			LHZX(TempReg1, TempReg1, TempReg3); //get mapped value
+			STW(TempReg1, TempReg2, 4);
+		}Else(); If(TypeReg, EQUAL_I, INTEGER_LINE); {
+			//integer
+			LWZUX(TempReg1, TempReg2, TempReg1); //get setting
+			LWZ(TempReg3, LineReg, Integer::SPEED);
+			ADD(TempReg1, TempReg1, TempReg3);
+
+			LWZ(TempReg3, LineReg, Integer::MAX);
+			If(TempReg1, GREATER, TempReg3); {
+				STW(TempReg3, TempReg2, 0);
+			}Else(); {
+				STW(TempReg1, TempReg2, 0);
+			}EndIf();
+		}Else(); {
+			//floating
+			LFSUX(2, TempReg2, TempReg1); //get setting
+			LFS(1, LineReg, Floating::SPEED);
+			FADD(1, 1, 2);
+
+			LFS(2, LineReg, Floating::MAX);
+			FCMPU(1, 2, 0);
+			BC(3, BRANCH_IF_FALSE, GT);
+			STFS(2, TempReg2, 0);
+			B(2);
+			STFS(1, TempReg2, 0);
+		}EndIf(); EndIf(); //done
+
+		//set changed flag
+		LWZ(TempReg1, TempReg2, 0);
+		LBZ(TempReg2, LineReg, Line::COLOR);
+		LWZ(TempReg3, LineReg, Line::DEFAULT);
+		LWZ(TempReg5, PageReg, Page::NUM_CHANGED_LINES);
+		RLWINM(TempReg4, TempReg2, 29, 31, 31);
+		ANDI(TempReg2, TempReg2, ~0x8);
+		If(TempReg1, NOT_EQUAL, TempReg3); {
+			//not default
+			Increment(TempReg5);
+			ORI(TempReg2, TempReg2, 0x8);
+		}EndIf();
+		SUBF(TempReg5, TempReg5, TempReg4);
+		STB(TempReg2, LineReg, Line::COLOR);
+		STW(TempReg5, PageReg, Page::NUM_CHANGED_LINES);
+	}EndIf();
 }
 
 void Move(int LineReg, int PageReg, int NextLineOffset, int TempReg1, int TempReg2) {
@@ -576,7 +694,7 @@ void Move(int LineReg, int PageReg, int NextLineOffset, int TempReg1, int TempRe
 	XORI(TempReg2, TempReg2, 0x4);
 	STB(TempReg2, LineReg, Line::COLOR);
 
-	STW(NextLineOffset, PageReg, Page::CURRENT_LINE);
+	STW(NextLineOffset, PageReg, Page::CURRENT_LINE_OFFSET);
 
 	ADD(TempReg1, NextLineOffset, PageReg);
 	LBZ(TempReg2, TempReg1, Line::COLOR);
@@ -606,12 +724,20 @@ void GetActionFromInputs(int ButtonReg, int ControlStickXReg, int ControlStickYR
 	//increment
 	SetControlStickAction(ControlStickXReg, INCREMENT_FRAME_TIMER_LOC, INCREMENT_NUM_WAIT_FRAMES, FIRST_INCREMENT_NUM_WAIT_FRAMES, INCREMENT_THRESHHOLD, INCREMENT, DECREMENT, ResultReg);
 
+	ANDI(4, ButtonReg, TRIGGER_RESET_LINE_BUTTON);
+	If(4, NOT_EQUAL_I, 0); //enter sub menu
+	SetRegister(ResultReg, RESET_LINE);
+	EndIf(); //enter sub menu
+
+	ANDI(4, ButtonReg, TRIGGER_RESET_PAGE_BUTTON);
+	If(4, NOT_EQUAL_I, 0); //leave sub menu
+	SetRegister(ResultReg, RESET_PAGE);
+	EndIf(); //leave sub menu
 
 	ANDI(4, ButtonReg, TRIGGER_ENTER_SUB_MENU_BUTTON);
 	If(4, NOT_EQUAL_I, 0); //enter sub menu
 	SetRegister(ResultReg, ENTER_SUB_MENU);
 	EndIf(); //enter sub menu
-
 
 	ANDI(4, ButtonReg, TRIGGER_LEAVE_SUB_MENU_BUTTON);
 	If(4, NOT_EQUAL_I, 0); //leave sub menu

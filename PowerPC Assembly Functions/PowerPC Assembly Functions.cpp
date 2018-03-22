@@ -1181,6 +1181,55 @@ void GetValueFromPtrPath(vector<int> Path, int StartingReg, int ResultReg)
 	LoadVal(ResultReg, Path.back(), Path[i], ResultReg);
 }
 
+void AllocateStack(int size, int Address, int TempReg)
+{
+	size += 0x10;
+	SetRegister(TempReg, size);
+	Allocate(TempReg);
+	SetRegister(TempReg, Address);
+	STW(3, TempReg, 0);
+	STW(3, 3, 0); //set ptr to begining
+}
+
+void PushOnStack(int ValueReg, int StackReg, int TempReg)
+{
+	LWZ(TempReg, StackReg, 0);
+	STWU(ValueReg, TempReg, 4);
+	STW(TempReg, StackReg, 0);
+}
+
+//requires endif
+void PopOffStack(int ResultReg, int StatckReg, int TempReg)
+{
+	LWZ(TempReg, StatckReg, 0);
+	LWZ(ResultReg, TempReg, 0);
+	If(TempReg, NOT_EQUAL, StatckReg); {
+		ADDI(TempReg, TempReg, -4);
+		STW(TempReg, StatckReg, 0);
+	}
+}
+
+void IterateStack(int ResultReg, int StackReg, int TempReg)
+{
+	StackIteratorRecords.push_back(GetNextLabel());
+	Label(StackIteratorRecords.back());
+
+	PopOffStack(ResultReg, StackReg, TempReg);
+}
+
+void IterateStackEnd()
+{
+	JumpToLabel(StackIteratorRecords.back());
+	EndIf();
+	StackIteratorRecords.pop_back();
+}
+
+void RandomCapped(int HighReg, int reg1, int ResultReg)
+{
+	LoadWordToReg(reg1, 0x805a0420 + 4);
+	MOD(ResultReg, HighReg, reg1);
+}
+
 void ABS(int DestReg, int SourceReg, int tempReg)
 {
 	SRAWI(tempReg, SourceReg, 31);
@@ -1759,6 +1808,13 @@ void MFLR(int TargetReg)
 	WriteIntToFile(OpHex);
 }
 
+void MOD(int DestReg, int SourceReg1, int SourceReg2)
+{
+	DIVWU(DestReg, SourceReg1, SourceReg2);
+	MULLW(DestReg, DestReg, SourceReg2);
+	SUBF(DestReg, SourceReg1, DestReg);
+}
+
 void MR(int DestReg, int SourceReg)
 {
 	OR(DestReg, SourceReg, SourceReg);
@@ -1788,6 +1844,16 @@ void MULLI(int DestReg, int SourceReg, int Immediate)
 	OpHex |= GetOpSegment(DestReg, 5, 10);
 	OpHex |= GetOpSegment(SourceReg, 5, 15);
 	OpHex |= GetOpSegment(Immediate, 16, 31);
+	WriteIntToFile(OpHex);
+}
+
+void MULLW(int DestReg, int SourceReg1, int SourceReg2)
+{
+	OpHex = GetOpSegment(31, 6, 5);
+	OpHex |= GetOpSegment(DestReg, 5, 10);
+	OpHex |= GetOpSegment(SourceReg1, 5, 15);
+	OpHex |= GetOpSegment(SourceReg2, 5, 20);
+	OpHex |= GetOpSegment(235, 9, 30);
 	WriteIntToFile(OpHex);
 }
 

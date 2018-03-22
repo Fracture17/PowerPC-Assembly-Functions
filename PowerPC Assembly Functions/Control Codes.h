@@ -40,3 +40,6 @@ void EndMatch();
 void FindCharacterBuffer(int TargetReg, int ResultReg);
 void FindEndOfCharacterBuffers(int TargetReg, int ResultReg);
 void GetCharacterValue(int CharacterBufferReg, vector<int> ValuePath, int ResultReg = 3);
+void InfiniteFriendlies(int reg1, int reg2, int reg3, int reg4, int reg5, int reg6, int reg7, int reg8, int reg9);
+void GetLegalStagesArray(int reg1, int reg2, int reg3, int reg4, int reg5, int reg6, int reg7, int reg8, int reg9);
+void AddLegalStagesToArray(int StageListReg, int LegalStageHighMaskReg, int LegalStageLowMaskReg, int ArrayReg, int PosReg, int reg2, int reg3, int reg4);
