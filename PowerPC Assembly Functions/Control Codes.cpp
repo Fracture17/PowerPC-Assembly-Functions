@@ -12,6 +12,51 @@ void ControlCodes()
 	LoadCodeMenu();
 
 	AddNewCharacterBuffer();
+
+	DeleteCharacterBuffer();
+
+	DeleteCharacterBufferOnTransform();
+
+	if (PERCENT_SELECT_ACTIVATOR_P1_INDEX != -1) {
+		//FixPercentSelector();
+	}
+}
+
+void FixPercentSelector() {
+	//can use r4-r6
+	//r30 is ptr
+	ASMStart(0x800e0ce4);
+
+	int reg1 = 4;
+	int reg2 = 5;
+	int reg3 = 6;
+
+	SetRegister(reg2, 0x69);
+	STB(reg2, 30, 8); //flag
+
+	//SetRegister(4, 0x100); //percent
+
+	ASMEnd(); //set r4 to percent
+
+	//can use r18 and up
+	//r3 is ptr
+	ASMStart(0x800e15a4);
+
+	reg1 = 19;
+	reg2 = 20;
+	reg3 = 21;
+
+	LBZ(reg1, 3, 8);
+	If(reg1, EQUAL_I, 0x69); {
+		Increment(reg1);
+		SetRegister(4, 0x100);
+		STB(reg1, 3, 8);
+	}Else(); If(reg1, EQUAL_I, 0x6A); {
+		SetRegister(4, 0);
+		STB(4, 3, 8);
+	}EndIf(); EndIf();
+
+	ASMEnd(0x80030354); //lwz r0, r3, 0x354
 }
 
 void LoadCodeMenu()
@@ -32,7 +77,7 @@ void LoadCodeMenu()
 	STW(reg2, reg1, 8);
 	STW(reg2, reg1, 0x10);
 
-	SetRegister(reg2, START_OF_CODE_MENU);
+	SetRegister(reg2, START_OF_CODE_MENU_HEADER);
 	STW(reg2, reg1, 0xC); //storage loc
 
 	SetRegister(reg2, -1);
@@ -68,9 +113,7 @@ void StartMatch()
 	SetupIASABuffers();
 #endif
 
-	if (DI_DRAW_INDEX != -1) {
-		SetupCharacterBuffer();
-	}
+	SetupCharacterBuffer();
 
 	if (INFINITE_FRIENDLIES_INDEX != -1) {
 		InfiniteFriendlies(reg1, reg2, reg3, reg4, reg5, reg6, reg7, reg8, reg9);
@@ -87,6 +130,7 @@ void StartMatch()
 
 void EndMatch()
 {
+	//r3 is scene manager thing
 	ASMStart(0x806d4850);
 	SaveRegisters();
 
@@ -94,6 +138,12 @@ void EndMatch()
 	int reg2 = 30;
 	int reg3 = 29;
 	int reg4 = 28;
+	int reg5 = 27;
+	int reg6 = 26;
+	int reg7 = 25;
+	int reg8 = 24;
+	int reg9 = 23;
+	int NextSceneReg = 16;
 	int MainBufferReg = 15;
 	int CharacterBufferReg = 14;
 
@@ -107,35 +157,122 @@ void EndMatch()
 	FreeIASABuffers();
 #endif
 
-	//reload stage
-	if (INFINITE_FRIENDLIES_INDEX != -1) {
-		LoadWordToReg(reg1, INFINITE_FRIENDLIES_INDEX);
-		If(reg1, GREATER_I, 0); {
-			If(reg1, GREATER_I, 1); {
+	/*if (AUTO_SKIP_TO_CSS_INDEX != -1 || INFINITE_FRIENDLIES_INDEX != -1) {
+		SetRegister(reg2, PLAY_BUTTON_LOC_START - BUTTON_PORT_OFFSET);
+		CounterLoop(reg1, 0, 4, 1); {
+			LWZU(reg3, reg2, BUTTON_PORT_OFFSET);
+			//salty runback
+			ANDI(reg4, reg3, BUTTON_L | BUTTON_R | BUTTON_Y);
+			If(reg4, EQUAL_I, BUTTON_L | BUTTON_R | BUTTON_Y); {
+				JumpToLabel(Skip);
+			}EndIf();
+			//skip to CSS
+			ANDI(reg4, reg3, BUTTON_L | BUTTON_R | BUTTON_X);
+			If(reg4, EQUAL_I, BUTTON_L | BUTTON_R | BUTTON_X); {
+				JumpToLabel(Skip);
+			}EndIf();
+		}CounterLoopEnd();
+	}*/
+
+	//NextSceneReg gets scene
+	IfInVersus(NextSceneReg); {
+		LoadWordToReg(reg4, reg3, 0x80584084); //get current hold to pause flag
+
+		if (AUTO_SKIP_TO_CSS_INDEX != -1) {
+			LoadWordToReg(reg1, AUTO_SKIP_TO_CSS_INDEX + Line::VALUE);
+			If(reg1, EQUAL_I, 1); {
+				SetRegister(reg4, 0); //clear hold to pause
+				SetRegister(NextSceneReg, 0xD);
+			}EndIf();
+		}
+
+		//reload stage
+		if (INFINITE_FRIENDLIES_INDEX != -1) {
+			int Skip = GetNextLabel();
+			LoadWordToReg(reg1, INFINITE_FRIENDLIES_INDEX + Line::VALUE);
+			If(reg1, GREATER_I, 0); {
+				LWZ(reg1, 3, 0x24);
+				LWZ(reg1, reg1, 0x8C);
+				If(reg1, EQUAL_I, 0x13); {
+					JumpToLabel(Skip);
+				}EndIf();
+				If(reg1, EQUAL_I, 0x19); {
+					JumpToLabel(Skip);
+				}EndIf();
+
+				LWZ(reg4, reg3, 0); //keep hold to puase flag
+
 				SetRegister(reg1, 1);
 				SetRegister(reg2, INFINITE_FRIENDLIES_FLAG_LOC);
 				STW(reg1, reg2, 0);
-			}EndIf();
-			LoadWordToReg(reg1, 0x805b4fd8 + 0xd4);
-			LWZ(reg1, reg1, 0x10);
-			SetRegister(reg2, 2);
-			STW(reg2, reg1, 8);
-		}EndIf();
-	}
 
-	LoadWordToReg(MainBufferReg, MAIN_BUFFER_PTR);
-	LWZU(CharacterBufferReg, MainBufferReg, 4);
-	While(CharacterBufferReg, NOT_EQUAL_I, 0); {
-		if (DI_DRAW_INDEX != -1) {
-			LWZ(reg1, CharacterBufferReg, CHR_BUFFER_DI_BUFFER_PTR_OFFSET);
-			FreeDIBuffer(reg1, reg2);
+				SetRegister(NextSceneReg, 1);
+			}EndIf();
+
+			Label(Skip);
 		}
 
-		FreeMem(CharacterBufferReg);
-		LWZU(CharacterBufferReg, MainBufferReg, 8);
-	}EndWhile();
+		SetRegister(reg2, PLAY_BUTTON_LOC_START - BUTTON_PORT_OFFSET);
+		LoadHalfToReg(reg6, SALTY_RUNBACK_BUTTON_COMBO_LOC + 2);
+		LoadHalfToReg(reg7, SKIP_RESULTS_BUTTON_COMBO_LOC + 2);
+		SetRegister(reg9, 0);
+		CounterLoop(reg1, 0, 8, 1); {
+			LWZU(reg5, reg2, BUTTON_PORT_OFFSET);
+			//salty runback
+			AND(reg8, reg5, reg6);
+			If(reg8, EQUAL, reg6); {
+				SetRegister(reg9, 0x10);
+			}EndIf();
+			//skip to CSS
+			AND(reg8, reg5, reg7);
+			If(reg8, EQUAL, reg7); {
+				SetRegister(reg9, 0x20);
+			}EndIf();
+		}CounterLoopEnd();
+
+		SetRegister(reg5, INFINITE_FRIENDLIES_FLAG_LOC);
+		SetRegister(reg6, 0);
+		//skip to CSS
+		LoadByteToReg(reg1, SKIP_RESULTS_BUTTON_COMBO_LOC);
+		RLWINM(reg1, reg1, 1, 0, 31); //*=2
+		XOR(reg1, reg1, reg9);
+		If(reg1, EQUAL_I, 0x20); {
+			SetRegister(NextSceneReg, 0xD);
+			SetRegister(reg4, 0); //clear hold to pause
+			STW(reg6, reg5, 0); //clear endless friendlies flag
+		}EndIf();
+		//salty runback
+		LoadByteToReg(reg1, SALTY_RUNBACK_BUTTON_COMBO_LOC);
+		XOR(reg1, reg1, reg9);
+		If(reg1, EQUAL_I, 0x10); {
+			SetRegister(NextSceneReg, 1);
+			LWZ(reg4, reg3, 0); //keep hold to puase flag
+			STW(reg6, reg5, 0); //clear endless friendlies flag
+		}EndIf();
+
+		//set next scene
+		LoadWordToReg(reg1, 0x805b4fd8 + 0xd4);
+		LWZ(reg1, reg1, 0x10);
+		STW(NextSceneReg, reg1, 8);
+
+		STW(reg4, reg3, 0); //set hold to pause to whatever
+	}EndIf();
+
 	LoadWordToReg(MainBufferReg, MAIN_BUFFER_PTR);
 	FreeMem(MainBufferReg);
+
+	if (AUTO_SAVE_REPLAY_INDEX != -1) {
+		IfInVersus(reg1); {
+			SetRegister(reg3, 0);
+			LoadWordToReg(reg1, reg2, AUTO_SAVE_REPLAY_FLAG_LOC);
+			STW(reg3, reg2, 0); //clear flag
+			If(reg1, EQUAL_I, 2); {
+				SaveReplay();
+			}EndIf();
+		}EndIf();
+		//can't trust registers after this
+	}
+	
 
 	RestoreRegisters();
 	ASMEnd(0x7c7f1b78); //mr r31, r3
@@ -150,7 +287,6 @@ void Draw()
 
 	//draw di
 	if (DI_DRAW_INDEX != -1) {
-		//DrawDI();
 		DrawTrajectories();
 	}
 
@@ -163,7 +299,221 @@ void Draw()
 	ASMEnd(0x38210030); //addi sp, sp, 48
 }
 
-void AddNewCharacterBuffer()
+void DeleteCharacterBufferOnTransform()
+{
+	//r3 is thing
+	//r4 is new module index
+	//[r3 + 0xA] = old index
+	ASMStart(0x808205bc);
+	SaveRegisters(14);
+
+	int BaseModuleTableReg = 31;
+	int reg1 = 30;
+	int reg2 = 29;
+	int reg3 = 28;
+	int reg4 = 27;
+	int reg5 = 26;
+	int ModulePtrReg = 25;
+	int HeadOfFighterReg = 24;
+	int CharacterBufferReg = 23;
+	int ModuleIndexReg = 22;
+
+	MR(ModuleIndexReg, 4);
+
+	LBZ(reg3, 3, 0xA);
+	ADDI(reg1, 3, 0x34);
+	RLWINM(reg2, 4, 3, 0, 31); //<< 3
+	RLWINM(reg3, reg3, 3, 0, 31); //<< 3
+	LWZX(3, reg1, reg2); //get new module
+	LWZX(4, reg1, reg3); //get old module
+	LWZ(BaseModuleTableReg, 3, 0x60);
+	MR(HeadOfFighterReg, 3);
+
+	//delete old buffer
+	int CharacterBufferPtrReg = 28;
+
+	int Quit = GetNextLabel();
+
+	LWZ(4, 4, 0x60);
+	LoadWordToReg(CharacterBufferPtrReg, MAIN_BUFFER_PTR);
+	LWZ(CharacterBufferReg, CharacterBufferPtrReg, 0);
+	While(CharacterBufferReg, NOT_EQUAL, 4); {
+		LWZU(CharacterBufferReg, CharacterBufferPtrReg, 8);
+		If(CharacterBufferReg, EQUAL_I, 0); {
+			JumpToLabel(Quit);
+		}EndIf();
+	}EndWhile();
+	LWZ(CharacterBufferReg, CharacterBufferPtrReg, 4);
+
+	//free mem
+	if (DI_DRAW_INDEX != -1) {
+		LWZ(reg1, CharacterBufferReg, CHR_BUFFER_DI_BUFFER_PTR_OFFSET);
+		FreeDIBuffer(reg1, reg2);
+	}
+
+	FreeMem(CharacterBufferReg);
+
+	//shift all elements down
+	SetRegister(reg1, 1);
+	While(reg1, NOT_EQUAL_I, 0); {
+		LWZU(reg1, CharacterBufferPtrReg, 8);
+		LWZ(reg2, CharacterBufferPtrReg, 4);
+		STW(reg1, CharacterBufferPtrReg, -8);
+		STW(reg2, CharacterBufferPtrReg, -4);
+	}EndWhile();
+
+	Label(Quit);
+
+	RestoreRegisters();
+	ASMEnd(0x9883000b); //stb r4, r3, 0xB
+}
+
+/*
+void ChangeCharacterBufferModule()
+{
+	//r3 is thing
+	//r4 is new module index
+	//[r3 + 0xA] = old index
+	ASMStart(0x808205bc);
+	SaveRegisters(14);
+
+	int BaseModuleTableReg = 31;
+	int reg1 = 30;
+	int reg2 = 29;
+	int reg3 = 28;
+	int reg4 = 27;
+	int reg5 = 26;
+	int ModulePtrReg = 25;
+	int HeadOfFighterReg = 24;
+	int CharacterBufferReg = 23;
+	int ModuleIndexReg = 22;
+
+	MR(ModuleIndexReg, 4);
+
+	LBZ(reg3, 3, 0xA);
+	ADDI(reg1, 3, 0x34);
+	RLWINM(reg2, 4, 3, 0, 31); //<< 3
+	RLWINM(reg3, reg3, 3, 0, 31); //<< 3
+	LWZX(3, reg1, reg2); //get new module
+	LWZX(4, reg1, reg3); //get old module
+	LWZ(BaseModuleTableReg, 3, 0x60);
+	MR(HeadOfFighterReg, 3);
+
+	//delete old buffer
+	int CharacterBufferPtrReg = 28;
+
+	int Quit = GetNextLabel();
+
+	LWZ(4, 4, 0x60);
+	LoadWordToReg(CharacterBufferPtrReg, MAIN_BUFFER_PTR);
+	LWZ(CharacterBufferReg, CharacterBufferPtrReg, 0);
+	While(CharacterBufferReg, NOT_EQUAL, 4); {
+		LWZU(CharacterBufferReg, CharacterBufferPtrReg, 8);
+		If(CharacterBufferReg, EQUAL_I, 0); {
+			JumpToLabel(Quit);
+		}EndIf();
+	}EndWhile();
+	LWZ(CharacterBufferReg, CharacterBufferPtrReg, 4);
+
+	//free mem
+	if (DI_DRAW_INDEX != -1) {
+		LWZ(reg1, CharacterBufferReg, CHR_BUFFER_DI_BUFFER_PTR_OFFSET);
+		FreeDIBuffer(reg1, reg2);
+	}
+
+	FreeMem(CharacterBufferReg);
+
+	//shift all elements down
+	SetRegister(reg1, 1);
+	While(reg1, NOT_EQUAL_I, 0); {
+		LWZU(reg1, CharacterBufferPtrReg, 8);
+		LWZ(reg2, CharacterBufferPtrReg, 4);
+		STW(reg1, CharacterBufferPtrReg, -8);
+		STW(reg2, CharacterBufferPtrReg, -4);
+	}EndWhile();
+
+	Label(Quit);
+
+
+	//add new buffer
+	LWZ(ModulePtrReg, BaseModuleTableReg, 0xD8);
+
+	SetRegister(reg1, 0);
+	FindEndOfCharacterBuffers(reg1, reg2);
+	STW(BaseModuleTableReg, reg2, 0);
+	STW(reg1, reg2, 8); //clear next slot
+	STW(reg1, reg2, 0xC); //clear next slot
+
+	SetRegister(reg1, CHR_BUFFER_SIZE + 0x20);
+	Allocate(reg1);
+	STW(3, reg2, 4);
+
+	MR(CharacterBufferReg, 3);
+
+	MR(3, HeadOfFighterReg);
+	CallBrawlFunc(0x8083ae38); //getInput
+	STW(3, CharacterBufferReg, CHR_BUFFER_FIGHTER_INPUT_PTR_OFFSET);
+	SetRegister(3, 0x80629a00);
+	CallBrawlFunc(0x80815ad0); //get player number
+	STW(3, CharacterBufferReg, CHR_BUFFER_PORT_OFFSET);
+
+	MULLI(reg2, 3, 0x5C);
+	SetRegister(reg1, CHARACTER_INFO_START_ADDRESS);
+	ADD(reg1, reg1, reg2);
+	STW(reg1, CharacterBufferReg, CHR_BUFFER_INFO_PTR_OFFSET);
+
+	if (CHARACTER_SELECT_P1_INDEX != -1) {
+		GetArrayValueFromIndex(CHARACTER_SWITCHER_ARRAY_LOC, 3, 0, 3, reg2); {
+			LBZ(reg1, reg1, 0); //get char ID
+			ADDI(reg5, reg2, Selection::SELECTION_LINE_OFFSETS_START + 3);
+			FindInArray(reg1, reg5, CHARACTER_ID_LIST.size(), 4, reg3, reg4);
+			STW(reg3, reg2, Line::VALUE);
+			STW(reg3, reg2, Line::DEFAULT);
+		}EndIf(); EndIf();
+	}
+
+	MR(3, BaseModuleTableReg);
+	SetRegs(4, { 3023, 0 }); //gravity
+	CallBrawlFunc(0x80796c6c); //get constant float core
+	FNEG(1, 1);
+	STFS(1, CharacterBufferReg, CHR_BUFFER_GRAVITY_OFFSET);
+
+	MR(3, BaseModuleTableReg);
+	SetRegs(4, { 3024, 0 }); //mfs
+	CallBrawlFunc(0x80796c6c); //get constant float core
+	FNEG(1, 1);
+	STFS(1, CharacterBufferReg, CHR_BUFFER_MFS_OFFSET);
+
+	LWZ(reg2, ModulePtrReg, 0x64);
+	LWZ(reg2, reg2, 0x20);
+	LWZ(reg2, reg2, 0xC);
+	STW(reg2, CharacterBufferReg, CHR_BUFFER_VARIABLES_ADDRESS_OFFSET); //variables start address
+	LWZU(reg3, reg2, 0xE0);
+	STW(reg3, CharacterBufferReg, CHR_BUFFER_HITSTUN_FRAMES_OFFSET); //frames
+	STW(reg2, CharacterBufferReg, CHR_BUFFER_HITSTUN_FRAMES_PTR_OFFSET); //ptr
+
+	LWZ(reg2, ModulePtrReg, 0xC);
+	STW(reg2, CharacterBufferReg, CHR_BUFFER_POS_PTR_OFFSET);
+
+	LWZ(reg3, ModulePtrReg, 0x7C);
+	LWZ(reg2, reg3, 0x7C);
+	STW(reg2, CharacterBufferReg, CHR_BUFFER_KB_VECTOR_PTR_OFFSET);
+
+	LWZ(reg2, ModulePtrReg, 0x5C);
+	LWZ(reg2, reg2, 0x14C);
+	STW(reg2, CharacterBufferReg, CHR_BUFFER_IP_SWITCH_PTR_OFFSET);
+
+	//create buffers
+	if (DI_DRAW_INDEX != -1) {
+		CreateDIBuffer(CharacterBufferReg, reg2, reg3, reg4);
+	}
+
+	RestoreRegisters();
+	ASMEnd(0x9883000b); //stb r4, r3, 0xB
+}
+*/
+
+/*void AddNewCharacterBuffer()
 {
 	//[r3 + 0x60] = module ptr
 	//f31
@@ -214,9 +564,12 @@ void AddNewCharacterBuffer()
 		STW(reg1, CharacterBufferReg, CHR_BUFFER_INFO_PTR_OFFSET);
 
 		if (CHARACTER_SELECT_P1_INDEX != -1) {
-			LBZ(reg3, reg1, 0); //get char ID
 			GetArrayValueFromIndex(CHARACTER_SWITCHER_ARRAY_LOC, 3, 0, 3, reg2); {
-				STW(reg3, reg2, 4);
+				LBZ(reg1, reg1, 0); //get char ID
+				ADDI(reg5, reg2, Selection::SELECTION_LINE_OFFSETS_START + 3);
+				FindInArray(reg1, reg5, CHARACTER_ID_LIST.size(), 4, reg3, reg4);
+				STW(reg3, reg2, Line::VALUE);
+				STW(reg3, reg2, Line::DEFAULT);
 			}EndIf(); EndIf();
 		}
 
@@ -260,15 +613,213 @@ void AddNewCharacterBuffer()
 	}EndIf();
 	ASMEnd();
 }
+*/
 
+void AddNewCharacterBuffer()
+{
+	//r31 = entity ptr
+
+	int BaseModuleTableReg = 31;
+	int reg1 = 30;
+	int reg2 = 29;
+	int reg3 = 28;
+	int reg4 = 27;
+	int reg5 = 26;
+	int ModulePtrReg = 25;
+	int HeadOfFighterReg = 24;
+	int CharacterBufferReg = 23;
+	int EntityReg = 22;
+
+	int IsPopoReg = 14;
+	int Quit = GetNextLabel();
+
+	ASMStart(0x8081f4b4);
+	SaveRegisters(14);
+
+	LoadWordToReg(28, IS_IN_GAME_FLAG);
+	MR(EntityReg, 31);
+	If(28, EQUAL_I, 1); {
+		//is in game
+		LBZ(reg1, EntityReg, 0xA);
+		ADDI(reg2, EntityReg, 0x34);
+		RLWINM(reg1, reg1, 3, 0, 31); //*=8
+		LWZX(3, reg2, reg1);
+		SetRegister(IsPopoReg, 0x10);
+
+		int Start = GetNextLabel();
+		Label(Start);
+
+		//check if already exists
+		LWZ(BaseModuleTableReg, 3, 0x60);
+		LoadWordToReg(reg1, MAIN_BUFFER_PTR);
+		LWZ(CharacterBufferReg, reg1, 0);
+		While(CharacterBufferReg, NOT_EQUAL_I, 0); {
+			If(CharacterBufferReg, EQUAL, BaseModuleTableReg); {
+				JumpToLabel(Quit);
+			}EndIf();
+			LWZU(CharacterBufferReg, reg1, 8);
+		}EndWhile();
+
+		MR(HeadOfFighterReg, 3);
+		LWZ(ModulePtrReg, BaseModuleTableReg, 0xD8);
+
+		SetRegister(reg1, 0);
+		FindEndOfCharacterBuffers(reg1, reg2);
+		STW(BaseModuleTableReg, reg2, 0);
+		STW(reg1, reg2, 8); //clear next slot
+		STW(reg1, reg2, 0xC); //clear next slot
+
+		SetRegister(reg1, CHR_BUFFER_SIZE + 0x20);
+		Allocate(reg1);
+		STW(3, reg2, 4);
+
+		MR(CharacterBufferReg, 3);
+
+		MR(3, HeadOfFighterReg);
+		CallBrawlFunc(0x8083ae38); //getInput
+		STW(3, CharacterBufferReg, CHR_BUFFER_FIGHTER_INPUT_PTR_OFFSET);
+		SetRegister(3, 0x80629a00);
+		CallBrawlFunc(0x80815ad0); //get player number
+		STW(3, CharacterBufferReg, CHR_BUFFER_PORT_OFFSET);
+
+		STW(HeadOfFighterReg, CharacterBufferReg, CHR_BUFFER_HEAD_OF_FIGHTER_OFFSET);
+
+		MULLI(reg2, 3, 0x5C);
+		SetRegister(reg1, CHARACTER_INFO_START_ADDRESS);
+		ADD(reg1, reg1, reg2);
+		STW(reg1, CharacterBufferReg, CHR_BUFFER_INFO_PTR_OFFSET);
+
+		if (CHARACTER_SELECT_P1_INDEX != -1) {
+			GetArrayValueFromIndex(CHARACTER_SWITCHER_ARRAY_LOC, 3, 0, 3, reg2); {
+				LBZ(reg1, reg1, 0); //get char ID
+				ADDI(reg5, reg2, Selection::SELECTION_LINE_OFFSETS_START + 3);
+				FindInArray(reg1, reg5, CHARACTER_ID_LIST.size(), 4, reg3, reg4);
+				STW(reg3, reg2, Line::VALUE);
+				STW(reg3, reg2, Line::DEFAULT);
+			}EndIf(); EndIf();
+		}
+
+		MR(3, BaseModuleTableReg);
+		SetRegs(4, { 3023, 0 }); //gravity
+		CallBrawlFunc(0x80796c6c); //get constant float core
+		FNEG(1, 1);
+		STFS(1, CharacterBufferReg, CHR_BUFFER_GRAVITY_OFFSET);
+
+		MR(3, BaseModuleTableReg);
+		SetRegs(4, { 3024, 0 }); //mfs
+		CallBrawlFunc(0x80796c6c); //get constant float core
+		FNEG(1, 1);
+		STFS(1, CharacterBufferReg, CHR_BUFFER_MFS_OFFSET);
+
+		LWZ(reg2, ModulePtrReg, 0x64);
+		LWZ(reg2, reg2, 0x20);
+		LWZ(reg2, reg2, 0xC);
+		STW(reg2, CharacterBufferReg, CHR_BUFFER_VARIABLES_ADDRESS_OFFSET); //variables start address
+		LWZU(reg3, reg2, 0xE0);
+		STW(reg3, CharacterBufferReg, CHR_BUFFER_HITSTUN_FRAMES_OFFSET); //frames
+		STW(reg2, CharacterBufferReg, CHR_BUFFER_HITSTUN_FRAMES_PTR_OFFSET); //ptr
+
+		LWZ(reg2, ModulePtrReg, 0xC);
+		STW(reg2, CharacterBufferReg, CHR_BUFFER_POS_PTR_OFFSET);
+
+		LWZ(reg3, ModulePtrReg, 0x7C);
+		LWZ(reg2, reg3, 0x7C);
+		STW(reg2, CharacterBufferReg, CHR_BUFFER_KB_VECTOR_PTR_OFFSET);
+
+		LWZ(reg2, ModulePtrReg, 0x5C);
+		LWZ(reg2, reg2, 0x14C);
+		STW(reg2, CharacterBufferReg, CHR_BUFFER_IP_SWITCH_PTR_OFFSET);
+
+		//create buffers
+		if (DI_DRAW_INDEX != -1) {
+			CreateDIBuffer(CharacterBufferReg, reg2, reg3, reg4);
+		}
+
+		LWZ(reg1, EntityReg, 0x5C);
+		If(reg1, EQUAL, IsPopoReg); {
+			//is ice climbers, and first run through
+			LWZ(3, EntityReg, 0x3C); //get nana module
+			SetRegister(IsPopoReg, 0); //prevent loop next time
+			JumpToLabel(Start);
+		}EndIf();
+	}EndIf();
+
+	Label(Quit);
+
+	RestoreRegisters();
+	ASMEnd(0xcbe10058); //lfd f31, sp, 0x58
+}
+
+
+
+void DeleteCharacterBuffer()
+{
+	//r4 is module ptr
+	//can use r31
+	ASMStart(0x8082f3f4);
+	LoadWordToReg(31, IS_IN_GAME_FLAG);
+	If(31, EQUAL_I, 1); {
+		SaveRegisters();
+
+		int CharacterBufferReg = 31;
+		int reg1 = 30;
+		int reg2 = 29;
+		int CharacterBufferPtrReg = 28;
+
+		int Quit = GetNextLabel();
+
+		LWZ(4, 4, 0x60);
+		LoadWordToReg(CharacterBufferPtrReg, MAIN_BUFFER_PTR);
+		LWZ(CharacterBufferReg, CharacterBufferPtrReg, 0);
+		While(CharacterBufferReg, NOT_EQUAL, 4); {
+			LWZU(CharacterBufferReg, CharacterBufferPtrReg, 8);
+			If(CharacterBufferReg, EQUAL_I, 0); {
+				JumpToLabel(Quit);
+			}EndIf();
+		}EndWhile();
+		LWZ(CharacterBufferReg, CharacterBufferPtrReg, 4);
+
+		//free mem
+		if (DI_DRAW_INDEX != -1) {
+			LWZ(reg1, CharacterBufferReg, CHR_BUFFER_DI_BUFFER_PTR_OFFSET);
+			FreeDIBuffer(reg1, reg2);
+		}
+
+		FreeMem(CharacterBufferReg);
+
+		//shift all elements down
+		SetRegister(reg1, 1);
+		While(reg1, NOT_EQUAL_I, 0); {
+			LWZU(reg1, CharacterBufferPtrReg, 8);
+			LWZ(reg2, CharacterBufferPtrReg, 4);
+			STW(reg1, CharacterBufferPtrReg, -8);
+			STW(reg2, CharacterBufferPtrReg, -4);
+		}EndWhile();
+
+		Label(Quit);
+
+		RestoreRegisters();
+	}EndIf();
+	ASMEnd(0x3be00000); //li r31, 0
+}
+
+
+//r3 has address of chr buffer ptr
 void FindCharacterBuffer(int TargetReg, int ResultReg)
 {
-	LoadWordToReg(ResultReg, MAIN_BUFFER_PTR);
+	LoadWordToReg(3, MAIN_BUFFER_PTR);
+	LWZ(ResultReg, 3, 0);
+	While(ResultReg, NOT_EQUAL, TargetReg); {
+		LWZU(ResultReg, 3, 8);
+	}EndWhile();
+	LWZ(ResultReg, 3, 4);
+
+	/*LoadWordToReg(ResultReg, MAIN_BUFFER_PTR);
 	LWZ(3, ResultReg, 0);
 	While(3, NOT_EQUAL, TargetReg); {
 		LWZU(3, ResultReg, 8);
 	}EndWhile();
-	LWZ(ResultReg, ResultReg, 4);
+	LWZ(ResultReg, ResultReg, 4);*/
 }
 
 void FindEndOfCharacterBuffers(int TargetReg, int ResultReg)
@@ -287,15 +838,32 @@ void GetCharacterValue(int CharacterBufferReg, vector<int> ValuePath, int Result
 
 void InfiniteFriendlies(int reg1, int reg2, int reg3, int reg4, int reg5, int reg6, int reg7, int reg8, int reg9)
 {
+	//int Quit = GetNextLabel();
+
 	LoadWordToReg(reg1, reg2, INFINITE_FRIENDLIES_FLAG_LOC);
 	If(reg1, EQUAL_I, 1); {
 		SetRegister(reg1, 0);
 		STW(reg1, reg2, 0); //clear flag
 
-		LoadWordToReg(reg1, INFINITE_FRIENDLIES_INDEX);
+		/*SetRegister(reg2, PLAY_BUTTON_LOC_START - BUTTON_PORT_OFFSET);
+		CounterLoop(reg1, 0, 4, 1); {
+			LWZU(reg3, reg2, BUTTON_PORT_OFFSET);
+			//salty runback
+			ANDI(reg4, reg3, BUTTON_L | BUTTON_R | BUTTON_A | BUTTON_Y);
+			If(reg4, EQUAL_I, BUTTON_L | BUTTON_R | BUTTON_A | BUTTON_Y); {
+				JumpToLabel(Quit);
+			}EndIf();
+		}CounterLoopEnd();*/
+
+		LoadWordToReg(reg1, INFINITE_FRIENDLIES_INDEX + Line::VALUE);
 		If(reg1, EQUAL_I, 2); {
 			//random stage
 			GetLegalStagesArray(reg1, reg2, reg3, reg4, reg5, reg6, reg7, reg8, reg9);
+			If(reg4, EQUAL_I, 0); {
+				//provide default
+				STW(reg4, reg3, 0);
+				SetRegister(reg4, 1);
+			}EndIf();
 			MR(3, reg4);
 			CallBrawlFunc(0x8003fc7c); //randi
 			//RandomCapped(reg4, reg1);
@@ -305,7 +873,18 @@ void InfiniteFriendlies(int reg1, int reg2, int reg3, int reg4, int reg5, int re
 			CallBrawlFunc(0x800af614); //exchangeMuStageForScStage
 			STH(3, reg2, 0x1A);
 		}EndIf();
+
+		LoadWordToReg(reg2, 0x805a00e0);
+		LBZX(3, reg3, 3);
+		LWZ(reg2, reg2, 8);
+		LHZ(3, reg2, 0x1A); //stage ID
+		ADDI(4, reg2, 0x1C);
+		ADDI(5, reg2, 0x5C);
+		SetRegister(6, 0);
+		CallBrawlFunc(0x8010f960); //stGetStageParameter
 	}EndIf();
+
+	//Label(Quit);
 }
 
 //reg4 contains total size
@@ -343,8 +922,12 @@ void AddLegalStagesToArray(int StageListReg, int LegalStageHighMaskReg, int Lega
 		}EndIf();
 		
 		If(reg4, NOT_EQUAL_I, 0); {
-			STBX(reg3, ArrayReg, PosReg);
-			Increment(PosReg);
+			If(reg3, NOT_EQUAL_I, 0x14); {
+				If(reg3, NOT_EQUAL_I, 0xE); {
+					STBX(reg3, ArrayReg, PosReg);
+					Increment(PosReg);
+				}EndIf();
+			}EndIf();
 		}EndIf();
 	}EndWhile();
 }

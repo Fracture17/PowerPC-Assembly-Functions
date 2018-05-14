@@ -3,9 +3,9 @@
 #include "DrawDI.h"
 #include "IASA Overlay.h"
 #include "Control Codes.h"
+#include "Save States.h"
 
-int MenuID = 0;
-
+int MENU_TITLE_CHECK_LOCATION;
 int DI_DRAW_INDEX = -1;
 int DEBUG_MODE_INDEX = -1;
 int DISPLAY_HITBOXES_INDEX = -1;
@@ -21,6 +21,23 @@ int INFINITE_SHIELDS_P3_INDEX = -1;
 int INFINITE_SHIELDS_P4_INDEX = -1;
 int CAMERA_LOCK_INDEX = -1;
 int INFINITE_FRIENDLIES_INDEX = -1;
+int AUTO_SAVE_REPLAY_INDEX = -1;
+int SAVE_STATES_INDEX = -1;
+int SAVE_REPLAY_ANYWHERE_INDEX = -1;
+int AUTO_SKIP_TO_CSS_INDEX = -1;
+int CODE_MENU_ACTIVATION_SETTING_INDEX = -1;
+int PERCENT_SELECT_VALUE_P1_INDEX = -1;
+int PERCENT_SELECT_ACTIVATOR_P1_INDEX = -1;
+int PERCENT_SELECT_VALUE_P2_INDEX = -1;
+int PERCENT_SELECT_ACTIVATOR_P2_INDEX = -1;
+int PERCENT_SELECT_VALUE_P3_INDEX = -1;
+int PERCENT_SELECT_ACTIVATOR_P3_INDEX = -1;
+int PERCENT_SELECT_VALUE_P4_INDEX = -1;
+int PERCENT_SELECT_ACTIVATOR_P4_INDEX = -1;
+int DISABLE_DPAD_P1_INDEX = -1;
+int DISABLE_DPAD_P2_INDEX = -1;
+int DISABLE_DPAD_P3_INDEX = -1;
+int DISABLE_DPAD_P4_INDEX = -1;
 
 void CodeMenu()
 {
@@ -28,52 +45,73 @@ void CodeMenu()
 	vector<Line*> P1Lines;
 	P1Lines.push_back(new Toggle("Infinite Shield", false, INFINITE_SHIELDS_P1_INDEX));
 	P1Lines.push_back(new Selection("P1 Character Select", CHARACTER_LIST, CHARACTER_ID_LIST, 0, CHARACTER_SELECT_P1_INDEX));
+	//P1Lines.push_back(new Selection("P1 Identity Crisis", CHARACTER_LIST, CHARACTER_ID_LIST, 0, CHARACTER_SELECT_P1_INDEX));
+	P1Lines.push_back(new Floating("Select Percent", 0, 999, 0, 1, PERCENT_SELECT_VALUE_P1_INDEX, "%.0f%%"));
+	P1Lines.push_back(new Toggle("Press DPad to select percent", false, PERCENT_SELECT_ACTIVATOR_P1_INDEX));
+	P1Lines.push_back(new Toggle("Disable DPad", false, DISABLE_DPAD_P1_INDEX));
 	Page P1("Player 1 Codes", P1Lines);
 
 	vector<Line*> P2Lines;
 	P2Lines.push_back(new Toggle("Infinite Shield", false, INFINITE_SHIELDS_P2_INDEX));
+	//P2Lines.push_back(new Selection("P2 Identity Crisis", CHARACTER_LIST, CHARACTER_ID_LIST, 0, CHARACTER_SELECT_P2_INDEX));
 	P2Lines.push_back(new Selection("P2 Character Select", CHARACTER_LIST, CHARACTER_ID_LIST, 0, CHARACTER_SELECT_P2_INDEX));
+	P2Lines.push_back(new Floating("Select Percent", 0, 999, 0, 1, PERCENT_SELECT_VALUE_P2_INDEX, "%.0f%%"));
+	P2Lines.push_back(new Toggle("Press DPad to select percent", false, PERCENT_SELECT_ACTIVATOR_P2_INDEX));
+	P2Lines.push_back(new Toggle("Disable DPad", false, DISABLE_DPAD_P2_INDEX));
 	Page P2("Player 2 Codes", P2Lines);
 
 	vector<Line*> P3Lines;
 	P3Lines.push_back(new Toggle("Infinite Shield", false, INFINITE_SHIELDS_P3_INDEX));
 	P3Lines.push_back(new Selection("P3 Character Select", CHARACTER_LIST, CHARACTER_ID_LIST, 0, CHARACTER_SELECT_P3_INDEX));
+	//P3Lines.push_back(new Selection("P3 Identity Crisis", CHARACTER_LIST, CHARACTER_ID_LIST, 0, CHARACTER_SELECT_P3_INDEX));
+	P3Lines.push_back(new Floating("Select Percent", 0, 999, 0, 1, PERCENT_SELECT_VALUE_P3_INDEX, "%.0f%%"));
+	P3Lines.push_back(new Toggle("Press DPad to select percent", false, PERCENT_SELECT_ACTIVATOR_P3_INDEX));
+	P3Lines.push_back(new Toggle("Disable DPad", false, DISABLE_DPAD_P3_INDEX));
 	Page P3("Player 3 Codes", P3Lines);
 
 	vector<Line*> P4Lines;
 	P4Lines.push_back(new Toggle("Infinite Shield", false, INFINITE_SHIELDS_P4_INDEX));
 	P4Lines.push_back(new Selection("P4 Character Select", CHARACTER_LIST, CHARACTER_ID_LIST, 0, CHARACTER_SELECT_P4_INDEX));
+	//P4Lines.push_back(new Selection("P4 Identity Crisis", CHARACTER_LIST, CHARACTER_ID_LIST, 0, CHARACTER_SELECT_P4_INDEX));
+	P4Lines.push_back(new Floating("Select Percent", 0, 999, 0, 1, PERCENT_SELECT_VALUE_P4_INDEX, "%.0f%%"));
+	P4Lines.push_back(new Toggle("Press DPad to select percent", false, PERCENT_SELECT_ACTIVATOR_P4_INDEX));
+	P4Lines.push_back(new Toggle("Disable DPad", false, DISABLE_DPAD_P4_INDEX));
 	Page P4("Player 4 Codes", P4Lines);
 	
 	//debug mode
 	vector<Line*> DebugLines;
-	DebugLines.push_back(new Comment("Turning on debug mode debug pauses the game when start is pressed"));
-	DebugLines.push_back(new Toggle("Toggle Debug mode", false, DEBUG_MODE_INDEX));
-	DebugLines.push_back(new Selection("Toggle Hitbox display", { "OFF", "ON", "Interpolate" }, 0, DISPLAY_HITBOXES_INDEX));
-	DebugLines.push_back(new Toggle("Toggle Collision display", false, DISPLAY_COLLISION_INDEX));
-	DebugLines.push_back(new Toggle("Toggle Ledgegrab display", false, DISPLAY_LEDGEGRAB_INDEX));
-	DebugLines.push_back(new Toggle("Toggle Camera Lock", false, CAMERA_LOCK_INDEX));
-	Page DebugMode("Debug mode settings", DebugLines);
+	DebugLines.push_back(new Comment("Debug Mode Commands:"));
+	DebugLines.push_back(new Comment("Start = Toggle Frame Advance"));
+	DebugLines.push_back(new Comment("Z = Frame Advance | Hold Z = Slow Motion"));
+	DebugLines.push_back(new Comment(""));
+	DebugLines.push_back(new Toggle("Debug Mode", false, DEBUG_MODE_INDEX));
+	DebugLines.push_back(new Selection("Hitbox Display", { "OFF", "ON", "Interpolate" }, 0, DISPLAY_HITBOXES_INDEX));
+	DebugLines.push_back(new Toggle("Collision Display", false, DISPLAY_COLLISION_INDEX));
+	DebugLines.push_back(new Toggle("Ledgegrab Display", false, DISPLAY_LEDGEGRAB_INDEX));
+	DebugLines.push_back(new Toggle("Camera Lock", false, CAMERA_LOCK_INDEX));
+	Page DebugMode("Debug Mode Settings", DebugLines);
 
 	//main page
 	vector<Line*> MainLines;
-	MainLines.push_back(new Comment("Legacy TE Code Menu V1.5"));
+	MainLines.push_back(new Comment("Legacy TE 2.0 Code Menu", &MENU_TITLE_CHECK_LOCATION));
+	MainLines.push_back(new Comment("Green = Comments | Blue = Changed"));
+	MainLines.push_back(new Comment("A = Enter Submenu | B = Back/Exit"));
+	MainLines.push_back(new Comment("X = Reset Selection | Y = Reset Page"));
+	MainLines.push_back(new Comment("Hold Z = Scroll Faster"));
 	MainLines.push_back(new Comment(""));
-	MainLines.push_back(new Comment("Use a gamecube controller. Using a wiimote will not work and can cause undefined behavior"));
-	MainLines.push_back(new Comment("Green lines are comments"));
-	MainLines.push_back(new Comment("Press A on lines with > at the end to enter that subpage"));
-	MainLines.push_back(new Comment("Press B to go back one subpage, or exit if you are on the main screen"));
-	MainLines.push_back(new Comment("Up and down on the control stick move the line you are highlighting"));
-	MainLines.push_back(new Comment("Left and right increment or decrement values"));
-	MainLines.push_back(new Comment("Every value has a default, maximum, minimum, and rate of change"));
+	MainLines.push_back(new Selection("Code Menu Activation", { "Default", "PM 3.6", "OFF" }, 0, CODE_MENU_ACTIVATION_SETTING_INDEX));
+	MainLines.push_back(&DebugMode.CalledFromLine);
+	MainLines.push_back(new Toggle("Draw DI", false, DI_DRAW_INDEX));
 	MainLines.push_back(&P1.CalledFromLine);
 	MainLines.push_back(&P2.CalledFromLine);
 	MainLines.push_back(&P3.CalledFromLine);
 	MainLines.push_back(&P4.CalledFromLine);
-	MainLines.push_back(new Toggle("Draw DI", false, DI_DRAW_INDEX));
-	MainLines.push_back(&DebugMode.CalledFromLine);
-	MainLines.push_back(new Selection("Infinite Friendlies", { "OFF", "Same Stage", "Random Stage" }, 0, INFINITE_FRIENDLIES_INDEX));
-	//Lines.push_back(new Toggle("IASA Overlay", false));
+	MainLines.push_back(new Selection("Endless Friendlies", { "OFF", "Same Stage", "Random Stage" }, 0, INFINITE_FRIENDLIES_INDEX));
+	//MainLines.push_back(new Selection("Infinity War", { "OFF", "Same Stage", "Random Stage" }, 0, INFINITE_FRIENDLIES_INDEX));
+	MainLines.push_back(new Toggle("Autoskip Results Screen", false, AUTO_SKIP_TO_CSS_INDEX));
+	//MainLines.push_back(new Toggle("Terminate Celebrations", false, AUTO_SKIP_TO_CSS_INDEX));
+	MainLines.push_back(new Toggle("Autosave Replays", false, AUTO_SAVE_REPLAY_INDEX));
+	MainLines.push_back(new Toggle("Save Previous Replay", false, SAVE_REPLAY_ANYWHERE_INDEX));
 	Page Main("Main", MainLines);
 
 	CreateMenu(Main);
@@ -95,19 +133,51 @@ void ActualCodes()
 		DrawDI();
 	}
 
+	if (SAVE_STATES_INDEX != -1) {
+		AddArticle();
+
+		RemoveArticle();
+	}
+
 	ControlCodes();
 }
 
 void CreateMenu(Page MainPage)
 {
+	//make pages
+	CurrentOffset = START_OF_CODE_MENU;
+	vector<Page*> Pages(1, &MainPage);
+	vector<int> CalledPageOffsets(1, 0);
+	int EndOffset = MainPage.Size;
+	for (int i = 0; i < Pages.size(); i++) {
+		CurrentOffset += Page::NUM_WORD_ELEMS * 4;
+		for (Line* &x : Pages[i]->Lines) {
+			if (x->Index != nullptr) {
+				*(x->Index) = CurrentOffset;
+			}
+			CurrentOffset += x->Size;
+			if (x->type == SUB_MENU_LINE) {
+				x->SubMenuOffset = EndOffset - CalledPageOffsets[i];
+				Pages.push_back(x->SubMenuPtr);
+				CalledPageOffsets.push_back(EndOffset);
+				EndOffset += x->SubMenuPtr->Size;
+			}
+		}
+		Pages[i]->Lines.back()->Size = 0;
+	}
+
 	//setup header
 	vector<u8> Header;
-	AddValueToByteArray(START_OF_CODE_MENU_SETTINGS + MenuID, Header); //current page ptr
+	AddValueToByteArray(START_OF_CODE_MENU, Header); //current page ptr
+	AddValueToByteArray(START_OF_CODE_MENU, Header); //main page ptr
+	//button combos
+	AddValueToByteArray(BUTTON_L | BUTTON_R | BUTTON_Y , Header); //salty runback
+	AddValueToByteArray(BUTTON_L | BUTTON_R | BUTTON_X, Header); //skip results
 	//line colors
 	AddValueToByteArray(WHITE, Header); //normal line color
 	AddValueToByteArray(YELLOW, Header); //highlighted line color
-	AddValueToByteArray(BLUE, Header); //changed line color
-	AddValueToByteArray(YELLOW, Header); //changed and highlighted line color
+	AddValueToByteArray(TEAL, Header); //changed line color
+	AddValueToByteArray(BLUE, Header); //changed and highlighted line color
 	AddValueToByteArray(GREEN, Header); //comment line color
 	//frame timers
 	AddValueToByteArray(0, Header); //move frame timer
@@ -117,16 +187,25 @@ void CreateMenu(Page MainPage)
 	AddValueToByteArray(CODE_MENU_CLOSED, Header); //prev flag
 	AddValueToByteArray(CODE_MENU_CLOSED, Header); //current flag
 	AddValueToByteArray(0, Header); //infinite friendlies flag
+	AddValueToByteArray(0, Header); //auto save replays flag
+	AddValueToByteArray(0, Header); //group records flag
 	//button mask
 	AddValueToByteArray(0, Header); //code menu mask
 	AddValueToByteArray(0, Header); //button activator mask
-	AddValueToByteArray(0, Header); //main mask
-	AddValueToByteArray(0, Header); //main mask
+	for(int i = 0; i < 8; i++) { AddValueToByteArray(0, Header); } //main mask
 	//old debug state
 	AddValueToByteArray(0, Header); //old debug state
 	AddValueToByteArray(0, Header); //camera lock state
 	//old camera pos
 	AddValueToByteArray(0, Header); //old camera pos
+	//save state buffer ptr
+	AddValueToByteArray(0, Header);
+	AddValueToByteArray(0, Header); //article ptr
+	AddValueToByteArray(0, Header); //article ID ptr
+	AddValueToByteArray(0, Header); //article resource ptr
+	AddValueToByteArray(0, Header); //locations to update ptr locs
+	AddValueToByteArray(0, Header); //locations to clear ptr locs
+	AddValueToByteArray(0, Header); //saved article ptr list
 	//reset line stack
 	AddValueToByteArray(RESET_LINES_STACK_LOC, Header); //reset line stack
 	for (int i = 0; i < MAX_SUBPAGE_DEPTH + 1; i++) { AddValueToByteArray(0, Header); }
@@ -141,6 +220,29 @@ void CreateMenu(Page MainPage)
 	AddValueToByteArray(INFINITE_SHIELDS_P2_INDEX, Header); //P2
 	AddValueToByteArray(INFINITE_SHIELDS_P3_INDEX, Header); //P3
 	AddValueToByteArray(INFINITE_SHIELDS_P4_INDEX, Header); //P4
+	//percent selection values
+	AddValueToByteArray(PERCENT_SELECT_VALUE_P1_INDEX, Header); //P1
+	AddValueToByteArray(PERCENT_SELECT_VALUE_P2_INDEX, Header); //P2
+	AddValueToByteArray(PERCENT_SELECT_VALUE_P3_INDEX, Header); //P3
+	AddValueToByteArray(PERCENT_SELECT_VALUE_P4_INDEX, Header); //P4
+	//percent selection activators
+	AddValueToByteArray(PERCENT_SELECT_ACTIVATOR_P1_INDEX, Header); //P1
+	AddValueToByteArray(PERCENT_SELECT_ACTIVATOR_P2_INDEX, Header); //P2
+	AddValueToByteArray(PERCENT_SELECT_ACTIVATOR_P3_INDEX, Header); //P3
+	AddValueToByteArray(PERCENT_SELECT_ACTIVATOR_P4_INDEX, Header); //P4
+	//disable DPad activators
+	AddValueToByteArray(DISABLE_DPAD_P1_INDEX, Header); //P1
+	AddValueToByteArray(DISABLE_DPAD_P2_INDEX, Header); //P2
+	AddValueToByteArray(DISABLE_DPAD_P3_INDEX, Header); //P3
+	AddValueToByteArray(DISABLE_DPAD_P4_INDEX, Header); //P4
+	//replay buffers
+	for(int i = 0; i < 5; i++) { AddValueToByteArray(0, Header); } //nte buffer
+	for(int i = 0; i < 2; i++) { AddValueToByteArray(0, Header); } //section buffer
+	for(int i = 0; i < 12; i++) { AddValueToByteArray(0, Header); } //crypto buffer
+	//button conversion tables
+	Header.insert(Header.end(), CODE_MENU_WIIMOTE_CONVERSION_TABLE.begin(), CODE_MENU_WIIMOTE_CONVERSION_TABLE.end());
+	Header.insert(Header.end(), CODE_MENU_WIICHUCK_CONVERSION_TABLE.begin(), CODE_MENU_WIICHUCK_CONVERSION_TABLE.end());
+	Header.insert(Header.end(), CODE_MENU_CLASSIC_CONVERSION_TABLE.begin(), CODE_MENU_CLASSIC_CONVERSION_TABLE.end());
 
 	//draw settings buffer
 	vector<u32> DSB(0x200 / 4, 0);
@@ -156,32 +258,12 @@ void CreateMenu(Page MainPage)
 		AddValueToByteArray(x, Header);
 	}
 
-	if (START_OF_CODE_MENU_SETTINGS - START_OF_CODE_MENU != Header.size()) {
+	if (START_OF_CODE_MENU - START_OF_CODE_MENU_HEADER != Header.size()) {
 		cout << "Messed up header\n";
 		exit(-1);
 	}
 
-	//defaults
-	for (int x : Defaults) {
-		AddValueToByteArray(x, Header);
-	}
-
 	copy(Header.begin(), Header.end(), ostreambuf_iterator<char>(MenuFile));
-
-	//make pages
-	vector<Page*> Pages(1, &MainPage);
-	vector<int> CalledPageOffsets(1, 0);
-	int EndOffset = MainPage.Size;
-	for (int i = 0; i < Pages.size(); i++) {
-		for (Line* &x : Pages[i]->Lines) {
-			if (x->type == SUB_MENU_LINE) {
-				x->SubMenuOffset = EndOffset - CalledPageOffsets[i];
-				Pages.push_back(x->SubMenuPtr);
-				CalledPageOffsets.push_back(EndOffset);
-				EndOffset += x->SubMenuPtr->Size;
-			}
-		}
-	}
 
 	for (auto x : Pages) {
 		x->WritePage();
@@ -203,6 +285,7 @@ void ControlCodeMenu()
 	int Reg6 = 26;
 	int Reg7 = 25;
 	int Reg8 = 24;
+	int Reg9 = 23;
 	int CharacterBufferReg = 21;
 	int MainBufferReg = 20;
 	int OpenFlagReg = 19;
@@ -212,9 +295,16 @@ void ControlCodeMenu()
 	int ButtonReg = 15;
 	int ActionReg = 14;
 
-	LoadWordToReg(OpenFlagReg, Reg4, CODE_MENU_CONTROL_FLAG);
-	LoadWordToReg(Reg3, Reg5, IS_DEBUG_PAUSED);
+	int NotLoaded = GetNextLabel();
+	LoadHalfToReg(Reg1, MENU_TITLE_CHECK_LOCATION + 7 + Line::COMMENT_LINE_TEXT_START);
+	If(Reg1, NOT_EQUAL_I_L, 0x5445); //TE
+	{
+		JumpToLabel(NotLoaded);
+	}EndIf();
 
+	LoadWordToReg(OpenFlagReg, Reg4, CODE_MENU_CONTROL_FLAG);
+
+	//GCC input
 	SetRegister(Reg1, PLAY_BUTTON_LOC_START - BUTTON_PORT_OFFSET);
 	SetRegister(Reg7, 0x804DE4B0 - 8);
 	SetRegister(ButtonReg, 0);
@@ -223,6 +313,10 @@ void ControlCodeMenu()
 	CounterLoop(CounterReg, 0, 4, 1); {
 		LHZU(Reg8, Reg7, 8);
 		LWZU(Reg2, Reg1, BUTTON_PORT_OFFSET);
+		If(Reg8, GREATER_OR_EQUAL_I_L, 0x2000);
+		{
+			SetRegister(Reg8, 0);
+		}EndIf();
 		ANDI(Reg8, Reg8, 0x1000);
 		OR(ButtonReg, ButtonReg, Reg2);
 		OR(ButtonReg, ButtonReg, Reg8);
@@ -241,6 +335,67 @@ void ControlCodeMenu()
 		LBA(Reg2, Reg1, GCC_CONTROL_STICK_Y_START - PLAY_BUTTON_LOC_START);
 		ADD(ControlStickYReg, ControlStickYReg, Reg2);
 	}CounterLoopEnd();
+
+	//Wiimote control stick
+	CounterLoop(CounterReg, 0, 4, 1); {
+		ADDI(Reg1, Reg1, BUTTON_PORT_OFFSET);
+
+		LBA(Reg2, Reg1, GCC_CONTROL_STICK_X_START - PLAY_BUTTON_LOC_START);
+		ADD(ControlStickXReg, ControlStickXReg, Reg2);
+
+		LBA(Reg2, Reg1, GCC_CONTROL_STICK_Y_START - PLAY_BUTTON_LOC_START);
+		ADD(ControlStickYReg, ControlStickYReg, Reg2);
+	}CounterLoopEnd();
+
+	//Wiimote input
+	SetRegister(Reg1, WII_BASED_CONTROLLER_START - WII_BASED_CONTROLLER_PORT_OFFSET);
+	SetRegister(Reg3, 1);
+	CounterLoop(Reg8, 0, 4, 1); {
+		//Reg8 is loop counter, Reg3 is 1, Reg1 is wiimote location, Reg2 is storage loc, Reg9 is activation address, Reg6 is conversion
+		//Reg5 has wiimote buttons
+		LHZU(Reg5, Reg1, WII_BASED_CONTROLLER_PORT_OFFSET); //get buttons
+		SetRegister(Reg6, CODE_MENU_WIIMOTE_CONVERSION_TABLE_LOC);
+		LBZ(Reg7, Reg1, WII_BASED_CONTROLLER_TYPE_OFFSET); //get type
+		If(Reg7, EQUAL_I, 2); {
+			//is classic
+			LHZ(Reg5, Reg1, WII_BASED_CONTROLLER_TYPE_OFFSET + 2); //buttons are in different place
+			ANDI(Reg9, Reg5, 0xC003); //get if DPad pressed
+			If(Reg9, NOT_EQUAL_I, 0); {
+				ANDI(Reg9, Reg5, 0x2200);
+				If(Reg9, EQUAL_I, 0x2200); {
+					If(OpenFlagReg, NOT_EQUAL_I, CODE_MENU_OPEN); {
+						SetRegister(OpenFlagReg, CODE_MENU_TRIGGERED);
+					}EndIf();
+				}EndIf();
+			}EndIf();
+		}Else(); {
+			ANDI(Reg9, Reg5, 0x1900);
+			If(Reg9, EQUAL_I, 0x1900); {
+				If(OpenFlagReg, NOT_EQUAL_I, CODE_MENU_OPEN); {
+					SetRegister(OpenFlagReg, CODE_MENU_TRIGGERED);
+				}EndIf();
+			}EndIf();
+		}EndIf();
+		MULLI(Reg7, Reg7, 16);
+		ADD(Reg6, Reg6, Reg7); //get proper conversion table
+
+		While(Reg5, GREATER_I, 0); {
+			//convert buttons
+			ANDI(Reg7, Reg5, 1);
+			If(Reg7, NOT_EQUAL_I, 0); {
+				//button pressed
+				LBZ(Reg7, Reg6, 0);
+				RLWNM(Reg7, Reg3, Reg7, 15, 31);
+				OR(ButtonReg, ButtonReg, Reg7);
+			}EndIf();
+
+			ADDI(Reg6, Reg6, 1);
+			RLWINM(Reg5, Reg5, 31, 15, 31);
+		}EndWhile();
+	}CounterLoopEnd();
+
+
+	LoadWordToReg(Reg3, Reg5, IS_DEBUG_PAUSED);
 	
 	If(OpenFlagReg, EQUAL_I, CODE_MENU_PRIMED); {
 		//check for A press
@@ -252,6 +407,19 @@ void ControlCodeMenu()
 			SetRegister(OpenFlagReg, CODE_MENU_TRIGGERED); //set open
 		}EndIf();
 	}EndIf();
+
+	if (CODE_MENU_ACTIVATION_SETTING_INDEX != -1) {
+		LoadWordToReg(Reg2, IS_IN_GAME_FLAG);
+		If(Reg2, EQUAL_I, 1); {
+			LoadWordToReg(Reg2, CODE_MENU_ACTIVATION_SETTING_INDEX + Line::VALUE);
+			If(Reg2, NOT_EQUAL_I, 0); {
+				LoadWordToReg(Reg2, CODE_MENU_CONTROL_FLAG);
+				If(Reg2, EQUAL_I, CODE_MENU_CLOSED); {
+					SetRegister(OpenFlagReg, CODE_MENU_CLOSED);
+				}EndIf();
+			}EndIf();
+		}EndIf();
+	}
 
 	If(OpenFlagReg, EQUAL_I, CODE_MENU_TRIGGERED); {
 		SetRegister(Reg2, OLD_DEBUG_STATE_LOC);
@@ -267,24 +435,32 @@ void ControlCodeMenu()
 		STW(ButtonReg, Reg2, 0);
 	}EndIf();
 
+	//get only pressed button
+	LoadWordToReg(Reg2, Reg3, CODE_MENU_BUTTON_MASK_LOC);
+	ORI(Reg9, Reg2, ~(BUTTON_Z | BUTTON_DPAD));
+	AND(Reg9, ButtonReg, Reg9);
+	STW(Reg9, Reg3, 0); //update mask
+	ANDC(ButtonReg, ButtonReg, Reg2);
+
 	STW(OpenFlagReg, Reg4, 0); //set flag
 
 	If(OpenFlagReg, EQUAL_I, CODE_MENU_OPEN); {
 		//prevent buttons from affecting the game
 		SetRegister(Reg2, 0xFFFFFFFF);
 		SetRegister(Reg3, MAIN_BUTTON_MASK_LOC - 4);
-		CounterLoop(CounterReg, 0, 2, 1); {
+		CounterLoop(CounterReg, 0, 8, 1); {
 			STWU(Reg2, Reg3, 4);
+		}CounterLoopEnd();
+
+		//stop stick inputs
+		SetRegister(Reg1, GCC_CONTROL_STICK_X_START - BUTTON_PORT_OFFSET);
+		SetRegister(Reg2, 0);
+		CounterLoop(CounterReg, 0, 8, 1); {
+			STHU(Reg2, Reg1, BUTTON_PORT_OFFSET); //clear stick input
 		}CounterLoopEnd();
 
 		SetRegister(Reg1, 1);
 		STW(Reg1, Reg5, 0); //set debug paused
-
-		//get only pressed button
-		LoadWordToReg(Reg2, Reg3, CODE_MENU_BUTTON_MASK_LOC);
-		STW(ButtonReg, Reg3, 0); //update mask
-		ANDI(Reg2, Reg2, ~BUTTON_Z); //let Z be held
-		ANDC(ButtonReg, ButtonReg, Reg2);
 
 		GetActionFromInputs(ButtonReg, ControlStickXReg, ControlStickYReg, ActionReg);
 
@@ -292,17 +468,44 @@ void ControlCodeMenu()
 
 	}EndIf(); //run logic
 	
+	//button negate
 	SetRegister(Reg1, PLAY_BUTTON_LOC_START - BUTTON_PORT_OFFSET);
-	SetRegister(Reg2, MAIN_BUTTON_MASK_LOC - 2);
-	CounterLoop(CounterReg, 0, 4, 1); {
-		LHZU(Reg3, Reg2, 2); //mask
+	SetRegister(Reg2, MAIN_BUTTON_MASK_LOC - 4);
+	CounterLoop(CounterReg, 0, 8, 1); {
+		LWZU(Reg3, Reg2, 4); //mask
 		LWZU(Reg4, Reg1, BUTTON_PORT_OFFSET); //buttons
 
 		AND(Reg5, Reg4, Reg3);
-		STH(Reg5, Reg2, 0); //update mask
+		STW(Reg5, Reg2, 0); //update mask
 		ANDC(Reg4, Reg4, Reg3); //apply mask
 		STW(Reg4, Reg1, 0); //store new buttons
 	}CounterLoopEnd();
+
+	LoadWordToReg(Reg6, ON_GROUP_RECORDS_FLAG_LOC);
+	If(Reg6, EQUAL_I, 1); {
+		SetRegister(Reg1, PLAY_BUTTON_LOC_START - BUTTON_PORT_OFFSET);
+		SetRegister(Reg2, ~(BUTTON_A | BUTTON_START));
+		CounterLoop(CounterReg, 0, 8, 1); {
+			LWZU(Reg4, Reg1, BUTTON_PORT_OFFSET); //buttons
+			AND(Reg4, Reg4, Reg2);
+			STW(Reg4, Reg1, 0); //store new buttons
+		}CounterLoopEnd();
+	}EndIf();
+
+	int SkipDebugNegation = GetNextLabel();
+
+	if (CODE_MENU_ACTIVATION_SETTING_INDEX != -1) {
+		LoadWordToReg(Reg2, IS_IN_GAME_FLAG);
+		If(Reg2, EQUAL_I, 1); {
+			LoadWordToReg(Reg2, CODE_MENU_ACTIVATION_SETTING_INDEX + Line::VALUE);
+			If(Reg2, EQUAL_I, 1); {
+				LoadWordToReg(Reg2, CODE_MENU_CONTROL_FLAG);
+				If(Reg2, EQUAL_I, CODE_MENU_CLOSED); {
+					JumpToLabel(SkipDebugNegation);
+				}EndIf();
+			}EndIf();
+		}EndIf();
+	}
 
 	LoadWordToReg(Reg1, Reg3, 0x80584000);
 	ANDI(Reg6, ButtonReg, BUTTON_Z);
@@ -339,6 +542,42 @@ void ControlCodeMenu()
 
 	ApplyMenuSetting(CAMERA_LOCK_INDEX, 0x80583FF8 + 3, Reg1, Reg2, 1);
 
+	Label(SkipDebugNegation);
+
+	//dumb solution to code menu closing problem
+	LoadWordToReg(OpenFlagReg, CODE_MENU_CONTROL_FLAG);
+
+	if (CODE_MENU_ACTIVATION_SETTING_INDEX != -1) {
+		If(OpenFlagReg, EQUAL_I, CODE_MENU_CLOSING); {
+			LoadWordToReg(Reg1, CODE_MENU_ACTIVATION_SETTING_INDEX + Line::VALUE);
+			If(Reg1, EQUAL_I, 2); {
+				//save certain settings
+				SetRegister(Reg7, CODE_MENU_ACTIVATION_SETTING_INDEX);
+				SetRegister(Reg8, AUTO_SAVE_REPLAY_INDEX);
+				SetRegister(Reg9, AUTO_SKIP_TO_CSS_INDEX);
+				LWZ(8, Reg7, Line::VALUE);
+				LBZ(9, Reg7, Line::COLOR);
+				LWZ(4, Reg8, Line::VALUE);
+				LBZ(5, Reg8, Line::COLOR);
+				LWZ(6, Reg9, Line::VALUE);
+				LBZ(7, Reg9, Line::COLOR);
+
+				LoadWordToReg(Reg2, MAIN_PAGE_PTR_LOC);
+				SetRegister(Reg1, RESET_LINES_STACK_LOC);
+				PushOnStack(Reg2, Reg1);
+				ResetPage(Reg1, Reg2, Reg3, Reg4, Reg5, Reg6, 3);
+
+				//restore certain settings
+				STW(8, Reg7, Line::VALUE);
+				STB(9, Reg7, Line::COLOR);
+				STW(4, Reg8, Line::VALUE);
+				STB(5, Reg8, Line::COLOR);
+				STW(6, Reg9, Line::VALUE);
+				STB(7, Reg9, Line::COLOR);
+			}EndIf();
+		}EndIf();
+	}
+
 	//port based codes
 	LoadWordToReg(Reg7, IS_IN_GAME_FLAG);
 	If(OpenFlagReg, NOT_EQUAL_I, CODE_MENU_OPEN); {
@@ -349,22 +588,89 @@ void ControlCodeMenu()
 			While(CharacterBufferReg, NOT_EQUAL_I, 0); {
 				LWZ(Reg8, CharacterBufferReg, CHR_BUFFER_PORT_OFFSET);
 
-				if (CHARACTER_SELECT_P1_INDEX != -1) {
-					GetArrayValueFromIndex(CHARACTER_SWITCHER_ARRAY_LOC, Reg8, 0, 3); {
+				if (DISABLE_DPAD_P1_INDEX != -1) {
+					LWZ(Reg2, CharacterBufferReg, CHR_BUFFER_INFO_PTR_OFFSET);
+					RunIfPortToggle(DISABLE_DPAD_ACTIVATOR_ARRAY_LOC, Reg8); {
+						LBZ(Reg2, Reg2, 7); //controller num
+						SetRegister(Reg3, PLAY_BUTTON_LOC_START - 0x40);
+						MULLI(Reg2, Reg2, BUTTON_PORT_OFFSET);
+						LWZUX(Reg2, Reg3, Reg2); //get buttons
+						ANDI(Reg2, Reg2, ~BUTTON_DPAD);
+						STW(Reg2, Reg3, 0);
+					}EndIf(); EndIf(); EndIf();
+				}
+
+				if (PERCENT_SELECT_ACTIVATOR_P1_INDEX != -1 && PERCENT_SELECT_VALUE_P1_INDEX != -1) {
+					GetArrayValueFromIndex(PERCENT_SELCTION_ACTIVATOR_ARRAY_LOC, Reg8, 0, 3); {
+						LWZ(5, 3, Line::VALUE); //get setting
 						LWZ(Reg2, CharacterBufferReg, CHR_BUFFER_INFO_PTR_OFFSET);
-						LWZ(3, 3, 4); //get setting
-						LBZ(4, Reg2, 0); //get current ID
-						If(4, NOT_EQUAL, 3); {
-							SetRegister(Reg1, 0);
-							STB(3, Reg2, 0);
-							STB(Reg1, Reg2, 5); //force costume to 0
+						If(5, EQUAL_I, 1); {
+							ANDI(Reg1, ButtonReg, 0xF);
+							If(Reg1, NOT_EQUAL_I, 0); {
+								GetArrayValueFromIndex(PERCENT_SELCTION_VALUE_ARRAY_LOC, Reg8, 0, 3); {
+									LFS(1, 3, Line::VALUE);
+									LWZ(3, CharacterBufferReg, CHR_BUFFER_HEAD_OF_FIGHTER_OFFSET);
+									CallBrawlFunc(0x8083ae24); //getOwner
+									//SetRegister(4, 1);
+									ConvertFloatingRegToInt(1, Reg1, 0);
+									CallBrawlFunc(0x8081bdcc); //set damage
+
+									LoadWordToReg(Reg3, 0x805A02D0);
+									LBZ(Reg4, Reg2, 3); //player num
+									MULLI(Reg4, Reg4, 4);
+									ADD(Reg3, Reg3, Reg4);
+									LWZ(Reg3, Reg3, 0x4C);
+
+									ADDI(4, Reg1, 1);
+									If(Reg1, GREATER_I, 999); {
+										SetRegister(4, 998);
+									}EndIf();
+									MR(3, Reg3);
+									SetRegister(5, 0);
+									CallBrawlFunc(0x800e14a4); //updateDamageHP
+
+									MR(4, Reg1);
+									MR(3, Reg3);
+									SetRegister(5, 1);
+									CallBrawlFunc(0x800e14a4); //updateDamageHP
+								}EndIf(); EndIf();
+							}EndIf();
 						}EndIf();
 					}EndIf(); EndIf();
 				}
 
+				if (CHARACTER_SELECT_P1_INDEX != -1) {
+					If(OpenFlagReg, EQUAL_I, CODE_MENU_CLOSING); {
+						GetArrayValueFromIndex(CHARACTER_SWITCHER_ARRAY_LOC, Reg8, 0, 3); {
+							LWZ(5, 3, Line::VALUE); //get setting
+							STW(5, 3, Line::DEFAULT);
+							LWZ(Reg2, CharacterBufferReg, CHR_BUFFER_INFO_PTR_OFFSET);
+							RLWINM(5, 5, 2, 0, 31); //<<2
+							LBZ(4, Reg2, 0); //get current ID
+							ADDI(5, 5, Selection::SELECTION_LINE_OFFSETS_START + 2);
+							LHZX(5, 3, 5);
+							If(4, NOT_EQUAL, 5); {
+								SetRegister(Reg1, 0);
+								STB(5, Reg2, 0);
+
+								SetRegister(Reg3, 0x43AD8);
+								LoadWordToReg(Reg4, 0x805A00E0);
+								LWZ(Reg4, Reg4, 0x10);
+								ADD(Reg4, Reg4, Reg3);
+								LWZ(Reg3, CharacterBufferReg, CHR_BUFFER_PORT_OFFSET);
+								MULLI(Reg3, Reg3, 0x5C);
+								STWX(Reg1, Reg4, Reg3);
+
+								STB(Reg1, Reg2, 5); //force costume to 0
+								STB(Reg1, Reg2, 6); //force HUD to 0
+							}EndIf();
+						}EndIf(); EndIf();
+					}EndIf();
+				}
+
 				if (INFINITE_SHIELDS_P1_INDEX != -1) {
 					GetArrayValueFromIndex(INIFINITE_SHIELDS_ARRAY_LOC, Reg8, 0, 3); {
-						LWZ(3, 3, 0);
+						LWZ(3, 3, Line::VALUE);
 						If(3, EQUAL_I, 1); {
 							LWZ(Reg1, CharacterBufferReg, CHR_BUFFER_VARIABLES_ADDRESS_OFFSET);
 							SetRegister(Reg2, 0x42700000);
@@ -378,6 +684,64 @@ void ControlCodeMenu()
 		}EndIf();
 	}EndIf();
 
+	If(OpenFlagReg, EQUAL_I, CODE_MENU_CLOSING); {
+		LoadWordToReg(3, 4, PREV_CODE_MENU_CONTROL_FLAG);
+		STW(3, 4, CODE_MENU_CONTROL_FLAG - PREV_CODE_MENU_CONTROL_FLAG);
+	}EndIf();
+
+	if (AUTO_SAVE_REPLAY_INDEX != -1) {
+		LoadWordToReg(Reg3, IS_REPLAY_LOC);
+		SetRegister(Reg2, AUTO_SAVE_REPLAY_FLAG_LOC);
+		If(Reg3, EQUAL_I, 2); {
+			STW(Reg3, Reg2, 0); //set flag
+		}EndIf();
+		LoadWordToReg(Reg1, AUTO_SAVE_REPLAY_INDEX + Line::VALUE);
+		If(Reg1, NOT_EQUAL_I, 1); {
+			SetRegister(Reg1, 0);
+			STW(Reg1, Reg2, 0); //clear flag
+		}EndIf();
+	}
+
+	if (SAVE_REPLAY_ANYWHERE_INDEX != -1) {
+		If(OpenFlagReg, EQUAL_I, CODE_MENU_CLOSING); {
+			SetRegister(Reg2, SAVE_REPLAY_ANYWHERE_INDEX);
+			LWZ(Reg1, Reg2, Line::VALUE);
+			If(Reg1, EQUAL_I, 1); {
+				SetRegister(Reg1, 0);
+				LBZ(Reg3, Reg2, Line::COLOR);
+				STW(Reg1, Reg2, Line::VALUE); //clear setting
+				ANDI(Reg3, Reg3, ~8);
+				STB(Reg3, Reg2, Line::COLOR);
+
+				IfInGame(3, false); {
+					SaveReplay();
+				}EndIf();
+			}EndIf();
+		}EndIf();
+	}
+
+	//can't trust register values after here
+	//need to change when save states are active again
+	if (SAVE_STATES_INDEX != -1) {
+		LoadWordToReg(Reg1, IS_IN_GAME_FLAG);
+		If(Reg1, EQUAL_I, 1); {
+			//LoadWordToReg(OpenFlagReg, CODE_MENU_CONTROL_FLAG);
+			If(OpenFlagReg, EQUAL_I, CODE_MENU_CLOSED); {
+				ANDI(Reg1, ButtonReg, BUTTON_DL);
+				If(Reg1, NOT_EQUAL_I, 0); {
+					SaveState();
+				}Else(); {
+					ANDI(Reg1, ButtonReg, BUTTON_DR);
+					If(Reg1, NOT_EQUAL_I, 0); {
+						RestoreState();
+					}EndIf();
+				}EndIf();
+			}EndIf();
+		}EndIf();
+	}
+
+	Label(NotLoaded);
+
 	RestoreRegisters();
 	ASMEnd(0x4e800020); //blr
 }
@@ -385,7 +749,7 @@ void ControlCodeMenu()
 void ApplyMenuSetting(int Index, int Destination, int reg1, int reg2, int size)
 {
 	if (Index != -1) {
-		LoadWordToReg(reg1, Index);
+		LoadWordToReg(reg1, Index + Line::VALUE);
 		SetRegister(reg2, Destination);
 		if (size == 4) { STW(reg1, reg2, 0); }
 		if (size == 2) { STH(reg1, reg2, 0); }
@@ -457,10 +821,13 @@ void ExecuteAction(int ActionReg)
 	}EndIf();
 
 	If(ActionReg, EQUAL_I, LEAVE_SUB_MENU); {
-		LeaveMenu(PageReg, TempReg1, TempReg2, TempReg3, TempReg4, TempReg5, TempReg6);
+		LeaveMenu(PageReg, TempReg1, TempReg2, TempReg3, TempReg4, TempReg5, TempReg6, ActionReg);
 	}EndIf();
 
 	If(ActionReg, EQUAL_I, EXIT_MENU); {
+		SetRegister(TempReg1, CODE_MENU_CLOSING);
+		SetRegister(TempReg2, CODE_MENU_CONTROL_FLAG);
+		STW(TempReg1, TempReg2, 0);
 		ExitMenu();
 	}EndIf();
 }
@@ -476,10 +843,8 @@ void ResetLine(int LineReg, int PageReg, int StackReg, int TypeReg, int TempReg1
 	STW(TempReg1, PageReg, Page::NUM_CHANGED_LINES);
 
 	If(TypeReg, LESS_OR_EQUAL_I, HAS_VALUE_LIMIT); {
-		SetRegister(TempReg3, START_OF_CODE_MENU_SETTINGS);
 		LWZ(TempReg1, LineReg, Line::DEFAULT);
-		LHZ(TempReg2, LineReg, Line::INDEX);
-		STWX(TempReg1, TempReg3, TempReg2);
+		STW(TempReg1, LineReg, Line::VALUE);
 	}Else(); If(TypeReg, EQUAL_I, SUB_MENU_LINE); {
 		LHZ(TempReg1, LineReg, Line::SUB_MENU);
 		ADD(TempReg1, TempReg1, PageReg);
@@ -504,8 +869,6 @@ void ResetPage(int StackReg, int TempReg1, int TempReg2, int TempReg3, int TempR
 
 void ExitMenu()
 {
-	LoadWordToReg(3, 4, PREV_CODE_MENU_CONTROL_FLAG);
-	STW(3, 4, CODE_MENU_CONTROL_FLAG - PREV_CODE_MENU_CONTROL_FLAG);
 	LoadWordToReg(3, OLD_DEBUG_STATE_LOC);
 	SetRegister(4, IS_DEBUG_PAUSED);
 	STW(3, 4, 0);
@@ -523,15 +886,16 @@ void EnterMenu(int LineReg, int PageReg, int TypeReg, int TempReg1, int TempReg2
 	}EndIf();
 }
 
-void LeaveMenu(int PageReg, int TempReg1, int TempReg2, int TempReg3, int TempReg4, int TempReg5, int TempReg6)
+void LeaveMenu(int PageReg, int TempReg1, int TempReg2, int TempReg3, int TempReg4, int TempReg5, int TempReg6, int ActionReg)
 {
 	LWZ(TempReg1, PageReg, Page::PREV_PAGE);
 	If(TempReg1, EQUAL_I, 0); {
-		LoadWordToReg(TempReg1, TempReg2, PREV_CODE_MENU_CONTROL_FLAG);
+		/*LoadWordToReg(TempReg1, TempReg2, PREV_CODE_MENU_CONTROL_FLAG);
 		STW(TempReg1, TempReg2, CODE_MENU_CONTROL_FLAG - PREV_CODE_MENU_CONTROL_FLAG);
 		LoadWordToReg(TempReg1, OLD_DEBUG_STATE_LOC);
 		SetRegister(TempReg2, IS_DEBUG_PAUSED);
-		STW(TempReg1, TempReg2, 0);
+		STW(TempReg1, TempReg2, 0);*/
+		SetRegister(ActionReg, EXIT_MENU);
 	}Else(); {
 		ADD(TempReg2, PageReg, TempReg1);
 		SetRegister(TempReg1, CURRENT_PAGE_PTR_LOC);
@@ -560,53 +924,46 @@ void LeaveMenu(int PageReg, int TempReg1, int TempReg2, int TempReg3, int TempRe
 
 void DecreaseValue(int LineReg, int PageReg, int TypeReg, int TempReg1, int TempReg2, int TempReg3, int TempReg4, int TempReg5)
 {
-	LHZ(TempReg1, LineReg, Line::INDEX);
-	SetRegister(TempReg2, START_OF_CODE_MENU_SETTINGS);
-
 	If(TypeReg, LESS_OR_EQUAL_I, HAS_VALUE_LIMIT); {
 		//has a value to change
 		If(TypeReg, EQUAL_I, SELECTION_LINE); {
 			//selection
-			LWZUX(TempReg1, TempReg2, TempReg1); //get setting
+			LWZ(TempReg1, LineReg, Line::VALUE);
 			Decrement(TempReg1);
 
 			If(TempReg1, LESS_I, 0); {
 				LWZ(TempReg1, LineReg, Line::MAX);
 			}EndIf();
-			STW(TempReg1, TempReg2, 0);
-
-			RLWINM(TempReg3, TempReg1, 2, 0, 31); //<< 2
-			ADDI(TempReg1, LineReg, Selection::SELECTION_LINE_OFFSETS_START + 2);
-			LHZX(TempReg1, TempReg1, TempReg3); //get mapped value
-			STW(TempReg1, TempReg2, 4);
+			STW(TempReg1, LineReg, Line::VALUE);
 		}Else(); If(TypeReg, EQUAL_I, INTEGER_LINE); {
 			//integer
-			LWZUX(TempReg1, TempReg2, TempReg1); //get setting
+			LWZ(TempReg1, LineReg, Line::VALUE);
 			LWZ(TempReg3, LineReg, Integer::SPEED);
 			SUBF(TempReg1, TempReg1, TempReg3);
 
 			LWZ(TempReg3, LineReg, Integer::MIN);
 			If(TempReg1, LESS, TempReg3); {
-				STW(TempReg3, TempReg2, 0);
+				STW(TempReg3, LineReg, Line::VALUE);
 			}Else(); {
-				STW(TempReg1, TempReg2, 0);
+				STW(TempReg1, LineReg, Line::VALUE);
 			}EndIf();
 		}Else(); {
 			//floating
-			LFSUX(2, TempReg2, TempReg1); //get setting
+			LFS(2, LineReg, Line::VALUE);
 			LFS(1, LineReg, Floating::SPEED);
 			FSUB(1, 2, 1);
 
 			LFS(2, LineReg, Floating::MIN);
 			FCMPU(1, 2, 0);
-			BC(3, BRANCH_IF_FALSE, LT);
-			STFS(2, TempReg2, 0);
+			BC(4, BRANCH_IF_FALSE, LT);
+			LFS(2, LineReg, Floating::MAX);
+			STFS(2, LineReg, Line::VALUE);
 			B(2);
-			STFS(1, TempReg2, 0);
+			STFS(1, LineReg, Line::VALUE);
 		}EndIf(); EndIf(); //done
 
 		//set changed flag
-		LWZ(TempReg1, TempReg2, 0);
+		LWZ(TempReg1, LineReg, Line::VALUE);
 		LBZ(TempReg2, LineReg, Line::COLOR);
 		LWZ(TempReg3, LineReg, Line::DEFAULT);
 		LWZ(TempReg5, PageReg, Page::NUM_CHANGED_LINES);
@@ -625,54 +982,47 @@ void DecreaseValue(int LineReg, int PageReg, int TypeReg, int TempReg1, int Temp
 
 void IncreaseValue(int LineReg, int PageReg, int TypeReg, int TempReg1, int TempReg2, int TempReg3, int TempReg4, int TempReg5)
 {
-	LHZ(TempReg1, LineReg, Line::INDEX);
-	SetRegister(TempReg2, START_OF_CODE_MENU_SETTINGS);
-
 	If(TypeReg, LESS_OR_EQUAL_I, HAS_VALUE_LIMIT); {
 		//has a value to change
 		If(TypeReg, EQUAL_I, SELECTION_LINE); {
 			//selection
-			LWZUX(TempReg1, TempReg2, TempReg1); //get setting
+			LWZ(TempReg1, LineReg, Line::VALUE);
 			Increment(TempReg1);
 
-			LWZ(TempReg3, LineReg, Line::MAX);
-			If(TempReg1, GREATER, TempReg3); {
+			LWZ(TempReg2, LineReg, Line::MAX);
+			If(TempReg1, GREATER, TempReg2); {
 				SetRegister(TempReg1, 0);
 			}EndIf();
-			STW(TempReg1, TempReg2, 0);
-
-			RLWINM(TempReg3, TempReg1, 2, 0, 31); //<< 2
-			ADDI(TempReg1, LineReg, Selection::SELECTION_LINE_OFFSETS_START + 2);
-			LHZX(TempReg1, TempReg1, TempReg3); //get mapped value
-			STW(TempReg1, TempReg2, 4);
+			STW(TempReg1, LineReg, Line::VALUE);
 		}Else(); If(TypeReg, EQUAL_I, INTEGER_LINE); {
 			//integer
-			LWZUX(TempReg1, TempReg2, TempReg1); //get setting
+			LWZ(TempReg1, LineReg, Line::VALUE);
 			LWZ(TempReg3, LineReg, Integer::SPEED);
 			ADD(TempReg1, TempReg1, TempReg3);
 
 			LWZ(TempReg3, LineReg, Integer::MAX);
 			If(TempReg1, GREATER, TempReg3); {
-				STW(TempReg3, TempReg2, 0);
+				STW(TempReg3, LineReg, Line::VALUE);
 			}Else(); {
-				STW(TempReg1, TempReg2, 0);
+				STW(TempReg1, LineReg, Line::VALUE);
 			}EndIf();
 		}Else(); {
 			//floating
-			LFSUX(2, TempReg2, TempReg1); //get setting
+			LFS(2, LineReg, Line::VALUE);
 			LFS(1, LineReg, Floating::SPEED);
-			FADD(1, 1, 2);
+			FADD(1, 2, 1);
 
 			LFS(2, LineReg, Floating::MAX);
 			FCMPU(1, 2, 0);
-			BC(3, BRANCH_IF_FALSE, GT);
-			STFS(2, TempReg2, 0);
+			BC(4, BRANCH_IF_FALSE, GT);
+			LFS(2, LineReg, Floating::MIN);
+			STFS(2, LineReg, Line::VALUE);
 			B(2);
-			STFS(1, TempReg2, 0);
+			STFS(1, LineReg, Line::VALUE);
 		}EndIf(); EndIf(); //done
 
 		//set changed flag
-		LWZ(TempReg1, TempReg2, 0);
+		LWZ(TempReg1, LineReg, Line::VALUE);
 		LBZ(TempReg2, LineReg, Line::COLOR);
 		LWZ(TempReg3, LineReg, Line::DEFAULT);
 		LWZ(TempReg5, PageReg, Page::NUM_CHANGED_LINES);
@@ -710,19 +1060,44 @@ void GetActionFromInputs(int ButtonReg, int ControlStickXReg, int ControlStickYR
 	//set Z for fast
 	ANDI(4, ButtonReg, BUTTON_Z);
 	If(4, NOT_EQUAL_I, 0); {
-		//set frame timers to 1
-		SetRegister(4, MOVE_FRAME_TIMER_LOC);
-		SetRegister(5, 1);
-		SetRegister(6, INCREMENT_FRAME_TIMER_LOC);
-		STW(5, 4, 0);
-		STW(5, 6, 0);
+		//set frame timers to 3
+		LoadWordToReg(4, 7, MOVE_FRAME_TIMER_LOC);
+		LoadWordToReg(6, 8, INCREMENT_FRAME_TIMER_LOC);
+		SetRegister(5, 3);
+		If(4, GREATER, 5); {
+			STW(5, 7, 0);
+		}EndIf();
+		If(6, GREATER, 5); {
+			STW(5, 8, 0);
+		}EndIf();
 	}EndIf();
 
 	//move
+	ANDI(4, ButtonReg, BUTTON_DU);
+	If(4, NOT_EQUAL_I, 0);
+	SetRegister(ControlStickYReg, MOVE_THRESHHOLD);
+	EndIf();
+
+	ANDI(4, ButtonReg, BUTTON_DD);
+	If(4, NOT_EQUAL_I, 0);
+	SetRegister(ControlStickYReg, -MOVE_THRESHHOLD);
+	EndIf();
+
 	SetControlStickAction(ControlStickYReg, MOVE_FRAME_TIMER_LOC, MOVE_NUM_WAIT_FRAMES, FIRST_MOVE_NUM_WAIT_FRAMES, MOVE_THRESHHOLD, MOVE_UP, MOVE_DOWN, ResultReg);
 
 	//increment
+	ANDI(4, ButtonReg, BUTTON_DR);
+	If(4, NOT_EQUAL_I, 0);
+	SetRegister(ControlStickXReg, INCREMENT_THRESHHOLD);
+	EndIf();
+
+	ANDI(4, ButtonReg, BUTTON_DL);
+	If(4, NOT_EQUAL_I, 0);
+	SetRegister(ControlStickXReg, -INCREMENT_THRESHHOLD);
+	EndIf();
+
 	SetControlStickAction(ControlStickXReg, INCREMENT_FRAME_TIMER_LOC, INCREMENT_NUM_WAIT_FRAMES, FIRST_INCREMENT_NUM_WAIT_FRAMES, INCREMENT_THRESHHOLD, INCREMENT, DECREMENT, ResultReg);
+
 
 	ANDI(4, ButtonReg, TRIGGER_RESET_LINE_BUTTON);
 	If(4, NOT_EQUAL_I, 0); //enter sub menu
@@ -851,6 +1226,13 @@ void PrimeCodeMenu()
 		}EndIf();
 	}EndIf();
 
+	SetRegister(Reg2, ON_GROUP_RECORDS_FLAG_LOC);
+	SetRegister(Reg1, 0);
+	If(Reg3, EQUAL_I, 0x4E); {
+		SetRegister(Reg1, 1);
+	}EndIf();
+	STW(Reg1, Reg2, 0);
+
 	RestoreRegisters();
 	ASMEnd(0x9421fff0); //stwu sp, sp, -0x10
 	GeckoEndIf();
@@ -955,7 +1337,6 @@ void PrintPage(int PageReg, int SettingsPtrReg, int Reg1, int Reg2, int Reg3, in
 {
 	SetupPrintText(SettingsPtrReg);
 
-	SetRegister(Reg6, START_OF_CODE_MENU_SETTINGS);
 	SetRegister(Reg5, COLOR_ARRAY_START);
 
 	//set initial text pos
@@ -966,14 +1347,14 @@ void PrintPage(int PageReg, int SettingsPtrReg, int Reg1, int Reg2, int Reg3, in
 	ADDI(Reg2, PageReg, Page::FIRST_LINE_OFFSET); //first line
 	SetRegister(3, 1);
 	While(3, NOT_EQUAL_I, 0); {
-		PrintCodeMenuLine(Reg2, SettingsPtrReg, Reg5, Reg6, Reg3, Reg4);
+		PrintCodeMenuLine(Reg2, SettingsPtrReg, Reg5, Reg3, Reg4);
 
 		LHZ(3, Reg2, Line::SIZE);
 		ADD(Reg2, Reg2, 3); //next line
 	}EndWhile();
 }
 
-void PrintCodeMenuLine(int LinePtrReg, int SettingsPtrReg, int ColorArrayPtrReg, int CodeMenuSettingsPtrReg, int TempReg1, int TempReg2)
+void PrintCodeMenuLine(int LinePtrReg, int SettingsPtrReg, int ColorArrayPtrReg, int TempReg1, int TempReg2)
 {
 	LBZ(TempReg2, LinePtrReg, Line::TYPE);
 
@@ -983,13 +1364,12 @@ void PrintCodeMenuLine(int LinePtrReg, int SettingsPtrReg, int ColorArrayPtrReg,
 
 	LBZ(4, LinePtrReg, Line::TEXT_OFFSET);
 	ADD(4, 4, LinePtrReg);
-	LHZ(5, LinePtrReg, Line::INDEX);
 
 	If(TempReg2, EQUAL_I, FLOATING_LINE); {
-		LFSX(1, CodeMenuSettingsPtrReg, 5);
+		LFS(1, LinePtrReg, Line::VALUE);
 		SprintF(4, {}, { 1 });
 	}Else(); {
-		LWZX(5, CodeMenuSettingsPtrReg, 5); //get setting
+		LWZ(5, LinePtrReg, Line::VALUE); //get setting
 
 		If(TempReg2, EQUAL_I, SELECTION_LINE); {
 			ADDI(TempReg1, LinePtrReg, Selection::SELECTION_LINE_OFFSETS_START);
@@ -1016,6 +1396,111 @@ void GetArrayValueFromIndex(int ArrayLoc, int IndexReg, int min, int max, int Re
 			RLWINM(4, IndexReg, 2, 0, 31); //<< 2
 			SetRegister(ResultReg, ArrayLoc - (min * 4));
 			LWZX(ResultReg, ResultReg, 4);
+		}
+	}
+}
+
+void SaveReplay()
+{
+	int NTEBufferReg = 31;
+	int SectionBufferReg = 30;
+	int HighTimeReg = 29;
+	int LowTimeReg = 28;
+	int CryptoBufferReg = 27;
+	int PathPtrReg = 26;
+	int reg1 = 25;
+	int reg2 = 24;
+	int reg3 = 23;
+	int reg4 = 22;
+	int reg5 = 21;
+	int reg6 = 20;
+
+	//set buffer ptrs
+	SetRegister(NTEBufferReg, REPLAY_NTE_DATA_BUFFER_LOC);
+	SetRegister(SectionBufferReg, REPLAY_CREATE_SECTION_BUFFER_LOC);
+	SetRegister(CryptoBufferReg, REPLAY_CRYPTO_BUFFER_LOC);
+
+	//setup buffers
+	//section buffer
+	SetRegister(3, 0);
+	STW(3, SectionBufferReg, 0);
+	STW(3, SectionBufferReg, 4);
+	vector<int> is = { 0x4e0341de, (int) 0xe6bbaa41, 0x6419b3ea, (int) 0xe8f53bd9 };
+	//crypto buffer
+	vector<int> stupid = is;
+	WriteVectorToMem(stupid, CryptoBufferReg);
+	SetRegister(3, 0x2A);
+	SetRegister(4, 1);
+	STW(3, CryptoBufferReg, 0x18);
+	STW(4, CryptoBufferReg, 0x1C);
+
+	CallBrawlFunc(0x801e1b34); //OSGetTime
+	MR(HighTimeReg, 3);
+	MR(LowTimeReg, 4);
+
+	SetRegs(3, { REPLAY_NTE_DATA_BUFFER_LOC, 42 });
+	CallBrawlFunc(0x80152b5c); //ctnteFileReplay
+
+	SetRegister(4, REPLAY_BUFFER_BEGIN);
+	CallBrawlFunc(0x80152c4c); //setData
+
+	SetArgumentsFromRegs(3, { SectionBufferReg, NTEBufferReg, HighTimeReg, LowTimeReg });
+	SetRegs(7, { 0x2A, 0, 0 });
+	CallBrawlFunc(0x80153610); //createSection
+
+	LWZ(3, SectionBufferReg, 0);
+	STW(3, CryptoBufferReg, 0x10);
+	LWZ(3, 3, 0x1C);
+	ADDI(3, 3, 0x20);
+	STW(3, CryptoBufferReg, 0x14);
+	ADDI(3, CryptoBufferReg, -832);
+	CallBrawlFunc(0x8003d1cc); //run crypto
+
+	SetRegister(PathPtrReg, STRING_BUFFER + 0xA0);
+	//WriteStringToMem("/LegacyTE/rp/rp_%d%d.bin\0"s, PathPtrReg);
+	//SprintF(PathPtrReg, { HighTimeReg, LowTimeReg });
+	SetRegister(reg1, STRING_BUFFER);
+	SetArgumentsFromRegs(3, { HighTimeReg, LowTimeReg, reg1 });
+	CallBrawlFunc(0x801e1d80); //OSTicksToCalenderTime
+	LWZ(reg2, reg1, 4); //minute
+	LWZ(reg3, reg1, 8); //hour
+	LWZ(reg4, reg1, 0xC); //day
+	LWZ(reg5, reg1, 0x10); //month
+	LWZ(reg6, reg1, 0x14); //year
+	ADDI(reg5, reg5, 1);
+	SetRegister(3, 100);
+	MR(4, reg6);
+	MOD(reg6, 4, 3);
+	WriteStringToMem("/LegacyTE/rp/rp_%02d%02d%02d_%02d%02d.bin\0"s, PathPtrReg);
+	SprintF(PathPtrReg, { reg6, reg5, reg4, reg3, reg2 });
+	SetRegister(PathPtrReg, STRING_BUFFER);
+	LWZ(reg1, CryptoBufferReg, 0x2C); //size
+	LWZ(reg2, CryptoBufferReg, 0x28); //ptr
+	SetRegister(reg3, 0x2000);
+	Allocate(reg3);
+	MR(reg3, 1);
+	ADDI(1, 3, 0x1F00);
+	MR(reg4, 3);
+	WriteFileToSD(PathPtrReg, reg1, reg2);
+	MR(1, reg3);
+	FreeMem(reg4);
+
+	//deallocate
+	MR(3, NTEBufferReg);
+	SetRegister(4, 0);
+	CallBrawlFunc(0x80152bdc); //dtnteFileReplay
+	LWZ(reg1, CryptoBufferReg, 0x28);
+	FreeMem(reg1);
+	LWZ(reg1, SectionBufferReg, 0);
+	FreeMem(reg1);
+}
+
+//requires 3 endifs
+//r3 returns setting address
+void RunIfPortToggle(int ARRAY_LOC, int PortReg) {
+	GetArrayValueFromIndex(ARRAY_LOC, PortReg, 0, 3); {
+		LWZ(5, 3, Line::VALUE); //get setting
+		If(5, EQUAL_I, 1); {
 		}
 	}
 }

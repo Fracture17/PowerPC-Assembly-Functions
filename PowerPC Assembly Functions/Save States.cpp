@@ -287,7 +287,592 @@ void SaveOrRestoreState()
 }
 #endif
 
+void AddArticle()
+{
+	//r3 == article ptr
+	ASMStart(0x808e2d84);
+	SaveRegisters();
 
+	int reg1 = 31;
+	int reg2 = 30;
+	int reg3 = 29;
+	int reg4 = 28;
+
+	IfInGame(reg1); {
+		LoadWordToReg(reg1, SAVE_STATE_ARTICLE_LIST_PTR_LOC);
+		MR(reg2, 3);
+		PushOnStack(reg2, reg1);
+	}EndIf();
+
+	RestoreRegisters();
+	ASMEnd(0x9421ffa0); //stwu sp, sp, -0x60
+}
+
+void RemoveArticle()
+{
+	//r3 == article ptr
+	ASMStart(0x808e39dc);
+	SaveRegisters();
+
+	int reg1 = 31;
+	int reg2 = 30;
+	int reg3 = 29;
+	int reg4 = 28;
+
+	IfInGame(reg1); {
+		LoadWordToReg(reg1, SAVE_STATE_ARTICLE_LIST_PTR_LOC);
+		MR(reg2, 3);
+		RemoveFromVector(reg1, reg2);
+	}EndIf();
+
+	RestoreRegisters();
+	ASMEnd(0x9421fff0); //stwu sp, sp, number
+}
+
+void SaveState()
+{
+	int reg1 = 31;
+	int reg2 = 30;
+	int reg3 = 29;
+	int reg4 = 28;
+	int reg5 = 27;
+	int reg6 = 26;
+	int reg7 = 25;
+	int reg8 = 24;
+	int reg9 = 23;
+	int reg10 = 22;
+	int reg11 = 21;
+	int ChrModuleReg = 17;
+	int MainBufferReg = 16;
+	int CharacterBufferReg = 15;
+	int SavePtrReg = 14;
+
+	LoadWordToReg(SavePtrReg, SAVE_STATE_BUFFER_PTR_LOC);
+	FreeAllocdArray(SavePtrReg);
+	LoadWordToReg(SavePtrReg, SAVE_STATE_BUFFER_PTR_LOC);
+
+	
+
+	vector<u32> Addresses = { 0x805b8b30, 0x80b84e90, 0x8063ce80, 0x805b8a38 };// , 0x80671cc0 };
+	vector<int> Sizes = { 4, 0x18, 0xA40, 4};// , 0x120};
+	for (int i = 0; i < Addresses.size(); i++) {
+		SetRegister(reg1, Addresses[i]);
+		SetRegister(reg2, Sizes[i]);
+		SaveMem(reg1, reg2, SavePtrReg, 21);
+	}
+
+	/*LoadWordToReg(reg1, reg2, 0x80671dc4);
+	While(reg1, GREATER_I, 0); {
+		LWZU(reg3, reg2, 4);
+		SaveAllocedMem(reg3, SavePtrReg, reg4, reg5, false, 21);
+
+		Decrement(reg1);
+	}EndWhile();*/
+
+
+	//save resources at article ptr + 0xA8, 0xAC, 0xB4
+	//ptr to buffer with more resource ptrs + 0x9C (apparently don't need to care about, linked list if I do)
+	//all can be 0
+
+	LoadWordToReg(reg1, SAVE_STATE_ARTICLE_LIST_PTR_LOC);
+	LoadWordToReg(reg2, SAVE_STATE_SAVED_ARTICLE_LIST_PTR_LOC);
+	CopyVector(reg1, reg2);
+
+	LoadWordToReg(reg7, SAVE_STATE_ARTICLE_SAVED_RESOURCE_LIST_PTR_LOC);
+	FreeAllocdArray(reg7);
+	LoadWordToReg(reg7, SAVE_STATE_ARTICLE_SAVED_RESOURCE_LIST_PTR_LOC);
+	ClearVector(reg7);
+	LoadWordToReg(reg8, SAVE_STATE_ARTICLE_ID_LIST_PTR_LOC);
+	ClearVector(reg8);
+	LoadWordToReg(reg10, SAVE_STATE_LOCATIONS_TO_UPDATE_PTR_LOC);
+	ClearVector(reg10);
+	LoadWordToReg(reg11, SAVE_STATE_LOCATIONS_TO_CLEAR_PTR_LOC);
+	ClearVector(reg11);
+
+	for (int x : {0x80bcd040}) {
+		SetRegister(reg6, x);
+		PushOnStack(reg6, reg10);
+	}
+
+	IterateVector(reg1, reg2, reg3, reg4); {
+		/*for (int i = 4; i <= 0x20; i += 4) {
+			ADDI(reg9, reg2, i);
+			PushOnStack(reg9, reg10);
+		}*/
+
+
+		LWZ(reg5, reg2, 0x60);
+		LWZ(reg5, reg5, 0xD8);
+		LWZ(reg6, reg5, 8);
+		LWZ(reg5, reg5, 4);
+
+		for (int x : {0x3C, 0xC8 + 0xC}) {
+			LWZ(reg9, reg6, x);
+			If(reg9, NOT_EQUAL_I, 0); {
+				//SaveAllocedMem(reg9, reg7, reg6, reg9, false, 21);
+				ADDI(reg9, reg9, 4);
+				PushOnStack(reg9, reg11); //clear ptr loc
+			}EndIf();
+		}
+
+		for (int x : {0xA8, 0xAC, 0xB4}) {
+			LWZ(reg9, reg5, x);
+			If(reg9, NOT_EQUAL_I, 0); {
+				//SaveAllocedMem(reg9, reg7, reg6, reg9, false, 21);
+				ADDI(reg9, reg5, x);
+				PushOnStack(reg9, reg10); //update ptr loc
+			}EndIf();
+		}
+		
+		LWZU(reg9, reg5, 0xC);
+		LWZ(reg6, reg9, -0x1C);
+		If(reg6, GREATER_I, 0x1000); {
+			LWZ(reg9, reg9, 0xF0);
+			SetRegister(reg6, 4 * 40);
+			SaveMem(reg9, reg6, reg7, 21); //save resource
+		}EndIf();
+		/*LWZ(reg6, reg9, -0x1C);
+		ADDI(reg6, reg6, -0x20);
+		SaveMem(reg9, reg6, reg7, 21); //save resource*/
+
+		PushOnStack(reg5, reg10); //resource ptr loc
+
+		LWZ(reg2, reg2, 0xC0); //ID
+		PushOnStack(reg2, reg8);
+	}EndWhile();
+	LoadWordToReg(reg1, SAVE_STATE_ARTICLE_SAVED_RESOURCE_LIST_PTR_LOC);
+	SetRegister(reg3, 0);
+	STW(reg7, reg1, 0);
+	STW(reg3, reg7, 4);
+
+	//save task schedualer
+	LWZ(reg1, 13, -0x43B8);
+	SaveAllocedMem(reg1, SavePtrReg, reg2, reg3, false);
+
+	/*SetRegister(reg1, 0x8063ce80);
+	SaveInstance(reg1, SavePtrReg, reg2, reg3, 21);*/
+
+	//save system thing
+	SetRegister(reg1, 0x8062fb40);
+	SetRegister(reg2, 0x806312b0 - 0x8062fb40);
+	SaveMem(reg1, reg2, SavePtrReg);
+
+	//save FAT index
+	SetRegister(reg1, 0x80b879b4);
+	SetRegister(reg2, 4);
+	SaveMem(reg1, reg2, SavePtrReg);
+
+	//save other modules
+	//SetRegister(reg1, 0x80b8516c);
+	//SetRegister(reg2, 0x80b8545c - 0x80b8516c);
+	SetRegister(reg1, 0x80b84db0);
+	SetRegister(reg2, 0x80b85bb0 - 0x80b84db0);
+	SaveMem(reg1, reg2, SavePtrReg);
+
+	//save subaction table thing
+	SetRegister(reg1, 0x806312f0);
+	SetRegister(reg2, 0x8063ce70 - 0x806312f0);
+	SaveMem(reg1, reg2, SavePtrReg);
+
+	//save instance
+	SetRegister(reg2, 0x52000);
+
+	SetRegister(reg1, 0x8123ab60);
+	SaveMem(reg1, reg2, SavePtrReg, 26);
+	SetRegister(reg1, 0x8128cb60);
+	SaveMem(reg1, reg2, SavePtrReg, 31);
+	SetRegister(reg1, 0x812deb60);
+	SaveMem(reg1, reg2, SavePtrReg, 31);
+	SetRegister(reg1, 0x81330b60);
+	SaveMem(reg1, reg2, SavePtrReg, 31);
+
+	//save resource
+	/*SetRegister(reg1, 0x9151fa00);
+	SaveInstance(reg1, SavePtrReg, reg2, reg3, 21); //using 21 as test*/
+
+	//save thread
+	/*SetRegister(reg1, 0x805ca260);
+	SetRegister(reg2, 0x7c00);
+	SaveMem(reg1, reg2, SavePtrReg, 21);*/
+
+	/*SetRegister(reg1, 0x80671ce0);
+	SaveAllocedMem(reg1, SavePtrReg, reg2, reg3, true, 21);
+
+	SetRegister(reg1, 0x8063cea0);
+	SaveAllocedMem(reg1, SavePtrReg, reg2, reg3, true, 21);
+
+	SetRegister(reg1, 0x80bccfe0);
+	SaveAllocedMem(reg1, SavePtrReg, reg2, reg3, true, 21);
+
+	SetRegister(reg1, 0x805b6d20);
+	SaveAllocedMem(reg1, SavePtrReg, reg2, reg3, true, 21);
+
+	SetRegister(reg1, 0x80663e00);
+	SaveAllocedMem(reg1, SavePtrReg, reg2, reg3, true, 21);*/
+
+	//save system fw
+	/*SetRegister(reg1, 0x805b5160);
+	SetRegister(reg2, 0x805b8ec0 - 0x805b5160);
+	SaveMem(reg1, reg2, SavePtrReg, 21);
+	SetRegister(reg1, 0x805BA100);
+	SetRegister(reg2, 0x805ca260 - 0x805BA100);
+	SaveMem(reg1, reg2, SavePtrReg, 21);*/
+	/*SetRegister(reg1, 0x805b5160);
+	SetRegister(reg2, 0x15100);
+	SaveMem(reg1, reg2, SavePtrReg, 21);*/
+
+	//save system
+	/*SetRegister(reg1, 0x80611f60);
+	SetRegister(reg2, 0x61500);
+	SaveMem(reg1, reg2, SavePtrReg, 21);*/
+
+	LoadWordToReg(MainBufferReg, MAIN_BUFFER_PTR);
+	LWZ(ChrModuleReg, MainBufferReg, 0);
+	LWZU(CharacterBufferReg, MainBufferReg, 4);
+	While(CharacterBufferReg, NOT_EQUAL_I, 0); {
+		LWZ(ChrModuleReg, ChrModuleReg, 0xD8);
+
+		//save modlue ptr things
+		LWZ(reg1, ChrModuleReg, 4);
+		LWZ(reg1, reg1, 0xC);
+		ADDI(reg1, reg1, 0x124);
+		SetRegister(reg2, 0x14);
+		SaveMem(reg1, reg2, SavePtrReg);
+
+		//hitbox info
+		LWZ(reg1, ChrModuleReg, 0x1C);
+		LWZ(reg1, reg1, 0x64);
+		LWZ(reg2, reg1, 0x8);
+		RLWINM(reg2, reg2, 12, 20, 31); //list size
+		While(reg2, GREATER_I, 0); {
+			ADDI(reg3, reg1, 0xC);
+			SetRegister(reg4, 0x28);
+			SaveList(reg3, reg4, SavePtrReg, reg6, reg7);
+
+			ADDI(reg3, reg1, 0x28);
+			SetRegister(reg4, 0x40);
+			SaveList(reg3, reg4, SavePtrReg, reg6, reg7);
+
+			ADDI(reg3, reg1, 0x34);
+			SetRegister(reg4, 0x2C);
+			SaveList(reg3, reg4, SavePtrReg, reg6, reg7);
+
+			ADDI(reg1, reg1, 0x78);
+			Decrement(reg2);
+		}EndWhile(); //save loop
+
+		//variables
+		LWZ(reg1, CharacterBufferReg, CHR_BUFFER_VARIABLES_ADDRESS_OFFSET);
+		SetRegister(reg2, 0x2C8);
+		SaveMem(reg1, reg2, SavePtrReg);
+
+		/*LWZ(reg1, ChrModuleReg, 0x84);
+		LWZ(reg1, reg1, 0x2C);
+		MR(3, reg1);
+		LWZ(12, reg1, 0);
+		LWZ(12, 12, 0x14);
+		MTCTR(12);
+		BCTRL(); //size
+		If(3, GREATER_OR_EQUAL_I, 1); {
+			MR(3, reg1);
+			LWZ(12, reg1, 0);
+			LWZ(12, 12, 0xC);
+			MTCTR(12);
+			SetRegister(4, 0);
+			BCTRL(); //at
+			LWZ(reg1, 3, 0);
+			LWZ(reg1, reg1, 0x60 - 136);
+			LWZ(reg1, reg1, 0xD8);
+			LWZ(reg1, reg1, 4);
+			LWZ(reg2, reg1, 0xC);
+			If(reg2, NOT_EQUAL_I, 0); {
+				LWZ(reg3, reg2, -0x1C);
+				ADDI(reg2, reg2, -0x20);
+				SaveMem(reg2, reg3, SavePtrReg, 36);
+			}EndIf();
+		}EndIf();*/
+		
+
+		/*
+		//pos
+		LWZ(reg1, CharacterBufferReg, CHR_BUFFER_POS_PTR_OFFSET);
+		ADDI(reg1, reg1, 0xC);
+		SetRegister(reg2, 6 * 4);
+		SaveMem(reg1, reg2, SavePtrReg);
+		*/
+
+		/*//ground
+		LWZ(reg1, ChrModuleReg, 0x10);
+		LWZ(reg1, reg1, 0x28);
+		LWZ(reg1, reg1, 0x10);
+		LWZ(reg2, reg1, -0x1C);
+		ADDI(reg2, reg2, -0x24);
+		//SetRegister(reg2, 0xD4);
+		SaveMem(reg1, reg2, SavePtrReg);
+
+		//action
+		//SaveModule(ChrModuleReg, SavePtrReg, 0x70, 0x7C, reg1, reg2);
+		LWZ(reg1, ChrModuleReg, 0x70);
+		LWZ(reg1, reg1, 0x34);
+		STW(reg1, CharacterBufferReg, CHR_BUFFER_SAVE_STATE_ACTION_OFFSET);
+
+		//sub action
+		LWZ(reg1, ChrModuleReg, 8);
+		LWZ(reg2, reg1, 0x40); //frame
+		STW(reg2, CharacterBufferReg, CHR_BUFFER_SAVE_STATE_SUB_ACTION_FRAME_OFFSET);
+		LWZ(reg2, reg1, 0x58); //sub action
+		STW(reg2, CharacterBufferReg, CHR_BUFFER_SAVE_STATE_SUB_ACTION_OFFSET);
+
+		SaveModule(ChrModuleReg, SavePtrReg, 0x6C, 0x84, reg1, reg2);
+
+		//speed
+		//SaveModule(ChrModuleReg, SavePtrReg, 0x7C, 0x84, reg1, reg2);
+		
+		//save posture, ground, and situation modules
+		//SaveModule(CharacterBufferReg, SavePtrReg, 0xC, 0x18, reg1, reg2);
+		//SaveModule(ChrModuleReg, SavePtrReg, 0xC, 0x28, reg1, reg2);
+		SaveModule(ChrModuleReg, SavePtrReg, 0, 0x28, reg1, reg2);
+
+		//variables
+		LWZ(reg1, CharacterBufferReg, CHR_BUFFER_VARIABLES_ADDRESS_OFFSET);
+		SetRegister(reg2, 0x2C8);
+		SaveMem(reg1, reg2, SavePtrReg);
+
+
+		SaveModule(ChrModuleReg, SavePtrReg, 0, 0xC8, reg1, reg2);*/
+
+		/*LWZ(reg1, ChrModuleReg, 8);
+		LWZ(reg2, reg1, 0x40); //frame
+		STW(reg2, CharacterBufferReg, CHR_BUFFER_SAVE_STATE_SUB_ACTION_FRAME_OFFSET);
+		LWZ(reg2, reg1, 0x58); //sub action
+		STW(reg2, CharacterBufferReg, CHR_BUFFER_SAVE_STATE_SUB_ACTION_OFFSET);*/
+
+		/*LWZ(reg1, ChrModuleReg, 4);
+		LWZ(reg1, reg1, 0xC);
+		ADDI(reg1, reg1, 0x124 - 4);
+		ADDI(reg4, CharacterBufferReg, CHR_BUFFER_SAVE_STATE_MEM_PTR_ARRAY_OFFSET - 4);
+		CounterLoop(reg2, 0, 6, 1); {
+			LWZU(reg3, reg1, 4);
+			If(reg3, NOT_EQUAL_I, 0); {
+				LWZ(reg5, reg3, -0x1C);
+				ADDI(reg5, reg5, -0x20);
+				SaveMem(reg3, reg5, reg4);
+			}Else(); {
+				STWU(reg3, reg4, 4); //reg3 = 0
+			}EndIf();
+		}CounterLoopEnd();*/
+
+		LWZ(ChrModuleReg, MainBufferReg, 4);
+		LWZU(CharacterBufferReg, MainBufferReg, 8);
+	}EndWhile();
+
+	SaveSpecifiedMemory(0x80500000, 11, SavePtrReg, reg1, reg2, reg3, reg4, 21);
+
+	//null terminator
+	SetRegister(reg1, 0);
+	STW(reg1, SavePtrReg, 4);
+}
+
+//AllocAddressReg is changed to point to the end of the list
+void RestoreState()
+{
+	int reg1 = 31;
+	int reg2 = 30;
+	int reg3 = 29;
+	int reg4 = 28;
+	int reg5 = 27;
+	int reg6 = 26;
+	int reg7 = 25;
+	int reg8 = 24;
+	int ResourcePtrListReg = 18;
+	int ChrModuleReg = 17;
+	int MainBufferReg = 16;
+	int CharacterBufferReg = 15;
+
+
+
+	/*LoadWordToReg(MainBufferReg, MAIN_BUFFER_PTR);
+	LWZ(ChrModuleReg, MainBufferReg, 0);
+	LWZU(CharacterBufferReg, MainBufferReg, 4);
+	While(CharacterBufferReg, NOT_EQUAL_I, 0); {
+
+
+		LWZ(ChrModuleReg, MainBufferReg, 4);
+		LWZU(CharacterBufferReg, MainBufferReg, 8);
+	}EndWhile();*/
+
+	AllocateVector(0x200, STRING_BUFFER, reg1);
+	MR(ResourcePtrListReg, 3);
+
+	FreeArticles(reg1, reg2, reg3);
+
+	LoadWordToReg(reg1, 0x80500054);
+	If(reg1, EQUAL_I, 0); {
+		RestoreArticles(reg1, reg2, reg3, reg4);
+		SetResourcePtrs();
+		GetResourcePtrLocations(ResourcePtrListReg);
+	}EndIf();
+
+	LoadWordToReg(reg1, SAVE_STATE_BUFFER_PTR_LOC);
+	RestoreList(reg1);
+
+	LoadWordToReg(reg1, 0x80500054);
+	If(reg1, EQUAL_I, 1); {
+		RestoreArticles(reg1, reg2, reg3, reg4);
+		SetResourcePtrs();
+		GetResourcePtrLocations(ResourcePtrListReg);
+	}EndIf();
+
+	LoadWordToReg(reg1, SAVE_STATE_ARTICLE_SAVED_RESOURCE_LIST_PTR_LOC);
+	RestoreList(reg1);
+
+	LoadWordToReg(3, SAVE_STATE_LOCATIONS_TO_UPDATE_PTR_LOC);
+	IterateVector(ResourcePtrListReg, 4, 5, 6); {
+		LWZU(7, 3, 4);
+		STW(4, 7, 0);
+	}EndWhile();
+	
+	ClearSpecifiedMemory();
+
+	/*LoadWordToReg(reg6, SAVE_STATE_ARTICLE_RESOURCE_PTR_LIST_LOC);
+	IterateVector(reg1, reg2, reg3, reg4); {
+		//LWZU(reg7, reg6, 4);
+		//LWZ(reg5, reg2, 0); //ptr
+		//STW(reg5, reg7, 0); //proper resource address
+		RestoreMem(reg2);
+	}EndWhile();*/
+
+	FreeMem(ResourcePtrListReg);
+
+	/*SetRegister(reg2, 0);
+	LWZ(reg3, reg1, 0); //ptr to end
+	STW(reg2, reg3, 4); //null terminater
+	RestoreList(reg1);*/
+
+	/*LoadWordToReg(MainBufferReg, MAIN_BUFFER_PTR);
+	LWZ(ChrModuleReg, MainBufferReg, 0);
+	LWZU(CharacterBufferReg, MainBufferReg, 4);
+	While(CharacterBufferReg, NOT_EQUAL_I, 0); {
+		ADDI(reg4, CharacterBufferReg, CHR_BUFFER_SAVE_STATE_MEM_PTR_ARRAY_OFFSET - 4);
+		LWZ(reg1, ChrModuleReg, 0xD8);
+
+
+		LWZ(ChrModuleReg, MainBufferReg, 4);
+		LWZU(CharacterBufferReg, MainBufferReg, 8);
+	}EndWhile();*/
+	NOP();
+
+	//ClearSpecifiedMemory(0x80500078);
+}
+
+void FreeArticles(int reg1, int reg2, int reg3)
+{
+	LoadWordToReg(reg1, SAVE_STATE_ARTICLE_LIST_PTR_LOC);
+	ReverseIterateVector(reg1, 3, reg2, reg3); {
+		SetRegister(4, 1);
+		CallBrawlFunc(0x808e39dc); //deactivate
+	}EndWhile();
+
+	/*SetRegister(reg1, Address);
+	LWZ(3, reg1, 0);
+	While(3, NOT_EQUAL_I, 0); {
+		CallBrawlFunc(0x808e39dc); //deactivate
+		LWZU(3, reg1, 4);
+	}EndWhile();*/
+}
+
+void RestoreArticles(int reg1, int reg2, int reg3, int reg4)
+{
+	LoadWordToReg(reg1, SAVE_STATE_ARTICLE_ID_LIST_PTR_LOC);
+	LoadWordToReg(reg4, SAVE_STATE_SAVED_ARTICLE_LIST_PTR_LOC);
+	IterateVector(reg1, 4, reg2, reg3); {
+
+		LoadWordToReg(5, MAIN_BUFFER_PTR);
+		LWZU(7, reg4, 4);
+		LWZ(3, 5, 0);
+		LWZ(3, 3, 0x84 + 0xC);
+		While(3, LESS_L, 7); {
+			LWZU(3, 5, 8);
+		}EndWhile();
+
+		SetRegister(5, 0);
+		CallBrawlFunc(0x8079e18c); //generate
+		LBZ(5, 3, 4);
+		MR(4, 3);
+		If(5, EQUAL_I, 0); {
+			SetRegister(3, 0x8128855c);
+			CallBrawlFunc(0x8079f814); //entry
+		}EndIf();
+	}EndWhile();
+
+	/*SetRegister(reg1, Address + 4);
+	LBZ(4, reg1, 0);
+	While(4, LESS_I, 0xFF); {
+		LoadWordToReg(3, Address);
+		SetRegister(5, 0);
+		CallBrawlFunc(0x8079e18c); //generate
+		MR(4, 3);
+		LoadWordToReg(3, Address);
+		CallBrawlFunc(0x8079f814); //entry
+		LBZU(4, reg1, 1);
+	}EndWhile();*/
+}
+
+void SetResourcePtrs()
+{
+	int IteratorReg = 4;
+	LoadWordToReg(3, SAVE_STATE_ARTICLE_SAVED_RESOURCE_LIST_PTR_LOC);
+	LoadWordToReg(8, SAVE_STATE_SAVED_ARTICLE_LIST_PTR_LOC);
+	IterateVector(3, IteratorReg, 5, 6); {
+		LWZU(7, 8, 4); //article ptr
+		LWZ(7, 7, 0x60);
+		LWZ(7, 7, 0xD8);
+		LWZ(7, 7, 4);
+		LWZ(7, 7, 0xC);
+		LWZ(7, 7, 0xF0);
+		STW(7, IteratorReg, 0); //replace
+	}EndWhile();
+}
+
+void GetResourcePtrLocations(int DestVectorReg)
+{
+	int IteratorReg = 4;
+	LoadWordToReg(3, SAVE_STATE_LOCATIONS_TO_UPDATE_PTR_LOC);
+	IterateVector(3, IteratorReg, 5, 6); {
+		LWZ(7, IteratorReg, 0);
+		PushOnStack(7, DestVectorReg, 8);
+	}EndWhile();
+}
+
+void SaveModule(int ModuleReg, int SavePtrReg, int StartOffset, int EndOffset, int reg1, int reg2) {
+	LWZ(reg1, ModuleReg, StartOffset);
+	LWZ(reg2, ModuleReg, EndOffset);
+	SUBF(reg2, reg2, reg1);
+	SaveMem(reg1, reg2, SavePtrReg);
+}
+
+void SaveSpecifiedMemory(int Address, int maxNum, int SaveReg, int reg1, int reg2, int reg3, int reg4, int Heap)
+{
+	SetRegister(reg1, Address - 4);
+	CounterLoop(reg2, 0, maxNum, 1); {
+		LWZ(reg3, reg1, 4);
+		LWZU(reg4, reg1, 8);
+		If(reg3, NOT_EQUAL_I, 0); {
+			SUBF(reg4, reg4, reg3); //size
+			SaveMem(reg3, reg4, SaveReg, Heap);
+		}EndIf();
+	}CounterLoopEnd();
+}
+
+void ClearSpecifiedMemory()
+{
+	int IteratorReg = 4;
+	LoadWordToReg(3, SAVE_STATE_LOCATIONS_TO_CLEAR_PTR_LOC);
+	SetRegister(9, 0);
+	IterateVector(3, IteratorReg, 5, 6); {
+		STW(9, IteratorReg, 0);
+	}EndWhile();
+}
 
 void temp1()
 {
@@ -324,7 +909,7 @@ void temp1()
 
 	SetRegister(Reg3, 0x80002800);*/
 
-	RestoreState(Reg3);
+	//RestoreState(Reg3);
 
 	
 
@@ -525,7 +1110,7 @@ void SaveOrRestoreState()
 	LWZ(Reg4, Reg3, 4);
 	If(Reg4, EQUAL_I, 0xFF); //state to restore exists
 	LWZ(Reg3, Reg3, 0);
-	RestoreState(Reg3);
+	//RestoreState(Reg3);
 	EndIf(); //state to restore exists
 
 	EndIf(); //DUp
@@ -730,32 +1315,38 @@ void SaveOrRestoreState()
 }
 
 //TempReg1 ends up pointing to the start of the next instance
-void SaveInstance(int StartReg, int SaveToReg, int TempReg1, int TempReg2)
+void SaveInstance(int StartReg, int SaveToReg, int TempReg1, int TempReg2, int Heap)
 {
+	int SkipSave = GetNextLabel();
+
 	SetRegister(TempReg1, 0x94);
-	SaveMem(StartReg, TempReg1, SaveToReg);
+	SaveMem(StartReg, TempReg1, SaveToReg, Heap);
 
 	ADDI(TempReg1, StartReg, 0x80);
 	LWZ(3, TempReg1, 4);
 	LWZUX(3, TempReg1, 3);
-	While(3, EQUAL, StartReg); //save loop
+	While(3, EQUAL, StartReg); {
+		LBZ(3, TempReg1, 0x13);
+		If(3, EQUAL_I, 1); {
+			//freed memory
+			SetRegister(TempReg2, 0x20); //alloc size
+		}Else(); {
+			//saved memory
+			LHZ(TempReg2, TempReg1, 4); //upper half of size
+			If(TempReg2, GREATER_I, 5); {
+				//too big
+				JumpToLabel(SkipSave);
+			}EndIf();
+			LWZ(TempReg2, TempReg1, 4); //size
+		}EndIf();
 
-	LBZ(3, TempReg1, 0x13);
-	If(3, EQUAL_I, 1); //freed memory
+		SaveMem(TempReg1, TempReg2, SaveToReg, Heap);
 
-	SetRegister(TempReg2, 0x20); //alloc size
+		Label(SkipSave);
 
-	Else(); //freed memory
-
-	LWZ(TempReg2, TempReg1, 4); //alloc size
-
-	EndIf(); //freed memory
-
-	SaveMem(TempReg1, TempReg2, SaveToReg);
-	LWZ(3, TempReg1, 4);
-	LWZUX(3, TempReg1, 3);
-
-	EndWhile(); //save loop
+		LWZ(3, TempReg1, 4);
+		LWZUX(3, TempReg1, 3);
+	}EndWhile(); //save loop
 }
 
 //Memory to restore must start with origanal location followed by size
@@ -769,8 +1360,7 @@ void RestoreMem(int MemPtrReg)
 	Memmove(3, 4, 5);
 }
 
-//AllocAddressReg is changed to point to the end of the list
-void RestoreState(int AllocAddressReg)
+void RestoreList(int AllocAddressReg)
 {
 	LWZU(4, AllocAddressReg, 4);
 	While(4, NOT_EQUAL_I, 0);

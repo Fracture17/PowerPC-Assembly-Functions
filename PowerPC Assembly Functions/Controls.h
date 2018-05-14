@@ -38,6 +38,8 @@ void SetMenuData();
 
 //test
 void ReplaceNameFunctions();
+void PortRumbleColorChange();
+void TogglePortRumble();
 void OpenNameEntry();
 void NameIsFound();
 void ReplaceName();

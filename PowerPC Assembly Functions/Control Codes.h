@@ -5,6 +5,7 @@
 #include "DrawDI.h"
 #include "IASA Overlay.h"
 #include "Code Menu.h"
+#include "Save States.h"
 
 //constants
 const int CHR_BUFFER_VARIABLES_ADDRESS_OFFSET = 0;
@@ -22,8 +23,13 @@ const int CHR_BUFFER_GRAVITY_OFFSET = CHR_BUFFER_YPOS_OFFSET + 4;
 const int CHR_BUFFER_MFS_OFFSET = CHR_BUFFER_GRAVITY_OFFSET + 4;
 const int CHR_BUFFER_INFO_PTR_OFFSET = CHR_BUFFER_MFS_OFFSET + 4;
 const int CHR_BUFFER_PORT_OFFSET = CHR_BUFFER_INFO_PTR_OFFSET + 4;
+const int CHR_BUFFER_HEAD_OF_FIGHTER_OFFSET = CHR_BUFFER_PORT_OFFSET + 4;
+const int CHR_BUFFER_SAVE_STATE_ACTION_OFFSET = CHR_BUFFER_HEAD_OF_FIGHTER_OFFSET + 4;
+const int CHR_BUFFER_SAVE_STATE_SUB_ACTION_OFFSET = CHR_BUFFER_SAVE_STATE_ACTION_OFFSET + 4;
+const int CHR_BUFFER_SAVE_STATE_SUB_ACTION_FRAME_OFFSET = CHR_BUFFER_SAVE_STATE_SUB_ACTION_OFFSET + 4;
+const int CHR_BUFFER_SAVE_STATE_MEM_PTR_ARRAY_OFFSET = CHR_BUFFER_SAVE_STATE_SUB_ACTION_FRAME_OFFSET + 4; //0x18
 //buffers
-const int CHR_BUFFER_DI_BUFFER_PTR_OFFSET = CHR_BUFFER_PORT_OFFSET + 4;
+const int CHR_BUFFER_DI_BUFFER_PTR_OFFSET = CHR_BUFFER_SAVE_STATE_MEM_PTR_ARRAY_OFFSET + 0x18;
 const int CHR_BUFFER_SIZE = CHR_BUFFER_DI_BUFFER_PTR_OFFSET + 4;
 
 //value paths
@@ -33,7 +39,12 @@ const vector<int> CHARACTER_ID = { CHR_BUFFER_INFO_PTR_OFFSET, 0, 1 };
 static const int CHARACTER_INFO_START_ADDRESS = 0x90180FB8;
 
 void Draw();
+void DeleteCharacterBufferOnTransform();
+void ChangeCharacterBufferModule();
+void AddNewCharacterBuffer();
+void DeleteCharacterBuffer();
 void ControlCodes();
+void FixPercentSelector();
 void LoadCodeMenu();
 void StartMatch();
 void EndMatch();

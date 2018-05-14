@@ -4,6 +4,9 @@
 #define OVERLAY_LENGTH 12
 #define IASA_OVERLAY_COLOR 0x9a9af9ff
 
+//color blend module + 0x64 for trigger (byte, make second byte 0 for safety)
+//color blend module + 0xB8 for color
+
 void EndOverlay()
 {
 	int reg1 = 31;
@@ -42,6 +45,7 @@ void TriggerIASAOverlay()
 {
 	//use r25-r31
 	//r4 is ptr to anim cmd
+	//r27 is module ptr
 	ASMStart(0x8077aff0);
 
 	int reg1 = 31;
@@ -105,7 +109,7 @@ void TriggerIASAOverlay()
 
 	LoadWordToReg(reg1, IS_IN_GAME_FLAG);
 	If(reg1, EQUAL_I, 1); {
-		LoadWordToReg(reg1, START_OF_CODE_MENU_SETTINGS);
+		LoadWordToReg(reg1, START_OF_CODE_MENU);
 		If(reg1, EQUAL_I, 1); {
 			LWZ(reg2, 4, 0);
 

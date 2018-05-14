@@ -2,6 +2,68 @@
 #include "PowerPC Assembly Functions.h"
 #include "Miscellaneous Code.h"
 
+void LXPGreenOverlayFix() {
+	ASMStart(0x806d4858);
+
+	int reg1 = 3;
+	int reg2 = 4;
+	int x = 0;
+
+	SetRegister(reg1, 0x90180FC0 + 2);
+	SetRegister(reg2, 0);
+	for (int i = 0; i < 4; i++) {
+		STH(reg2, reg1, x); x += 0x5C;
+	}
+
+	ASMEnd(0x7fe3fb78); //mr r3, r31
+}
+
+void FixStickyRAlts() {
+	//can use r0, r3, r4, r5
+	ASMStart(0x806cbfa8);
+
+	int reg1 = 3;
+	int reg2 = 4;
+	int reg3 = 5;
+
+	SetRegister(reg2, 0x43AD8 - 0x5C);
+	LoadWordToReg(reg1, 0x805A00E0);
+	LWZ(reg1, reg1, 0x10);
+	ADD(reg1, reg1, reg2);
+	SetRegister(reg2, 0);
+	CounterLoop(reg3, 0, 4, 1); {
+		STWU(reg2, reg1, 0x5C);
+	}CounterLoopEnd();
+
+	ASMEnd(0x38000005); //li r0, 5
+}
+
+void CStickSlowFix()
+{
+	ASMStart(0x80048b70);
+
+	LoadWordToReg(6, 0x80B84EB0);
+	If(6, NOT_EQUAL_I, 0); {
+		SetRegister(7, 0);
+		LBZ(0, 6, 0x48);
+		If(0, NOT_EQUAL_I, 0); {
+			LWZ(0, 6, 0x40);
+			If(0, NOT_EQUAL_I, 0); {
+				SetRegister(7, 1);
+			}EndIf();
+		}EndIf();
+
+		LoadByteToReg(6, IS_DEBUG_PAUSED + 3);
+		If(6, NOT_EQUAL_I, 0); {
+			SetRegister(7, 1);
+		}EndIf();
+
+		SUBF(3, 3, 7);
+	}EndIf();
+
+	ASMEnd(0x5460063e);
+}
+
 void FixTr4shTeamToggle()
 {
 	//logic

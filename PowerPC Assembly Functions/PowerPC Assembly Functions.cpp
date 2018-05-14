@@ -699,10 +699,10 @@ void CallBrawlFunc(int Address) {
 }
 
 //r3 returns ptr to memory
-void Allocate(int SizeReg)
+void Allocate(int SizeReg, int Heap)
 {
 	//SetRegister(3, 0x2A);
-	SetRegister(3, 6); //network
+	SetRegister(3, Heap); //network
 	//SetRegister(3, 18); //fighter1 resource
 	CallBrawlFunc(GET_MEM_ALLOCATOR); //call getMemAllocator
 	//set size
@@ -901,6 +901,12 @@ void FreeMem(int AddressReg)
 	CallBrawlFunc(GF_POOL_FREE);
 }
 
+void FreeMemFromFighter(int AddressReg)
+{
+	if (AddressReg != 3) { ADDI(3, AddressReg, 0); }
+	CallBrawlFunc(0x8019d88c); //_dt
+}
+
 //EmptyVal is expected value of upper 16 bits if memory is not allocated
 //stores value of EmptyVal into AddressReg
 void FreeMemIfAllocd(int AddressReg, int EmptyVal)
@@ -927,15 +933,23 @@ void FreeAllocdArray(int AllocAddressReg)
 }
 
 //location is where to save from, size is how much, saveTo is where to store the alloc ptr - 4
-void SaveMem(int LocationReg, int SizeReg, int SaveToReg)
+void SaveMem(int LocationReg, int SizeReg, int SaveToReg, int Heap)
 {
-	ADDI(5, SizeReg, 8);
-	Allocate(5);
+	ADDI(5, SizeReg, 0x20);
+	Allocate(5, Heap);
 	STWU(3, SaveToReg, 4);
 	STW(LocationReg, 3, 0);
 	STW(SizeReg, 3, 4);
 	ADDI(3, 3, 8);
 	Memmove(3, LocationReg, SizeReg);
+}
+
+void SaveAllocedMem(int AddressReg, int SaveToReg, int reg1, int reg2, bool SaveHeader, int Heap)
+{
+	LWZ(reg1, AddressReg, -0x1C); //size
+	if (SaveHeader) { ADDI(reg2, AddressReg, -0x20); }
+	else { ADDI(reg1, reg1, -0x20); MR(reg2, AddressReg); }
+	SaveMem(reg2, reg1, SaveToReg, Heap);
 }
 
 void Increment(int Reg)
@@ -950,6 +964,7 @@ void Decrement(int Reg)
 
 void WriteStringToMem(string Text, int AddressReg)
 {
+	Text += "\0"s;
 	for (int i = 0; i < Text.size() - 1; i += 4) {
 		SetRegister(4, Text.substr(i, min(4, (int) Text.size() - i)));
 		STW(4, AddressReg, i);
@@ -1084,6 +1099,18 @@ void ConvertFloatingRegToInt(int FPReg, int ResultReg)
 	FCTIW(FPReg, FPReg);
 	STFD(FPReg, 1, -0x30);
 	LWZ(ResultReg, 1, -0x2C);
+}
+
+void ConvertFloatingRegToInt(int FPReg, int ResultReg, int TempFPReg)
+{
+	if (TempFPReg == -1) {
+		ConvertFloatingRegToInt(FPReg, ResultReg);
+	}
+	else {
+		FCTIWZ(TempFPReg, FPReg);
+		STFD(TempFPReg, 1, -0x30);
+		LWZ(ResultReg, 1, -0x2C);
+	}
 }
 
 void AddValueToByteArray(u32 value, vector<u8> &Array)
@@ -1224,11 +1251,144 @@ void IterateStackEnd()
 	StackIteratorRecords.pop_back();
 }
 
+void AllocateVector(int size, int Address, int reg)
+{
+	size += 0x10;
+	SetRegister(reg, size);
+	Allocate(reg);
+	SetRegister(reg, Address);
+	STW(3, reg, 0);
+	STW(3, 3, 0); //set ptr to begining
+}
+
+void ClearVector(int VectorReg)
+{
+	STW(VectorReg, VectorReg, 0); //clear ptr to end
+}
+
+//make sure there's enough room in destination, and no overlap
+void CopyVector(int SourceVector, int DestVector)
+{
+	LWZ(5, SourceVector, 0);
+	SUBF(5, 5, SourceVector);
+	ADDI(5, 5, 4);
+	Memmove(DestVector, SourceVector, 5);
+}
+
+//don't change temp regs in loop
+//requires endwhile
+void IterateVector(int VectorReg, int IteratorReg, int TempReg1, int TempReg2, int StartReg)
+{
+	LWZ(TempReg1, VectorReg, 0); //ptr to end
+	if (StartReg == -1) { MR(TempReg2, VectorReg); }
+	else { ADDI(TempReg2, StartReg, -4); }
+
+	While(TempReg2, LESS_L, TempReg1);
+	LWZU(IteratorReg, TempReg2, 4);
+}
+
+//don't change temp regs in loop
+//requires endwhile
+void ReverseIterateVector(int VectorReg, int IteratorReg, int TempReg1, int TempReg2, int StartReg)
+{
+	//ptr to end
+	if (StartReg != -1) { MR(TempReg1, StartReg); }
+	else { LWZ(TempReg1, VectorReg, 0); }
+	ADDI(TempReg2, VectorReg, 4);
+	ADDI(TempReg1, TempReg1, 4);
+
+	While(TempReg1, GREATER_L, TempReg2);
+	LWZU(IteratorReg, TempReg1, -4);
+}
+
+void RemoveFromVector(int VectorReg, int ValueReg)
+{
+	FindInVector(VectorReg, ValueReg, 5); {
+		ShiftVectorDown(VectorReg, 5);
+	}EndIf();
+}
+
+//requires endif
+void FindInVector(int VectorReg, int ValueReg, int ResultReg)
+{
+	int Found = GetNextLabel();
+	int IteratorReg = 3;
+	int EndPtrReg = 4;
+	IterateVector(VectorReg, IteratorReg, EndPtrReg, ResultReg); {
+		If(IteratorReg, EQUAL, ValueReg); {
+			JumpToLabel(Found);
+		}EndIf();
+	}EndWhile();
+
+	If(EndPtrReg, NOT_EQUAL, EndPtrReg); //always false
+	Label(Found);
+}
+
+void ShiftVectorDown(int VectorReg, int StartReg)
+{
+	int IteratorReg = 6;
+	int PtrReg = 8;
+	ADDI(StartReg, StartReg, 4);
+	IterateVector(VectorReg, IteratorReg, 7, PtrReg, StartReg); {
+		STW(IteratorReg, PtrReg, -4);
+	}EndWhile();
+
+	PopOffStack(4, VectorReg); EndIf();
+}
+
 void RandomCapped(int HighReg, int reg1, int ResultReg)
 {
 	LoadWordToReg(reg1, 0x805a0420 + 4);
 	MOD(ResultReg, HighReg, reg1);
 }
+
+void WriteFileToSD(int PathReg, int SizeReg, int DataPtrReg)
+{
+	SetRegister(4, 0);
+	SetRegister(3, WRITE_SD_FILE_HEADER_LOC);
+	STW(PathReg, 3, 0);
+	STW(4, 3, 4);
+	STW(SizeReg, 3, 8);
+	STW(DataPtrReg, 3, 0xC);
+	STW(4, 3, 0x10);
+	STW(4, 3, 0x14);
+	CallBrawlFunc(0x8001d740); //writeSD
+}
+
+//reguires endif
+void IfInGame(int reg, bool condition)
+{
+	LoadWordToReg(reg, IS_IN_GAME_FLAG);
+	If(reg, EQUAL_I, condition);
+}
+
+//r3 returns new value
+//r4 returns address
+void ClearBitsFromMemory(short BitsToClear, int Address) {
+	LoadWordToReg(3, 4, Address);
+	ANDI(3, 3, ~BitsToClear);
+	STW(3, 4, 0);
+}
+
+//updates AddressReg with offset
+//r3 returns new value
+void ClearBitsFromMemory(short BitsToClear, int AddressReg, int Offset) {
+	LWZU(3, AddressReg, Offset);
+	ANDI(3, 3, ~BitsToClear);
+	STW(3, AddressReg, 0);
+}
+
+void GetSceneNum(int ResultReg) {
+	LoadWordToReg(ResultReg, 0x805b4fd8 + 0xd4);
+	LWZ(ResultReg, ResultReg, 0x10);
+	LWZ(ResultReg, ResultReg, 8);
+}
+
+void IfInVersus(int reg) {
+	GetSceneNum(reg);
+	If(reg, EQUAL_I, 0xA);
+}
+
 
 void ABS(int DestReg, int SourceReg, int tempReg)
 {
@@ -1486,6 +1646,15 @@ void FCTIW(int SourceReg, int DestReg)
 	OpHex |= GetOpSegment(DestReg, 5, 10);
 	OpHex |= GetOpSegment(SourceReg, 5, 20);
 	OpHex |= GetOpSegment(14, 10, 30);
+	WriteIntToFile(OpHex);
+}
+
+void FCTIWZ(int DestReg, int SourceReg)
+{
+	OpHex = GetOpSegment(63, 6, 5);
+	OpHex |= GetOpSegment(DestReg, 5, 10);
+	OpHex |= GetOpSegment(SourceReg, 5, 20);
+	OpHex |= GetOpSegment(15, 10, 30);
 	WriteIntToFile(OpHex);
 }
 

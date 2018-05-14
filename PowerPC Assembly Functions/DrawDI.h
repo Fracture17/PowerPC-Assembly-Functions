@@ -40,7 +40,6 @@ void AddToSDIBuffer();
 void AddToASDIBuffer();
 void SetTrajectoryBuffers();
 void CreateDIBuffer(int CharacterBufferReg, int reg1, int reg2, int reg3);
-void AddNewCharacterBuffer();
 void CalcNextPosition();
 void CalcBrakeVectors();
 void AllocateGraphicBuffer(int SizeReg, int AddressReg, int primType, int color);

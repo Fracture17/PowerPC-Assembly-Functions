@@ -12,8 +12,6 @@ void DrawDI()
 	AddToASDIBuffer();
 
 	SetTrajectoryBuffers();
-
-	AddNewCharacterBuffer();
 }
 
 
@@ -32,12 +30,13 @@ void DrawTrajectories()
 	int GraphicBufferReg = 22;
 	int CharacterBufferReg = 21;
 	int MainBufferReg = 20;
+	int SignalReg = 18;
 
 	FP_REGISTERS
 
 	LoadWordToReg(reg1, IS_IN_GAME_FLAG);
 	If(reg1, EQUAL_I, 1); {
-		LoadWordToReg(reg1, DI_DRAW_INDEX);
+		LoadWordToReg(reg1, DI_DRAW_INDEX + Line::VALUE);
 		If(reg1, EQUAL_I, 1); {
 			SetRegister(reg1, 20);
 			SetupDrawLines(reg1);
@@ -57,6 +56,17 @@ void DrawTrajectories()
 						//is debug paused
 						LWZ(reg1, DIBufferReg, DI_BUFFER_NORMAL_START_OFFSET);
 						ResetGraphicBuffer(reg1, BLUE);
+
+						LWZ(reg1, CharacterBufferReg, CHR_BUFFER_INFO_PTR_OFFSET);
+						LWZ(reg3, CharacterBufferReg, CHR_BUFFER_PORT_OFFSET);
+						CallBrawlFunc(0x8004a750); //getIPSwitch
+						LBZ(reg1, reg1, 7); //get controller num
+						MULLI(reg3, reg3, 4);
+						MULLI(reg1, reg1, BUTTON_PORT_OFFSET);
+						SetRegister(reg4, GCC_CONTROL_STICK_X_START - BUTTON_PORT_OFFSET);
+						ADDI(reg3, reg3, 10);
+						LHZX(reg1, reg4, reg1); //get stick values
+						STHX(reg1, 3, reg3);
 
 						LWZ(reg1, CharacterBufferReg, CHR_BUFFER_FIGHTER_INPUT_PTR_OFFSET);
 						MR(3, reg1);
@@ -78,6 +88,7 @@ void DrawTrajectories()
 						STW(reg5, reg1, 0xC);
 						SetRegister(3, 0x80b897bc);
 						LWZ(4, MainBufferReg, -4);
+						SetRegister(SignalReg, 0xC0DE);
 						CallBrawlFunc(0x808778d8); //correctDamageVector
 						//restore
 						STW(reg3, reg1, 8);
@@ -238,6 +249,7 @@ void SetTrajectoryBuffers()
 	LFS(VY, CharacterBufferReg, CHR_BUFFER_YVEL_OFFSET);
 	LWZ(DIBufferReg, CharacterBufferReg, CHR_BUFFER_DI_BUFFER_PTR_OFFSET);
 	LWZ(reg1, DIBufferReg, DI_BUFFER_NORMAL_START_OFFSET);
+	ResetGraphicBuffer(reg1, BLUE);
 
 	CounterLoop(reg6, 0, 2, 1); {
 		LFS(PX, CharacterBufferReg, CHR_BUFFER_XPOS_OFFSET);
@@ -258,7 +270,11 @@ void SetTrajectoryBuffers()
 			ResetGraphicBuffer(reg1, PURPLE);
 			SetRegister(reg3, 0);
 		}Else(); {
-			LWZ(reg1, DIBufferReg, DI_BUFFER_CURRENT_START_OFFSET);
+			If(reg6, EQUAL_I, 0);
+			{
+				LWZ(reg1, DIBufferReg, DI_BUFFER_CURRENT_START_OFFSET);
+				ResetGraphicBuffer(reg1, YELLOW);
+			}EndIf();
 		}EndIf();
 	}CounterLoopEnd();
 
@@ -276,7 +292,7 @@ void CreateDIBuffer(int CharacterBufferReg, int reg1, int reg2, int reg3)
 	//allocate buffers
 	ADDI(reg2, reg1, DI_BUFFER_SDI_START_OFFSET);
 	SetRegister(reg3, SDI_BUFFER_SIZE);
-	AllocateGraphicBuffer(reg3, reg2, PRIMITIVE_LINE, RED);
+	AllocateGraphicBuffer(reg3, reg2, PRIMITIVE_LINE, ORANGE);
 
 	ADDI(reg2, reg1, DI_BUFFER_ASDI_START_OFFSET);
 	SetRegister(reg3, ASDI_BUFFER_SIZE);
@@ -427,6 +443,10 @@ void CalcTrajectory(int bufferReg, int numFramesReg)
 	LFS(RightBound, 3, 0x15C);
 	LFS(TopBound, 3, 0x160);
 	LFS(LowBound, 3, 0x164);
+
+	If(numFramesReg, GREATER_I, 500); {
+		SetRegister(numFramesReg, 500);
+	}EndIf();
 
 	While(numFramesReg, GREATER_I, 0); {
 		AddToGraphicBuffer(bufferReg, PX, true, PY, true, false);

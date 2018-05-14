@@ -19,9 +19,11 @@ void MenuControlCodes()
 
 	SetMenuData();
 
+	ReplaceNameFunctions();
 
 	//test
-	ReplaceNameFunctions();
+	PortRumbleColorChange();
+	TogglePortRumble();
 }
 
 //contains the functions to replace names
@@ -44,6 +46,80 @@ void ReplaceNameFunctions()
 	StopSelectionOfUsedNames();
 
 	ResetTagUsedList();
+}
+
+void PortRumbleColorChange()
+{
+	//r3 = name list object
+	//set r17 to 0xFF if rumble is on
+	//can use r17-r31
+	ASMStart(0x8069f83c);
+
+	int reg1 = 31;
+	int reg2 = 30;
+	int reg3 = 29;
+
+	LBZ(reg1, 3, 0x60);
+	If(reg1, LESS_OR_EQUAL_I, 1); {
+		LBZ(reg1, 3, 0x57);
+		ADDI(reg1, reg1, -0x31); //get 0 based port num
+		SetRegister(reg2, 0x9017be60);
+		LBZX(reg1, reg2, reg1);
+		If(reg1, EQUAL_I, 1); {
+			SetRegister(17, 0xFF);
+		}EndIf();
+	}EndIf();
+
+	ASMEnd(0x80030000); //lwz r0, r3, 0
+
+
+	//make "player #" change color if highlighted
+	//r3 = name list object
+	//can use r4, r31
+	ASMStart(0x806a04f0);
+
+	reg1 = 31;
+	reg2 = 4;
+	
+	LWZ(reg1, 3, 0x44);
+	If(reg1, EQUAL_I, 0); {
+		LBZ(reg1, 3, 0x60);
+		If(reg1, LESS_OR_EQUAL_I, 1); {
+			LBZ(reg1, 3, 0x57);
+			ADDI(reg1, reg1, -0x31); //get 0 based port num
+			SetRegister(reg2, 0x9017be60);
+			LBZX(reg1, reg2, reg1);
+			If(reg1, EQUAL_I, 1); {
+				SetRegister(17, 0xFF);
+			}EndIf();
+		}EndIf();
+	}EndIf();
+
+	ASMEnd(0x3fe0806a); //lis r31, 0x806A
+}
+
+void TogglePortRumble()
+{
+	//r6 is inputs
+	ASMStart(0x8069fecc);
+
+	LBZ(4, 3, 0x60);
+	If(4, LESS_OR_EQUAL_I, 1); {
+		ANDI(14, 6, BUTTON_X);
+		If(14, EQUAL_I, BUTTON_X); {
+			LWZ(14, 3, 0x44);
+			If(14, EQUAL_I, 0); {
+				LBZ(14, 3, 0x57);
+				ADDI(14, 14, -0x31); //get 0 based port num
+				SetRegister(4, 0x9017be60);
+				LBZUX(14, 4, 14);
+				XORI(14, 14, 1);
+				STB(14, 4, 0);
+			}EndIf();
+		}EndIf();
+	}EndIf();
+
+	ASMEnd(0x540405ef);
 }
 
 //resets the tag in use flags when the CSS is loaded

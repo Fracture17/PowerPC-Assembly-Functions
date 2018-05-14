@@ -4,6 +4,7 @@
 #include "PowerPC Assembly Functions.h"
 
 //active codes
+extern int MENU_TITLE_CHECK_LOCATION;
 extern int DI_DRAW_INDEX;
 extern int DEBUG_MODE_INDEX;
 extern int DISPLAY_HITBOXES_INDEX;
@@ -23,21 +24,69 @@ extern int INFINITE_SHIELDS_P3_INDEX;
 extern int INFINITE_SHIELDS_P4_INDEX;
 extern int CAMERA_LOCK_INDEX;
 extern int INFINITE_FRIENDLIES_INDEX;
+extern int AUTO_SAVE_REPLAY_INDEX;
+extern int SAVE_STATES_INDEX;
+extern int SAVE_REPLAY_ANYWHERE_INDEX;
+extern int AUTO_SKIP_TO_CSS_INDEX;
+extern int CODE_MENU_ACTIVATION_SETTING_INDEX;
+extern int PERCENT_SELECT_VALUE_P1_INDEX;
+extern int PERCENT_SELECT_ACTIVATOR_P1_INDEX;
+extern int PERCENT_SELECT_VALUE_P2_INDEX;
+extern int PERCENT_SELECT_ACTIVATOR_P2_INDEX;
+extern int PERCENT_SELECT_VALUE_P3_INDEX;
+extern int PERCENT_SELECT_ACTIVATOR_P3_INDEX;
+extern int PERCENT_SELECT_VALUE_P4_INDEX;
+extern int PERCENT_SELECT_ACTIVATOR_P4_INDEX;
+extern int DISABLE_DPAD_P1_INDEX;
+extern int DISABLE_DPAD_P2_INDEX;
+extern int DISABLE_DPAD_P3_INDEX;
+extern int DISABLE_DPAD_P4_INDEX;
 extern vector<int> Defaults;
 
 #define MAX_SUBPAGE_DEPTH 20
 
+//dpad same, + is start, 2 is A, 1 is B, A is Y, B is X, - is Z
+const vector<u8> CODE_MENU_WIIMOTE_CONVERSION_TABLE = { 2, 3, 1, 0, 12, 31, 31, 31, 8, 9, 10, 11, 4, 31, 31, 31 };
+//dpad same, + and - are start, A and B are A and B, C is Y, Z is start, 1 is X, 2 is Z
+//dpad same, + is start, A and B are A and B, C is Y, Z is Z, - is X
+const vector<u8> CODE_MENU_WIICHUCK_CONVERSION_TABLE = { 0, 1, 2, 3, 12, 31, 31, 31, 31, 31, 9, 8, 10, 4, 11, 31 };
+const vector<u8> CODE_MENU_CLASSIC_CONVERSION_TABLE = { 3, 0, 4, 10, 8, 11, 9, 4, 31, 5, 12, 31, 12, 6, 2, 1 }; //1 to 1
+
+const vector<string> CHARACTER_LIST = { "Bowser", "Captain Falcon", "Charizard", "Dedede", "Diddy Kong", "Donkey Kong", "Falco", "Fox", "Ganondorf", "Giga Bowser", "Ice Climbers", "Ike", "Ivysaur", "Jigglypuff", "Kirby", "Link", "Lucario", "Lucas", "Luigi", "Mario", "Marth", "Meta Knight", "Mewtwo", "Mr. Game and Watch", "Ness", "Olimar", "Peach", "Pikachu", "Pit", "R.O.B.", "Roy", "Samus", "Sheik", "Snake", "Sonic", "Sopo", "Squirtle", "Toon Link", "Wario", "Warioman", "Wolf", "Yoshi", "Zelda", "Zero Suit Samus" };
+const vector<u16> CHARACTER_ID_LIST = { 12, 10, 30, 35, 28, 1, 21, 7, 22, 44, 16, 37, 34, 39, 6, 2, 36, 27, 9, 0, 19, 24, 51, 20, 11, 26, 13, 8, 25, 38, 50, 3, 15, 42, 43, 17, 32, 40, 23, 45, 41, 5, 14, 4 };
+
+//const vector<string> CHARACTER_LIST = { "Bowser", "Captain Falcon", "Charizard", "Diddy Kong", "Donkey Kong", "Falco", "Fox", "Ganondorf", "Ice Climbers", "Ike", "Ivysaur", "Jigglypuff", "King Dedede", "Kirby", "Link", "Lucario", "Lucas", "Luigi", "Mario", "Marth", "Meta Knight", "Mewtwo", "Mr. Game and Watch", "Ness", "Olimar", "Peach", "Pikachu", "Pit", "R.O.B.", "Roy", "Samus", "Sheik", "Snake", "Sonic", "Sopo", "Squirtle", "Toon Link", "Wario", "Wolf", "Yoshi", "Zelda", "Zero Suit Samus" };
+
+//const vector<u16> CHARACTER_ID_LIST = { 12, 10, 30, 28, 1, 21, 7, 22, 16, 37, 34, 39, 35, 6, 2, 36, 27, 9, 0, 19, 24, 51, 20, 11, 26, 13, 8, 25, 38, 50, 3, 15, 42, 43, 17, 32, 40, 23, 41, 5, 14, 4 };
+
+/*const vector<string> CHARACTER_LIST = { "Bowser", "Captain Falcon", "Charizard", "Diddy Kong", "Donkey Kong", "Falco", "Fox", "Ganondorf", "Ice Climbers", "Ike", "Ivysaur", "Jigglypuff",
+										"King DeDeDe", "Kirby", "Link", "Lucario", "Lucas", "Luigi", "Mario", "Marth", "Meta Knight", "Mewtwo", "Mr. Game and Watch", "Ness", "Olimar", "Peach",
+										"Pikachu", "Pit", "R.O.B.", "Roy", "Samus", "Shiek", "Snake", "Sopo", "Squirtle", "Toon Link", "Wario", "Wolf", "Yoshi", "Zelda", "Zero Suit Samus" };
+
+const vector<u16> CHARACTER_ID_LIST = { 12, 10, 30, 28, 1, 21, 7, 22, 16, 37, 34, 39, 35, 6, 2, 36, 27, 9, 0, 19, 24, 51, 20, 11, 26, 13, 8, 25, 38, 50, 3, 15, 42, 17, 32, 40, 23, 41, 5, 14, 4 };
+*/
+/*
+const vector<string> CHARACTER_LIST = { "Bowser", "Captain Falcon", "Charizard", "DeDeDe", "Diddy Kong", "Donkey Kong", "Falco", "Fox", "Ganondorf", "Ice Climbers", "Ike",
+										"Ivysaur", "Jigglypuff", "Kirby", "Link", "Lucario", "Lucas", "Luigi", "Mario", "Marth", "Metaknight", "Mewtwo", "Mr. Game and Watch",
+										"Ness", "Olimar", "Peach", "Pikachu", "Pit", "Popo", "R.O.B.", "Roy", "Samus", "Shiek", "SquirlTail", "Toon Link", "Wario", "Wolf",
+										"Yoshi", "Zelda", "Zero Suit Samus" };
+
+const vector<u16> CHARACTER_ID_LIST = { 12, 10, 30, 35, 28, 1, 21, 7, 22, 16, 37, 34, 39, 6, 2, 36, 27, 9, 0, 19, 24, 51, 20, 11, 26, 13, 8, 25, 17, 38, 50, 3, 15, 32, 40, 23, 41, 5, 14, 4 };*/
+/*
 const vector<string> CHARACTER_LIST = { "Mario", "Donkey Kong", "Link", "Samus", "Zero Suit Samus", "Yoshi", "Kirby", "Fox", "Pikachu", "Luigi", "Captain Falcon",
 										"Ness", "Bowser", "Peach", "Zelda", "Shiek", "Ice Climbers", "Popo", "Marth", "Mr. Game and Watch", "Falco", "Ganondorf",
 										"Wario", "Metaknight", "Pit", "Olimar", "Lucas", "Diddy Kong", "Charizard", "SquirlTail", "Ivysaur", "DeDeDe", "Lucario",
 										"Ike", "R.O.B.", "Jigglypuff", "Toon Link", "Wolf", "Roy", "Mewtwo" };
 const vector<u16> CHARACTER_ID_LIST = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 30, 32, 34, 35, 36,
-										37, 38, 39, 40, 41, 50, 51 };
+										37, 38, 39, 40, 41, 50, 51 };*/
 
-static const int START_OF_CODE_MENU = 0x804E0000;
-static const int CURRENT_PAGE_PTR_LOC = START_OF_CODE_MENU; //4
+static const int START_OF_CODE_MENU_HEADER = 0x804E0000;
+static const int CURRENT_PAGE_PTR_LOC = START_OF_CODE_MENU_HEADER; //4
+static const int MAIN_PAGE_PTR_LOC = CURRENT_PAGE_PTR_LOC + 4; //4
+static const int SALTY_RUNBACK_BUTTON_COMBO_LOC = MAIN_PAGE_PTR_LOC + 4; //4
+static const int SKIP_RESULTS_BUTTON_COMBO_LOC = SALTY_RUNBACK_BUTTON_COMBO_LOC + 4; //4
 //colors
-static const int COLOR_ARRAY_START = CURRENT_PAGE_PTR_LOC + 4; //4 * num colors
+static const int COLOR_ARRAY_START = SKIP_RESULTS_BUTTON_COMBO_LOC + 4; //4 * num colors
 static const u8 NORMAL_LINE_COLOR_OFFSET = 0;
 static const u8 HIGHLIGHTED_LINE_COLOR_OFFSET = NORMAL_LINE_COLOR_OFFSET + 4;
 static const u8 CHANGED_LINE_COLOR_OFFSET = HIGHLIGHTED_LINE_COLOR_OFFSET + 4;
@@ -51,26 +100,45 @@ static const int FRAME_ADVANCE_FRAME_TIMER = INCREMENT_FRAME_TIMER_LOC + 4; //4
 static const int PREV_CODE_MENU_CONTROL_FLAG = FRAME_ADVANCE_FRAME_TIMER + 4; //4
 static const int CODE_MENU_CONTROL_FLAG = PREV_CODE_MENU_CONTROL_FLAG + 4; //4
 static const int INFINITE_FRIENDLIES_FLAG_LOC = CODE_MENU_CONTROL_FLAG + 4; //4
+static const int AUTO_SAVE_REPLAY_FLAG_LOC = INFINITE_FRIENDLIES_FLAG_LOC + 4; //4
+static const int ON_GROUP_RECORDS_FLAG_LOC = AUTO_SAVE_REPLAY_FLAG_LOC + 4; //4
 
-static const int CODE_MENU_BUTTON_MASK_LOC = INFINITE_FRIENDLIES_FLAG_LOC + 4; //4
+static const int CODE_MENU_BUTTON_MASK_LOC = ON_GROUP_RECORDS_FLAG_LOC + 4; //4
 static const int BUTTON_ACTIVATOR_MASK_LOC = CODE_MENU_BUTTON_MASK_LOC + 4; //4
-static const int MAIN_BUTTON_MASK_LOC = BUTTON_ACTIVATOR_MASK_LOC + 4; //8
+static const int MAIN_BUTTON_MASK_LOC = BUTTON_ACTIVATOR_MASK_LOC + 4; //4 * 8
 
-static const int OLD_DEBUG_STATE_LOC = MAIN_BUTTON_MASK_LOC + 8; //4
+static const int OLD_DEBUG_STATE_LOC = MAIN_BUTTON_MASK_LOC + 4 * 8; //4
 static const int OLD_CAMERA_LOCK_STATE_LOC = OLD_DEBUG_STATE_LOC + 4; //4
 
 static const int OLD_CAMERA_POS_LOC = OLD_CAMERA_LOCK_STATE_LOC + 4; //4
 
-static const int RESET_LINES_STACK_LOC = OLD_CAMERA_POS_LOC + 4; // 4 * MAX_SUBPAGE_DEPTH + 8
+static const int SAVE_STATE_BUFFER_PTR_LOC = OLD_CAMERA_POS_LOC + 4; //4
+static const int SAVE_STATE_ARTICLE_LIST_PTR_LOC = SAVE_STATE_BUFFER_PTR_LOC + 4; //4
+static const int SAVE_STATE_ARTICLE_ID_LIST_PTR_LOC = SAVE_STATE_ARTICLE_LIST_PTR_LOC + 4; //4
+static const int SAVE_STATE_ARTICLE_SAVED_RESOURCE_LIST_PTR_LOC = SAVE_STATE_ARTICLE_ID_LIST_PTR_LOC + 4; //4
+static const int SAVE_STATE_LOCATIONS_TO_UPDATE_PTR_LOC = SAVE_STATE_ARTICLE_SAVED_RESOURCE_LIST_PTR_LOC + 4; //4
+static const int SAVE_STATE_LOCATIONS_TO_CLEAR_PTR_LOC = SAVE_STATE_LOCATIONS_TO_UPDATE_PTR_LOC + 4; //4
+static const int SAVE_STATE_SAVED_ARTICLE_LIST_PTR_LOC = SAVE_STATE_LOCATIONS_TO_CLEAR_PTR_LOC + 4; //4
+
+static const int RESET_LINES_STACK_LOC = SAVE_STATE_SAVED_ARTICLE_LIST_PTR_LOC + 4; // 4 * MAX_SUBPAGE_DEPTH + 8
 
 static const int CHARACTER_SWITCHER_ARRAY_LOC = RESET_LINES_STACK_LOC + 4 * MAX_SUBPAGE_DEPTH + 8; //0x10
 static const int INIFINITE_SHIELDS_ARRAY_LOC = CHARACTER_SWITCHER_ARRAY_LOC + 0x10; //0x10
+static const int PERCENT_SELCTION_VALUE_ARRAY_LOC = INIFINITE_SHIELDS_ARRAY_LOC + 0x10; //0x10
+static const int PERCENT_SELCTION_ACTIVATOR_ARRAY_LOC = PERCENT_SELCTION_VALUE_ARRAY_LOC + 0x10; //0x10
+static const int DISABLE_DPAD_ACTIVATOR_ARRAY_LOC = PERCENT_SELCTION_ACTIVATOR_ARRAY_LOC + 0x10; //0x10
 
-static const int DRAW_SETTINGS_BUFFER_LOC = INIFINITE_SHIELDS_ARRAY_LOC + 0x10; //0x200
+static const int REPLAY_NTE_DATA_BUFFER_LOC = DISABLE_DPAD_ACTIVATOR_ARRAY_LOC + 0x10; //0x14
+static const int REPLAY_CREATE_SECTION_BUFFER_LOC = REPLAY_NTE_DATA_BUFFER_LOC + 0x14; //8
+static const int REPLAY_CRYPTO_BUFFER_LOC = REPLAY_CREATE_SECTION_BUFFER_LOC + 8; //0x30
 
-static const int START_OF_CODE_MENU_SETTINGS = DRAW_SETTINGS_BUFFER_LOC + 0x200;
+static const int CODE_MENU_WIIMOTE_CONVERSION_TABLE_LOC = REPLAY_CRYPTO_BUFFER_LOC + 0x30; //0x10 * 3
 
-extern int MenuID;
+static const int DRAW_SETTINGS_BUFFER_LOC = CODE_MENU_WIIMOTE_CONVERSION_TABLE_LOC + 0x10 * 3; //0x200
+
+static const int START_OF_CODE_MENU = DRAW_SETTINGS_BUFFER_LOC + 0x200;
+
+static int CurrentOffset = START_OF_CODE_MENU;
 
 #define CODE_MENU_GECKO_IF(MenuIndex) if(MenuIndex != -1) {\
 									GeckoIf(MenuIndex, EQUAL, 1); {
@@ -80,7 +148,8 @@ extern int MenuID;
 #define CODE_MENU_CLOSED 0
 #define CODE_MENU_PRIMED 1
 #define CODE_MENU_TRIGGERED 2
-#define CODE_MENU_OPEN 3
+#define CODE_MENU_CLOSING 3
+#define CODE_MENU_OPEN 4
 
 //line types
 #define SELECTION_LINE 0
@@ -123,7 +192,7 @@ extern int MenuID;
 #define FRAMES_WAITED_DURING_SLOW_MOTION 3
 
 static vector<int> Defaults;
-static fstream MenuFile("C:\\Program Files (x86)\\WinImage\\cm.bin", fstream::out | fstream::binary);
+static fstream MenuFile("C:\\Users\\john\\Documents\\Dolphin Emulator\\Wii\\cm.bin", fstream::out | fstream::binary);
 
 class Page;
 
@@ -132,7 +201,7 @@ class Line
 public:
 	Line() {}
 
-	Line(string Text, u16 TextOffset, u8 type, u8 flags, u8 ColorOffset, u16 Index) {
+	Line(string Text, u16 TextOffset, u8 type, u8 flags, u8 ColorOffset, int* Index = nullptr) {
 		this->Text = Text + "\0"s;
 		this->type = type;
 		this->Flags = flags;
@@ -158,7 +227,8 @@ public:
 		AddValueToByteArray(Flags, output);
 		AddValueToByteArray(Color, output);
 		AddValueToByteArray(TextOffset, output);
-		AddValueToByteArray(Index, output);
+		AddValueToByteArray((u16) 0, output);
+		AddValueToByteArray(Value, output);
 		if (type != COMMENT_LINE) {
 			AddValueToByteArray(UpOffset, output);
 			AddValueToByteArray(DownOffset, output);
@@ -186,7 +256,8 @@ public:
 		}
 	}
 
-	u16 Index = 0;
+	int* Index = nullptr;
+	u32 Value;
 	u32 Default;
 	u32 Max;
 	u32 Min;
@@ -209,9 +280,9 @@ public:
 	static const int FLAGS = TYPE + 1; //1
 	static const int COLOR = FLAGS + 1; //1
 	static const int TEXT_OFFSET = COLOR + 1; //1
-	static const int INDEX = TEXT_OFFSET + 1; //2
-	static const int COMMENT_LINE_TEXT_START = INDEX + 2;
-	static const int UP = INDEX + 2; //2
+	static const int VALUE = TEXT_OFFSET + 3; //4
+	static const int COMMENT_LINE_TEXT_START = VALUE + 4;
+	static const int UP = VALUE + 4; //2
 	static const int DOWN = UP + 2; //2
 	static const int SUB_MENU = DOWN + 2; //2
 	static const int SUB_MENU_LINE_TEXT_START = SUB_MENU + 2;
@@ -226,8 +297,8 @@ public:
 class Comment : public Line
 {
 public:
-	Comment(string Text)
-	: Line(Text, COMMENT_LINE_TEXT_START, COMMENT_LINE, 0, COMMENT_LINE_COLOR_OFFSET, 0) {}
+	Comment(string Text, int* Index = nullptr)
+	: Line(Text, COMMENT_LINE_TEXT_START, COMMENT_LINE, 0, COMMENT_LINE_COLOR_OFFSET, Index) {}
 
 	void WriteLineData()
 	{
@@ -239,7 +310,7 @@ class Selection : public Line
 {
 public:
 	Selection(string Text, vector<string> Options, vector<u16> Values, int Default, int &Index)
-	: Line(CreateSelectionString(Text + ":  %s", Options), SELECTION_LINE_OFFSETS_START + Options.size() * 4, SELECTION_LINE, 0, NORMAL_LINE_COLOR_OFFSET, MenuID)
+	: Line(CreateSelectionString(Text + ":  %s", Options), SELECTION_LINE_OFFSETS_START + Options.size() * 4, SELECTION_LINE, 0, NORMAL_LINE_COLOR_OFFSET, &Index)
 	{
 		if (Options.size() != Values.size()) {
 			cout << "Mismatched values" << endl;
@@ -251,8 +322,7 @@ public:
 			AddValueToByteArray(Values[i], OptionOffsets);
 			offset += Options[i].size() + 1;
 		}
-		Index = MenuID + START_OF_CODE_MENU_SETTINGS;
-		MenuID += 8;
+		Value = Default;
 		this->Default = Default;
 		Defaults.push_back(Default);
 		Defaults.push_back(Values[Default]);
@@ -306,7 +376,7 @@ public:
 	SubMenu() {}
 
 	SubMenu(string Text, Page* SubMenuPtr)
-	: Line(Text + " >", SUB_MENU_LINE_TEXT_START, SUB_MENU_LINE, 0, NORMAL_LINE_COLOR_OFFSET, 0)
+	: Line(Text + " >", SUB_MENU_LINE_TEXT_START, SUB_MENU_LINE, 0, NORMAL_LINE_COLOR_OFFSET)
 	{
 		this->SubMenuPtr = SubMenuPtr;
 	}
@@ -316,12 +386,11 @@ class Integer : public Line
 {
 public:
 	Integer(string Text, int Min, int Max, int Default, int Speed, int &Index)
-	: Line(Text + ":  %d", NUMBER_LINE_TEXT_START, INTEGER_LINE, 0, NORMAL_LINE_COLOR_OFFSET, MenuID)
+	: Line(Text + ":  %d", NUMBER_LINE_TEXT_START, INTEGER_LINE, 0, NORMAL_LINE_COLOR_OFFSET, &Index)
 	{
-		Index = MenuID + START_OF_CODE_MENU_SETTINGS;
-		MenuID += 4;
 		this->Min = Min;
 		this->Max = Max;
+		Value = Default;
 		this->Default = Default;
 		Defaults.push_back(Default);
 		this->Speed = Speed;
@@ -331,13 +400,12 @@ public:
 class Floating : public Line
 {
 public:
-	Floating(string Text, float Min, float Max, float Default, float Speed, int &Index)
-	: Line(Text + ":  %f", NUMBER_LINE_TEXT_START, FLOATING_LINE, 0, NORMAL_LINE_COLOR_OFFSET, MenuID)
+	Floating(string Text, float Min, float Max, float Default, float Speed, int &Index, string format = "%f")
+	: Line(Text + ":  " + format, NUMBER_LINE_TEXT_START, FLOATING_LINE, 0, NORMAL_LINE_COLOR_OFFSET, &Index)
 	{
-		Index = MenuID + START_OF_CODE_MENU_SETTINGS;
-		MenuID += 4;
 		this->Min = GetHexFromFloat(Min);
 		this->Max = GetHexFromFloat(Max);
+		Value = GetHexFromFloat(Default);
 		this->Default = GetHexFromFloat(Default);
 		Defaults.push_back(GetHexFromFloat(Default));
 		this->Speed = GetHexFromFloat(Speed);
@@ -355,7 +423,7 @@ public:
 			x->PageOffset = Size;
 			Size += x->Size;
 		}
-		Lines.back()->Size = 0;
+		//Lines.back()->Size = 0;
 		ConnectSelectableLines();
 	}
 	
@@ -418,7 +486,7 @@ void PrintChar(int SettingsPtrReg, int CharReg);
 void PrintString(int StringPtrReg, int NumCharsReg, int SettingsPtrReg);
 void DrawBlackBackground();
 void PrintPage(int PageReg, int SettingPtrReg, int Reg1, int Reg2, int Reg3, int Reg4, int Reg5, int Reg6);
-void PrintCodeMenuLine(int LinePtrReg, int SettingsPtrReg, int ColorArrayPtrReg, int CodeMenuSettingsPtrReg, int TempReg1, int TempReg2);
+void PrintCodeMenuLine(int LinePtrReg, int SettingsPtrReg, int ColorArrayPtrReg, int TempReg1, int TempReg2);
 void SetTextColor(int ColorReg, int SettingsPtrReg);
 void SetTextSize(int FPSizeReg, int SettingsPtrReg);
 void CodeMenu();
@@ -432,7 +500,7 @@ void ResetLine(int LineReg, int PageReg, int StackReg, int TypeReg, int TempReg1
 void ResetPage(int StackReg, int TempReg1, int TempReg2, int TempReg3, int TempReg4, int TempReg5, int TempReg6);
 void ExitMenu();
 void EnterMenu(int LineReg, int PageReg, int TypeReg, int TempReg1, int TempReg2);
-void LeaveMenu(int PageReg, int TempReg1, int TempReg2, int TempReg3, int TempReg4, int TempReg5, int TempReg6);
+void LeaveMenu(int PageReg, int TempReg1, int TempReg2, int TempReg3, int TempReg4, int TempReg5, int TempReg6, int ActionReg);
 void DecreaseValue(int LineReg, int PageReg, int TypeReg, int TempReg1, int TempReg2, int TempReg3, int TempReg4, int TempReg5);
 void IncreaseValue(int LineReg, int PageReg, int TypeReg, int TempReg1, int TempReg2, int TempReg3, int TempReg4, int TempReg5);
 void Move(int LineReg, int PageReg, int NextLineOffset, int TempReg1, int TempReg2);
@@ -440,3 +508,5 @@ void GetActionFromInputs(int ButtonReg, int ControlStickXReg, int ControlStickYR
 void SetControlStickAction(int StickValReg, int TimerLoc, int NumWaitFrames, int FirstTimeNumWaitFrames, int Threshhold, int PositiveAction, int NegativeAction, int ResultReg);
 void ApplyMenuSetting(int Index, int Destination, int reg1, int reg2, int size = 4);
 void GetArrayValueFromIndex(int ArrayLoc, int IndexReg, int min, int max, int ResultReg = 3);
+void RunIfPortToggle(int ARRAY_LOC, int PortReg);
+void SaveReplay();

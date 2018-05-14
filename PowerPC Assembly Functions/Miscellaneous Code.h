@@ -2,6 +2,12 @@
 
 #include "stdafx.h"
 
+void LXPGreenOverlayFix();
+
+void FixStickyRAlts();
+
+void CStickSlowFix();
+
 void FixTr4shTeamToggle();
 
 void StopPokemonTrainerSwitch();

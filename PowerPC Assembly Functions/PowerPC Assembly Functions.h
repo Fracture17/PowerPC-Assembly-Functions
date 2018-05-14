@@ -90,7 +90,8 @@ const vector<float> DEFAULT_CAMERA_MATRIX = { 1,0,0,0, 0,1,0,0, 0,0,1,-64 };
 #define SHOULD_STOP_RECORDING   (FRAME_INPUT_BUFFER_OFFSET - 4) //set to 1 if no more memory left for replay
 #define B_HELD_FRAME_COUNTER_LOC   (SHOULD_STOP_RECORDING - 4) //counts how many frames z was held consecutively and records state of debug pause from before slo-mo
 #define CURRENT_ALT_STAGE_INFO_LOC   (B_HELD_FRAME_COUNTER_LOC - 4) //contains alt stage, used to fix salty runback
-#define END_OF_REPLAY_BUFFER   (CURRENT_ALT_STAGE_INFO_LOC - 0x100) //tells when to stop recording inputs
+#define IS_VERSUS_LOC   (CURRENT_ALT_STAGE_INFO_LOC - 4) //is 1 if in versus, else 0
+#define END_OF_REPLAY_BUFFER   (IS_VERSUS_LOC - 0x100) //tells when to stop recording inputs
 ///set END_OF_REPLAY_BUFFER to the last constant - 0x80 to ensure no memory leaks
 
 ///at end of MEM2
@@ -114,9 +115,7 @@ const int REPLACE_NAME_TIME_ADDRESS = REPLACE_NAME_OLD_TIME_LOC + 4;
 #define IASA_TERMINATE_OVERLAY_COMMAND_PTR_LOC IASA_TRIGGER_OVERLAY_COMMAND_PTR_LOC + 4 //4
 #define IASA_STATE IASA_TERMINATE_OVERLAY_COMMAND_PTR_LOC + 4 //4
 #define IS_IN_GAME_FLAG IASA_STATE + 4 //4
-///Code Menu Start
-
-///Code Menu End
+#define WRITE_SD_FILE_HEADER_LOC IS_IN_GAME_FLAG + 4 //0x18
 ///reserved memory for storage end
 
 ///Control code constants start
@@ -151,12 +150,13 @@ const int MENU_SELECTED_TAG_OFFSET = 0x164;
 ///colors
 #define RED 0xFF0000FF
 #define BLUE 0x0066FFFF
-#define ORANGE 0x33CC33FF //still green rn
+#define ORANGE 0xFF9900FF
 #define GREEN 0x33CC33FF
 #define YELLOW 0xFFFF00FF
 #define BLACK 0x000000FF
 #define WHITE 0xFFFFFFFF
 #define PURPLE 0x6E0094FF
+#define TEAL 0x6DD0FFFF
 ///colors end
 ///primitive types
 #define PRIMITIVE_LINE 0xB0
@@ -296,7 +296,7 @@ void FindInArray(int ValueReg, int StartAddressReg, int numberOfElements, int el
 void FindInTerminatedArray(int ValueReg, int StartAddressReg, int endMarker, int elementOffset, int ResultReg, int TempReg, int searchSize);
 void CallBrawlFunc(int Address);
 //r3 returns ptr
-void Allocate(int SizeReg);
+void Allocate(int SizeReg, int Heap = 42);
 void AllocateIfNotExist(int SizeReg, int AddressReg, int EmptyVal);
 void Memmove(int DestReg, int SourceReg, int SizeReg);
 void SetRegs(int StartReg, vector<int> values);
@@ -315,9 +315,11 @@ void GXBegin(int TypeReg, int VtxAttrFmtReg, int NumVertsReg);
 void GFDrawSetupCoord2D();
 void GXDrawSetVtxColorPrimEnviroment();
 void FreeMem(int AddressReg);
+void FreeMemFromFighter(int AddressReg);
 void FreeMemIfAllocd(int AddressReg, int EmptyVal);
 void FreeAllocdArray(int AllocAddressReg);
-void SaveMem(int LocationReg, int SizeReg, int SaveToReg);
+void SaveMem(int LocationReg, int SizeReg, int SaveToReg, int Heap = 6);
+void SaveAllocedMem(int AddressReg, int SaveToReg, int reg1, int reg2, bool SaveHeader = false, int Heap = 6);
 void SaveRegisters();
 void SaveRegisters(vector<int> FPRegs);
 void SaveRegisters(int NumFPRegs);
@@ -325,6 +327,7 @@ void RestoreRegisters();
 void Increment(int Reg);
 void Decrement(int Reg);
 void WriteStringToMem(string Text, int AddressReg);
+void WriteVectorToMem(vector<int> Values, int AddressReg);
 void WriteVectorToMem(vector<float> Values, int AddressReg);
 void CounterLoop(int CounterReg, int startVal, int endVal, int stepVal);
 void CounterLoopEnd();
@@ -333,6 +336,7 @@ void SprintF(int StrReg, vector<int> ValueRegs, vector<int> FPValueRegs);
 void ClampStick(int FPXValReg, int FPYValReg);
 void ConvertIntStickValsToFloating(int StickXReg, int StickYReg, int FPXResultReg, int FPYResultReg, int FPTempReg);
 void ConvertFloatingRegToInt(int FPReg, int ResultReg);
+void ConvertFloatingRegToInt(int FPReg, int ResultReg, int TempFPReg);
 void AddValueToByteArray(u32 value, vector<u8> &Array);
 void AddValueToByteArray(u16 value, vector<u8> &Array);
 void AddValueToByteArray(u8 value, vector<u8> &Array);
@@ -349,7 +353,21 @@ void PushOnStack(int ValueReg, int StackReg, int TempReg = 3);
 void PopOffStack(int ResultReg, int StatckReg, int TempReg = 3);
 void IterateStack(int ResultReg, int StackReg, int TempReg);
 void IterateStackEnd();
+void AllocateVector(int size, int Address, int reg);
+void ClearVector(int VectorReg);
+void CopyVector(int SourceVector, int DestVector);
+void IterateVector(int VectorReg, int IteratorReg, int TempReg1, int TempReg2, int StartReg = -1);
+void ReverseIterateVector(int VectorReg, int IteratorReg, int TempReg1, int TempReg2, int StartReg = -1);
+void RemoveFromVector(int VectorReg, int ValueReg);
+void FindInVector(int VectorReg, int ValueReg, int ResultReg);
+void ShiftVectorDown(int VectorReg, int StartReg);
 void RandomCapped(int HighReg, int reg1, int ResultReg = 3);
+void WriteFileToSD(int PathReg, int SizeReg, int DataPtrReg);
+void IfInGame(int reg = 3, bool condition = true);
+void ClearBitsFromMemory(short BitsToClear, int Address);
+void ClearBitsFromMemory(short BitsToClear, int AddressReg, int Offset = 0);
+void GetSceneNum(int ResultReg);
+void IfInVersus(int reg);
 
 void ABS(int DestReg, int SourceReg, int tempReg);
 void ADD(int DestReg, int SourceReg1, int SourceReg2);
@@ -380,6 +398,7 @@ void FADDS(int DestReg, int SourceReg1, int SourceReg2);
 void FCMPU(int FPReg1, int FPReg2, int CondField);
 void FMR(int DestReg, int SourceReg);
 void FCTIW(int DestReg, int SourceReg);
+void FCTIWZ(int DestReg, int SourceReg);
 void FDIV(int FPDestReg, int FPSourceReg1, int FPSourceReg2);
 void FDIVS(int FPDestReg, int FPSourceReg1, int FPSourceReg2);
 void FMUL(int DestReg, int SourceReg1, int SourceReg2);

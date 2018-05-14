@@ -18,3 +18,4 @@ void FastForward();
 void FixDebugPause();
 void StopFalseCorruption();
 void ClearASLData();
+void FixSinglePlayer();

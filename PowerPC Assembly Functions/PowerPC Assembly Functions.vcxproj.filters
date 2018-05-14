@@ -57,6 +57,9 @@
     <ClInclude Include="Control Codes.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Last Character Auto Select.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="PowerPC Assembly Functions.cpp">
@@ -96,6 +99,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Control Codes.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Last Character Auto Select.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

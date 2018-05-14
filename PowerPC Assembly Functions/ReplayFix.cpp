@@ -14,9 +14,38 @@ void ReplayFix()
 	StopBrawlReplay(); //not sure if needed (haven't tested)
 	StopFalseCorruption();
 	ClearASLData();
+	FixSinglePlayer();
+}
+
+void FixSinglePlayer() {
+	//r4 has flag
+	//can use r30
+	ASMStart(0x8009c984);
+
+	SetRegister(30, IS_VERSUS_LOC);
+	STW(4, 30, 0);
+
+	ASMEnd(0x7c7e1b78); //mr r30, r3
 }
 
 //stops the ASL value from classic or versus from interfering with taining mode
+void ClearASLData()
+{
+	ASMStart(0x806f14c8);
+	SaveRegisters();
+
+	int Reg1 = 31;
+	int Reg2 = 30;
+
+	SetRegister(Reg1, REPLAY_ALT_STAGE_STORAGE_LOC);
+	SetRegister(Reg2, 0);
+	STH(Reg2, Reg1, 0);
+
+	RestoreRegisters();
+	ASMEnd(0x7c7f1b78); //mr r31, r3
+}
+
+/*//stops the ASL value from classic or versus from interfering with taining mode
 void ClearASLData()
 {
 	//can use r31, r30
@@ -29,7 +58,7 @@ void ClearASLData()
 	STH(Reg2, Reg1, 0);
 
 	ASMEnd(0x83e1000c); //lwz r31, sp, 0xC
-}
+}*/
 
 //cleans up some settings that might have been changed during playback
 void EndReplay()
@@ -361,7 +390,13 @@ void SetupPlayback()
 {
 	ASMStart(0x8004be50);
 
-	LBZ(4, 6, 1); //get size of offset
+	LoadWordToReg(3, IS_VERSUS_LOC);
+	LoadWordToReg(8, FRAME_COUNTER_LOC);
+	OR(3, 3, 8);
+	If(3, NOT_EQUAL_I, 0);
+	{
+		LBZ(4, 6, 1); //get size of offset
+	}EndIf();
 
 	ASMEnd();
 }

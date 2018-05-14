@@ -167,6 +167,7 @@
     <ClInclude Include="Controls.h" />
     <ClInclude Include="DrawDI.h" />
     <ClInclude Include="IASA Overlay.h" />
+    <ClInclude Include="Last Character Auto Select.h" />
     <ClInclude Include="Miscellaneous Code.h" />
     <ClInclude Include="PowerPC Assembly Functions.h" />
     <ClInclude Include="ReplayFix.h" />
@@ -182,6 +183,7 @@
     <ClCompile Include="Controls.cpp" />
     <ClCompile Include="DrawDI.cpp" />
     <ClCompile Include="IASA Overlay.cpp" />
+    <ClCompile Include="Last Character Auto Select.cpp" />
     <ClCompile Include="MainCode.cpp" />
     <ClCompile Include="Miscellaneous Code.cpp" />
     <ClCompile Include="PowerPC Assembly Functions.cpp" />
