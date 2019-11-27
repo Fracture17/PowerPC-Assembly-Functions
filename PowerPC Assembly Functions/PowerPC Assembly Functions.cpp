@@ -522,7 +522,7 @@ void StrCpy(int Destination, int Source, int Temp)
 	EndWhile(); //not ended
 }
 
-void GeckoStringWrite(char *Buffer, u32 NumBytes, u32 Address)
+void GeckoStringWrite(string String, u32 Address)
 {
 	if (Address > 0x81000000)
 	{
@@ -531,17 +531,17 @@ void GeckoStringWrite(char *Buffer, u32 NumBytes, u32 Address)
 	u32 Op = Address & 0x1FFFFFF;
 	Op += 0x06000000;
 	WriteIntToFile(Op);
-	WriteIntToFile(NumBytes);
+	WriteIntToFile(String.size());
 	int index = 0;
 	u32 Word = 0;
 
-	while (index < NumBytes)
+	while (index < String.size())
 	{
-		if (Buffer[index] == '|')
+		if (String[index] == '|')
 		{
-			Buffer[index] = 0;
+			String[index] = 0;
 		}
-		Word += Buffer[index] << (8 * (3 - (index % 4)));
+		Word += String[index] << (8 * (3 - (index % 4)));
 		index++;
 		if (index % 4 == 0)
 		{
@@ -602,6 +602,19 @@ void SetGeckoPointerAddress(int Address)
 void LoadIntoGeckoPointer(int Address)
 {
 	WriteIntToFile(0x48000000);
+	WriteIntToFile(Address);
+}
+
+//size is in bytes
+//Writes for some reason!!!!???? Don't use!!!
+void LoadIntoGeckoRegister(int Address, int Reg, int size) {
+	WriteIntToFile(0x82000000 | ((size >> 1) << 20) | Reg);
+	WriteIntToFile(Address);
+}
+
+//repeats is number of extra times after first to write
+void StoreGeckoRegisterAt(int Address, int Reg, int size, int repeats) {
+	WriteIntToFile(0x84000000 | ((size >> 1) << 20) | (repeats << 4) | Reg);
 	WriteIntToFile(Address);
 }
 
@@ -965,7 +978,7 @@ void Decrement(int Reg)
 void WriteStringToMem(string Text, int AddressReg)
 {
 	Text += "\0"s;
-	for (int i = 0; i < Text.size() - 1; i += 4) {
+	for (int i = 0; i < Text.size(); i += 4) {
 		SetRegister(4, Text.substr(i, min(4, (int) Text.size() - i)));
 		STW(4, AddressReg, i);
 	}
@@ -1035,13 +1048,18 @@ void CounterLoopEnd()
 }
 
 //r3 returns num chars, max string length 0x100
-void SprintF(int StrReg, vector<int> ValueRegs)
+void SprintF(int StrReg, vector<int> ValueRegs, int DestPtrReg)
 {
 	if (ValueRegs.size() > 6) {
 		cout << "Too many arguments (sprintf)" << endl;
 		exit(-1);
 	}
-	SetRegister(3, STRING_BUFFER);
+	if (DestPtrReg == -1) {
+		SetRegister(3, STRING_BUFFER);
+	}
+	else {
+		MR(3, DestPtrReg);
+	}
 	SetArgumentsFromRegs(4, { StrReg });
 	SetArgumentsFromRegs(5, ValueRegs);
 	WriteIntToFile(0x4cc63182); //clclr 6, 6
@@ -1049,13 +1067,18 @@ void SprintF(int StrReg, vector<int> ValueRegs)
 }
 
 //r3 returns num chars, max string length 0x100
-void SprintF(int StrReg, vector<int> ValueRegs, vector<int> FPValueRegs)
+void SprintF(int StrReg, vector<int> ValueRegs, vector<int> FPValueRegs, int DestPtrReg)
 {
 	if (ValueRegs.size() > 6 || FPValueRegs.size() > 8) {
 		cout << "Too many arguments (sprintf floating)" << endl;
 		exit(-1);
 	}
-	SetRegister(3, STRING_BUFFER);
+	if (DestPtrReg == -1) {
+		SetRegister(3, STRING_BUFFER);
+	}
+	else {
+		MR(3, DestPtrReg);
+	}
 	SetArgumentsFromRegs(4, { StrReg });
 	SetArgumentsFromRegs(5, ValueRegs);
 	SetFloatingArgumentsFromRegs(1, FPValueRegs);
@@ -1096,7 +1119,7 @@ void ConvertIntStickValsToFloating(int StickXReg, int StickYReg, int FPXResultRe
 
 void ConvertFloatingRegToInt(int FPReg, int ResultReg)
 {
-	FCTIW(FPReg, FPReg);
+	FCTIWZ(FPReg, FPReg);
 	STFD(FPReg, 1, -0x30);
 	LWZ(ResultReg, 1, -0x2C);
 }
@@ -1336,11 +1359,16 @@ void ShiftVectorDown(int VectorReg, int StartReg)
 	PopOffStack(4, VectorReg); EndIf();
 }
 
-void RandomCapped(int HighReg, int reg1, int ResultReg)
+void Randi(int ResultReg, int MaxReg, int TempReg) {
+	LWZ(TempReg, 13, -17256 + 4); //random value location
+	MOD(ResultReg, TempReg, MaxReg);
+}
+
+/*void RandomCapped(int HighReg, int reg1, int ResultReg)
 {
 	LoadWordToReg(reg1, 0x805a0420 + 4);
 	MOD(ResultReg, HighReg, reg1);
-}
+}*/
 
 void WriteFileToSD(int PathReg, int SizeReg, int DataPtrReg)
 {
@@ -1381,7 +1409,11 @@ void ClearBitsFromMemory(short BitsToClear, int AddressReg, int Offset) {
 void GetSceneNum(int ResultReg) {
 	LoadWordToReg(ResultReg, 0x805b4fd8 + 0xd4);
 	LWZ(ResultReg, ResultReg, 0x10);
-	LWZ(ResultReg, ResultReg, 8);
+	If(ResultReg, NOT_EQUAL_I, 0); {
+		LWZ(ResultReg, ResultReg, 8);
+	} Else(); {
+		SetRegister(ResultReg, -1);
+	} EndIf();
 }
 
 void IfInVersus(int reg) {
@@ -1389,6 +1421,61 @@ void IfInVersus(int reg) {
 	If(reg, EQUAL_I, 0xA);
 }
 
+void LoadFile(string filePath, int destination, int reg1, int reg2)
+{
+	SetRegister(reg1, STRING_BUFFER);
+
+	SetRegister(reg2, STRING_BUFFER + 0x18);
+	STW(reg2, reg1, 0); //file path ptr
+
+	SetRegister(reg2, 0);
+	STW(reg2, reg1, 4);
+	STW(reg2, reg1, 8);
+	STW(reg2, reg1, 0x10);
+
+	SetRegister(reg2, destination);
+	STW(reg2, reg1, 0xC); //storage loc
+
+	SetRegister(reg2, -1);
+	STW(reg2, reg1, 0x14);
+
+	ADDI(reg2, reg1, 0x18);
+	WriteStringToMem(filePath, reg2);
+
+	MR(3, reg1);
+	CallBrawlFunc(0x8001cbf4); //readSDFile
+}
+
+void constrainFloat(int floatReg, int tempFReg, int tempReg, float min, float max) {
+	SetFloatingRegister(tempFReg, tempReg, min);
+	FCMPU(floatReg, tempFReg, 0);
+	BC(2, BRANCH_IF_FALSE, LT);
+	FMR(floatReg, tempFReg);
+
+	SetFloatingRegister(tempFReg, tempReg, max);
+	FCMPU(floatReg, tempFReg, 0);
+	BC(2, BRANCH_IF_FALSE, GT);
+	FMR(floatReg, tempFReg);
+}
+
+void constrainFloatDynamic(int floatReg, int minFReg, int maxFReg) {
+	FCMPU(floatReg, minFReg, 0);
+	BC(2, BRANCH_IF_FALSE, LT);
+	FMR(floatReg, minFReg);
+
+	FCMPU(floatReg, maxFReg, 0);
+	BC(2, BRANCH_IF_FALSE, GT);
+	FMR(floatReg, maxFReg);
+}
+
+void modifyInstruction(int instructionReg, int addressReg) {
+	STW(instructionReg, addressReg, 0);
+	//DCBF(0, addressReg);
+	DCBST(0, addressReg);
+	SYNC();
+	ICBI(0, addressReg);
+	ISYNC();
+}
 
 void ABS(int DestReg, int SourceReg, int tempReg)
 {
@@ -1435,6 +1522,7 @@ void AND(int DestReg, int SourceReg1, int SourceReg2)
 	WriteIntToFile(OpHex);
 }
 
+//SourceReg2 is complimented
 void ANDC(int DestReg, int SourceReg1, int SourceReg2)
 {
 	OpHex = GetOpSegment(31, 6, 5);
@@ -1489,6 +1577,11 @@ void BC(int JumpDist, int BranchCondition, int ConditionBit)
 	WriteIntToFile(OpHex);
 }
 
+void BCTR()
+{
+	WriteIntToFile(0x4e800420);
+}
+
 void BCTRL()
 {
 	WriteIntToFile(0x4e800421);
@@ -1516,7 +1609,6 @@ void BLR()
 	WriteIntToFile(0x4e800020);
 }
 
-//might be broken for some reason
 void CMP(int Reg1, int Reg2, int CondField)
 {
 	OpHex = GetOpSegment(31, 6, 5);
@@ -1560,6 +1652,22 @@ void CNTLZW(int DestReg, int SourceReg)
 	OpHex |= GetOpSegment(SourceReg, 5, 10);
 	OpHex |= GetOpSegment(DestReg, 5, 15);
 	OpHex |= GetOpSegment(26, 10, 30);
+	WriteIntToFile(OpHex);
+}
+
+void DCBF(int SourceReg1, int SourceReg2) {
+	OpHex = GetOpSegment(31, 6, 5);
+	OpHex |= GetOpSegment(SourceReg1, 5, 15);
+	OpHex |= GetOpSegment(SourceReg2, 5, 20);
+	OpHex |= GetOpSegment(86, 10, 30);
+	WriteIntToFile(OpHex);
+}
+
+void DCBST(int SourceReg1, int SourceReg2) {
+	OpHex = GetOpSegment(31, 6, 5);
+	OpHex |= GetOpSegment(SourceReg1, 5, 15);
+	OpHex |= GetOpSegment(SourceReg2, 5, 20);
+	OpHex |= GetOpSegment(246, 10, 30);
 	WriteIntToFile(OpHex);
 }
 
@@ -1745,6 +1853,14 @@ void FRSQRTE(int DestReg, int SourceReg)
 	WriteIntToFile(OpHex);
 }
 
+void FSQRT(int FPDestReg, int FPSourceReg) {
+	OpHex = GetOpSegment(63, 6, 5);
+	OpHex |= GetOpSegment(FPDestReg, 5, 10);
+	OpHex |= GetOpSegment(FPSourceReg, 5, 20);
+	OpHex |= GetOpSegment(22, 5, 30);
+	WriteIntToFile(OpHex);
+}
+
 void FSUB(int FPDestReg, int FPSourceReg1, int FPSourceReg2)
 {
 	OpHex = GetOpSegment(63, 6, 5);
@@ -1762,6 +1878,20 @@ void FSUBS(int FPDestReg, int FPSourceReg1, int FPSourceReg2)
 	OpHex |= GetOpSegment(FPSourceReg1, 5, 15);
 	OpHex |= GetOpSegment(FPSourceReg2, 5, 20);
 	OpHex |= GetOpSegment(20, 5, 30);
+	WriteIntToFile(OpHex);
+}
+
+void ICBI(int SourceReg1, int SourceReg2) {
+	OpHex = GetOpSegment(31, 6, 5);
+	OpHex |= GetOpSegment(SourceReg1, 5, 15);
+	OpHex |= GetOpSegment(SourceReg2, 5, 20);
+	OpHex |= GetOpSegment(982, 10, 30);
+	WriteIntToFile(OpHex);
+}
+
+void ISYNC() {
+	OpHex = GetOpSegment(19, 6, 5);
+	OpHex |= GetOpSegment(150, 10, 30);
 	WriteIntToFile(OpHex);
 }
 
@@ -1898,7 +2028,7 @@ void LHZUX(int DestReg, int AddressReg1, int AddressReg2)
 	OpHex |= GetOpSegment(DestReg, 5, 10);
 	OpHex |= GetOpSegment(AddressReg1, 5, 15);
 	OpHex |= GetOpSegment(AddressReg2, 5, 20);
-	OpHex |= GetOpSegment(331, 10, 30);
+	OpHex |= GetOpSegment(311, 10, 30);
 	WriteIntToFile(OpHex);
 }
 
@@ -1959,6 +2089,26 @@ void LMW(int StartReg, int AddressReg, int Immediate)
 	WriteIntToFile(OpHex);
 }
 
+void LSWI(int StartReg, int AddressReg, int numBytes) {
+	OpHex = GetOpSegment(31, 6, 5);
+	OpHex |= GetOpSegment(StartReg, 5, 10);
+	OpHex |= GetOpSegment(AddressReg, 5, 15);
+	OpHex |= GetOpSegment(numBytes, 5, 20);
+	OpHex |= GetOpSegment(597, 10, 30);
+	WriteIntToFile(OpHex);
+}
+
+void LSWX(int StartReg, int AddressReg1, int AddressReg2, int NumArgsReg) {
+	MTXER(NumArgsReg);
+
+	OpHex = GetOpSegment(31, 6, 5);
+	OpHex |= GetOpSegment(StartReg, 5, 10);
+	OpHex |= GetOpSegment(AddressReg1, 5, 15);
+	OpHex |= GetOpSegment(AddressReg2, 5, 20);
+	OpHex |= GetOpSegment(533, 10, 30);
+	WriteIntToFile(OpHex);
+}
+
 void MFCTR(int TargetReg)
 {
 	OpHex = GetOpSegment(31, 6, 5);
@@ -1977,6 +2127,7 @@ void MFLR(int TargetReg)
 	WriteIntToFile(OpHex);
 }
 
+//DestReg = SourceReg1 % SourceReg2
 void MOD(int DestReg, int SourceReg1, int SourceReg2)
 {
 	DIVWU(DestReg, SourceReg1, SourceReg2);
@@ -2002,7 +2153,15 @@ void MTLR(int TargetReg)
 {
 	OpHex = GetOpSegment(31, 6, 5);
 	OpHex |= GetOpSegment(TargetReg, 5, 10);
-	OpHex |= GetOpSegment(8 << 5, 10, 20); //spr
+	OpHex |= GetOpSegment(8 << 5, 10, 20); //lr
+	OpHex |= GetOpSegment(467, 10, 30);
+	WriteIntToFile(OpHex);
+}
+
+void MTXER(int TargetReg) {
+	OpHex = GetOpSegment(31, 6, 5);
+	OpHex |= GetOpSegment(TargetReg, 5, 10);
+	OpHex |= GetOpSegment(1 << 5, 10, 20); //xer
 	OpHex |= GetOpSegment(467, 10, 30);
 	WriteIntToFile(OpHex);
 }
@@ -2278,6 +2437,12 @@ void SUBF(int DestReg, int SourceReg1, int SourceReg2)
 	OpHex |= GetOpSegment(SourceReg2, 5, 15);
 	OpHex |= GetOpSegment(SourceReg1, 5, 20);
 	OpHex |= GetOpSegment(40, 9, 30);
+	WriteIntToFile(OpHex);
+}
+
+void SYNC() {
+	OpHex = GetOpSegment(31, 6, 5);
+	OpHex |= GetOpSegment(598, 10, 30);
 	WriteIntToFile(OpHex);
 }
 

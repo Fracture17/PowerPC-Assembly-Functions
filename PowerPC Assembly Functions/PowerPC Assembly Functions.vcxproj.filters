@@ -60,6 +60,27 @@
     <ClInclude Include="Last Character Auto Select.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Tag Based Costumes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FPS Display.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Light Shield.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DBZ Mode.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="IkeClimbers.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="AIDisplay.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C++Injection.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="PowerPC Assembly Functions.cpp">
@@ -102,6 +123,27 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Last Character Auto Select.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Tag Based Costumes.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FPS Display.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Light Shield.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="DBZ Mode.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="IkeClimbers.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="AIDisplay.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C++Injection.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -3,6 +3,29 @@
 #include "stdafx.h"
 #include "PowerPC Assembly Functions.h"
 
+#define SPECIAL_CSTICK_OPTIONS true
+
+class Color {
+public:
+	Color(u8 red, u8 green, u8 blue, u8 alpha = 0) {
+		this->red = red;
+		this->green = green;
+		this->blue = blue;
+		this->alpha = alpha;
+	}
+
+private:
+	u8 red;
+	u8 green;
+	u8 blue;
+	u8 alpha;
+};
+
+class ShieldColor {
+public:
+	ShieldColor(string name, Color);
+};
+
 /*#define BUTTON_MENU_SIZE 11
 //#define CONTROL_MENU_BASE_SIZE 7
 #define CONTROL_MENU_BASE_SIZE 8
@@ -35,6 +58,7 @@ void SetIfMenuOpen();
 void ControlMenuState();
 void WriteMenu();
 void SetMenuData();
+void clearMenuState();
 
 //test
 void ReplaceNameFunctions();

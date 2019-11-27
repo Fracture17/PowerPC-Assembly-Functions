@@ -23,32 +23,32 @@
     <ProjectGuid>{3092291B-A9BB-4C6A-BEB1-C500730EFA0E}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>PowerPCAssemblyFunctions</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.14393.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
@@ -162,12 +162,18 @@
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="AIDisplay.h" />
+    <ClInclude Include="C++Injection.h" />
     <ClInclude Include="Code Menu.h" />
     <ClInclude Include="Control Codes.h" />
     <ClInclude Include="Controls.h" />
+    <ClInclude Include="DBZ Mode.h" />
     <ClInclude Include="DrawDI.h" />
+    <ClInclude Include="FPS Display.h" />
     <ClInclude Include="IASA Overlay.h" />
+    <ClInclude Include="IkeClimbers.h" />
     <ClInclude Include="Last Character Auto Select.h" />
+    <ClInclude Include="Light Shield.h" />
     <ClInclude Include="Miscellaneous Code.h" />
     <ClInclude Include="PowerPC Assembly Functions.h" />
     <ClInclude Include="ReplayFix.h" />
@@ -175,15 +181,22 @@
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="StopStartAlts.h" />
     <ClInclude Include="StopDPadOnSSS %28except Wiimote%29.h" />
+    <ClInclude Include="Tag Based Costumes.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="AIDisplay.cpp" />
+    <ClCompile Include="C++Injection.cpp" />
     <ClCompile Include="Code Menu.cpp" />
     <ClCompile Include="Control Codes.cpp" />
     <ClCompile Include="Controls.cpp" />
+    <ClCompile Include="DBZ Mode.cpp" />
     <ClCompile Include="DrawDI.cpp" />
+    <ClCompile Include="FPS Display.cpp" />
     <ClCompile Include="IASA Overlay.cpp" />
+    <ClCompile Include="IkeClimbers.cpp" />
     <ClCompile Include="Last Character Auto Select.cpp" />
+    <ClCompile Include="Light Shield.cpp" />
     <ClCompile Include="MainCode.cpp" />
     <ClCompile Include="Miscellaneous Code.cpp" />
     <ClCompile Include="PowerPC Assembly Functions.cpp" />
@@ -195,6 +208,7 @@
     </ClCompile>
     <ClCompile Include="StopStartAlts.cpp" />
     <ClCompile Include="StopDPadOnSSS %28except Wiimote%29.cpp" />
+    <ClCompile Include="Tag Based Costumes.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

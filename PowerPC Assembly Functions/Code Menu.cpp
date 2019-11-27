@@ -4,6 +4,8 @@
 #include "IASA Overlay.h"
 #include "Control Codes.h"
 #include "Save States.h"
+#include "DBZ Mode.h"
+#include <regex>
 
 int MENU_TITLE_CHECK_LOCATION;
 int DI_DRAW_INDEX = -1;
@@ -38,6 +40,56 @@ int DISABLE_DPAD_P1_INDEX = -1;
 int DISABLE_DPAD_P2_INDEX = -1;
 int DISABLE_DPAD_P3_INDEX = -1;
 int DISABLE_DPAD_P4_INDEX = -1;
+int FPS_DISPLAY_INDEX = -1;
+int DBZ_MODE_INDEX = -1;
+int DBZ_MODE_MAX_SPEED_X_INDEX = -1;
+int DBZ_MODE_ACCEL_X_INDEX = -1;
+int DBZ_MODE_MAX_SPEED_Y_INDEX = -1;
+int DBZ_MODE_ACCEL_Y_INDEX = -1;
+int ALT_STAGE_BEHAVIOR_INDEX = -1;
+int P1_TAG_STRING_INDEX = -1;
+int P2_TAG_STRING_INDEX = -1;
+int P3_TAG_STRING_INDEX = -1;
+int P4_TAG_STRING_INDEX = -1;
+int TAG_COSTUME_TOGGLE_INDEX = -1;
+int CROWD_CHEER_TOGGLE_INDEX = -1;
+
+//constant overrides
+vector<ConstantPair> constantOverrides;
+int SDI_DISTANCE_INDEX = -1;
+int HITSTUN_MULTIPLIER_INDEX = -1;
+int HITLAG_MAXIMUM_INDEX = -1;
+int HITLAG_MULTIPLIER_INDEX = -1;
+int ELECTRIC_HITLAG_MULTIPLIER_INDEX = -1;
+int ASDI_DISTANCE_INDEX = -1;
+int WALLJUMP_HORIZONTAL_MULTIPLIER_INDEX = -1;
+int MINIMUM_SHIELD_SIZE_SCALING_INDEX = -1;
+int SHIELD_DAMAGE_MULTIPLIER_INDEX = -1;
+int SHIELD_BASE_DAMAGE_INDEX = -1;
+int SHIELD_SIZE_MULTIPLIER_INDEX = -1;
+int SHIELD_TILT_MULTIPLIER_INDEX = -1;
+int KNOCKBACK_DECAY_MULTIPLIER_INDEX = -1;
+int WALL_BOUNCE_KNOCKBACK_MULTIPLIER_INDEX = -1;
+
+
+int SHIELD_RED_1 = -1;
+int SHIELD_GREEN_1 = -1;
+int SHIELD_BLUE_1 = -1;
+int SHIELD_ALPHA_1 = -1;
+int SHIELD_RED_2 = -1;
+int SHIELD_GREEN_2 = -1;
+int SHIELD_BLUE_2 = -1;
+int SHIELD_ALPHA_2 = -1;
+int SHIELD_RED_3 = -1;
+int SHIELD_GREEN_3 = -1;
+int SHIELD_BLUE_3 = -1;
+int SHIELD_ALPHA_3 = -1;
+int SHIELD_RED_4 = -1;
+int SHIELD_GREEN_4 = -1;
+int SHIELD_BLUE_4 = -1;
+int SHIELD_ALPHA_4 = -1;
+
+int tets = 0x935fe30C;
 
 void CodeMenu()
 {
@@ -49,6 +101,15 @@ void CodeMenu()
 	P1Lines.push_back(new Floating("Select Percent", 0, 999, 0, 1, PERCENT_SELECT_VALUE_P1_INDEX, "%.0f%%"));
 	P1Lines.push_back(new Toggle("Press DPad to select percent", false, PERCENT_SELECT_ACTIVATOR_P1_INDEX));
 	P1Lines.push_back(new Toggle("Disable DPad", false, DISABLE_DPAD_P1_INDEX));
+	P1Lines.push_back(new Comment(""));
+#if BUILD_TYPE != PROJECT_PLUS
+	P1Lines.push_back(new Print("Tag Hex: %s", { &P1_TAG_STRING_INDEX }));
+	P1Lines.push_back(new Comment("For Use With Tag-Based Costumes"));
+#endif
+
+	for (auto x : P1Lines) {
+		cout << x->Text << endl;
+	}
 	Page P1("Player 1 Codes", P1Lines);
 
 	vector<Line*> P2Lines;
@@ -58,6 +119,11 @@ void CodeMenu()
 	P2Lines.push_back(new Floating("Select Percent", 0, 999, 0, 1, PERCENT_SELECT_VALUE_P2_INDEX, "%.0f%%"));
 	P2Lines.push_back(new Toggle("Press DPad to select percent", false, PERCENT_SELECT_ACTIVATOR_P2_INDEX));
 	P2Lines.push_back(new Toggle("Disable DPad", false, DISABLE_DPAD_P2_INDEX));
+	P2Lines.push_back(new Comment(""));
+#if BUILD_TYPE != PROJECT_PLUS
+	P2Lines.push_back(new Print("Tag Hex: %s", { &P2_TAG_STRING_INDEX }));
+	P2Lines.push_back(new Comment("For Use With Tag-Based Costumes"));
+#endif
 	Page P2("Player 2 Codes", P2Lines);
 
 	vector<Line*> P3Lines;
@@ -67,6 +133,11 @@ void CodeMenu()
 	P3Lines.push_back(new Floating("Select Percent", 0, 999, 0, 1, PERCENT_SELECT_VALUE_P3_INDEX, "%.0f%%"));
 	P3Lines.push_back(new Toggle("Press DPad to select percent", false, PERCENT_SELECT_ACTIVATOR_P3_INDEX));
 	P3Lines.push_back(new Toggle("Disable DPad", false, DISABLE_DPAD_P3_INDEX));
+	P3Lines.push_back(new Comment(""));
+#if BUILD_TYPE != PROJECT_PLUS
+	P3Lines.push_back(new Print("Tag Hex: %s", { &P3_TAG_STRING_INDEX }));
+	P3Lines.push_back(new Comment("For Use With Tag-Based Costumes"));
+#endif
 	Page P3("Player 3 Codes", P3Lines);
 
 	vector<Line*> P4Lines;
@@ -76,8 +147,13 @@ void CodeMenu()
 	P4Lines.push_back(new Floating("Select Percent", 0, 999, 0, 1, PERCENT_SELECT_VALUE_P4_INDEX, "%.0f%%"));
 	P4Lines.push_back(new Toggle("Press DPad to select percent", false, PERCENT_SELECT_ACTIVATOR_P4_INDEX));
 	P4Lines.push_back(new Toggle("Disable DPad", false, DISABLE_DPAD_P4_INDEX));
+	P4Lines.push_back(new Comment(""));
+#if BUILD_TYPE != PROJECT_PLUS
+	P4Lines.push_back(new Print("Tag Hex: %s", { &P4_TAG_STRING_INDEX }));
+	P4Lines.push_back(new Comment("For Use With Tag-Based Costumes"));
+#endif
 	Page P4("Player 4 Codes", P4Lines);
-	
+
 	//debug mode
 	vector<Line*> DebugLines;
 	DebugLines.push_back(new Comment("Debug Mode Commands:"));
@@ -89,30 +165,149 @@ void CodeMenu()
 	DebugLines.push_back(new Toggle("Collision Display", false, DISPLAY_COLLISION_INDEX));
 	DebugLines.push_back(new Toggle("Ledgegrab Display", false, DISPLAY_LEDGEGRAB_INDEX));
 	DebugLines.push_back(new Toggle("Camera Lock", false, CAMERA_LOCK_INDEX));
+	DebugLines.push_back(new Toggle("Draw DI", false, DI_DRAW_INDEX));
+	DebugLines.push_back(new Toggle("FPS Display", false, FPS_DISPLAY_INDEX));
 	Page DebugMode("Debug Mode Settings", DebugLines);
+
+	//value setting
+	vector<Line*> ConstantsLines;
+	ConstantsLines.push_back(new Comment("Set attributes to new values"));
+	ConstantsLines.push_back(new Comment(""));
+	ConstantsLines.push_back(new Floating("Hitstun Multiplier", 0, 999, 0.4, .01, HITSTUN_MULTIPLIER_INDEX, "%.3f"));
+	constantOverrides.emplace_back(0x80B87AA8, HITSTUN_MULTIPLIER_INDEX);
+	ConstantsLines.push_back(new Floating("Hitlag Multiplier", 0, 999, 0.384615, .02, HITLAG_MULTIPLIER_INDEX, "%.3f"));
+	constantOverrides.emplace_back(0x80B87AEC, HITLAG_MULTIPLIER_INDEX);
+	ConstantsLines.push_back(new Floating("Hitlag Maximum", 0, 999, 30, 1, HITLAG_MAXIMUM_INDEX, "%.3f"));
+	constantOverrides.emplace_back(0x80B87AE8, HITLAG_MAXIMUM_INDEX);
+	ConstantsLines.push_back(new Floating("Electric Hitlag Multiplier", 0, 999, 1.5, .1, ELECTRIC_HITLAG_MULTIPLIER_INDEX, "%.3f"));
+	constantOverrides.emplace_back(0x80B87B10, ELECTRIC_HITLAG_MULTIPLIER_INDEX);
+	ConstantsLines.push_back(new Floating("SDI Distance", -999, 999, 6, .5, SDI_DISTANCE_INDEX, "%.3f"));
+	constantOverrides.emplace_back(0x80B88354, SDI_DISTANCE_INDEX);
+	ConstantsLines.push_back(new Floating("ASDI Distance", -999, 999, 3, .5, ASDI_DISTANCE_INDEX, "%.3f"));
+	constantOverrides.emplace_back(0x80B88358, ASDI_DISTANCE_INDEX);
+	ConstantsLines.push_back(new Floating("Walljump Horizontal Multiplier", -999, 999, 0.9, .05, WALLJUMP_HORIZONTAL_MULTIPLIER_INDEX, "%.3f"));
+	constantOverrides.emplace_back(0x80B88420, WALLJUMP_HORIZONTAL_MULTIPLIER_INDEX);
+	ConstantsLines.push_back(new Floating("Minimum Shield Size Scale", -999, 999, 0.15, .02, MINIMUM_SHIELD_SIZE_SCALING_INDEX, "%.3f"));
+	constantOverrides.emplace_back(0x80B88444, MINIMUM_SHIELD_SIZE_SCALING_INDEX);
+	ConstantsLines.push_back(new Floating("Shield Damage Multiplier", -999, 999, 1, .02, SHIELD_DAMAGE_MULTIPLIER_INDEX, "%.3f"));
+	constantOverrides.emplace_back(0x80B8845C, SHIELD_DAMAGE_MULTIPLIER_INDEX);
+	ConstantsLines.push_back(new Floating("Base Shield Damage", -999, 999, 0, 1, SHIELD_BASE_DAMAGE_INDEX, "%.3f"));
+	constantOverrides.emplace_back(0x80B88460, SHIELD_BASE_DAMAGE_INDEX);
+	ConstantsLines.push_back(new Floating("Shield Size Multiplier", -999, 999, 1, .05, SHIELD_SIZE_MULTIPLIER_INDEX, "%.3f"));
+	constantOverrides.emplace_back(0x80B88478, SHIELD_SIZE_MULTIPLIER_INDEX);
+	ConstantsLines.push_back(new Floating("Shield Tilt Multiplier", -999, 999, 0.5, .05, SHIELD_TILT_MULTIPLIER_INDEX, "%.3f"));
+	constantOverrides.emplace_back(0x80B88484, SHIELD_TILT_MULTIPLIER_INDEX);
+	//ValueLines.push_back(new Floating("Attacker Shield Pushback Friction Multiplier", -999, 999, 1.1, .05, SDI_DISTANCE_INDEX, "%.3f"));
+	ConstantsLines.push_back(new Floating("Wall Bounce Knockback Multiplier", -999, 999, 0.80, .02, WALL_BOUNCE_KNOCKBACK_MULTIPLIER_INDEX, "%.3f"));
+	constantOverrides.emplace_back(0x80B88510, WALL_BOUNCE_KNOCKBACK_MULTIPLIER_INDEX);
+	ConstantsLines.push_back(new Floating("Knockback Decay Rate", -999, 999, 0.051, .001, KNOCKBACK_DECAY_MULTIPLIER_INDEX, "%.3f"));
+	constantOverrides.emplace_back(0x80B88534, KNOCKBACK_DECAY_MULTIPLIER_INDEX);
+	Page ConstantsPage("Gameplay Modifiers", ConstantsLines);
+
+	//DBZ Mode settings
+	vector<Line*> DBZModeLines;
+	DBZModeLines.push_back(new Toggle("Flight Mode", false, DBZ_MODE_INDEX));
+	DBZModeLines.push_back(new Floating("Max Horizontal Speed", 0, 100, 2, .05, DBZ_MODE_MAX_SPEED_X_INDEX, "%.3f"));
+	DBZModeLines.push_back(new Floating("Max Vertical Speed", 0, 100, 2, .05, DBZ_MODE_MAX_SPEED_Y_INDEX, "%.3f"));
+	DBZModeLines.push_back(new Comment("Acceleration Scales Based On Stick Magnitude"));
+	DBZModeLines.push_back(new Floating("Horizontal Acceleration", -100, 100, 1, .01, DBZ_MODE_ACCEL_X_INDEX, "%.3f"));
+	DBZModeLines.push_back(new Floating("Vertical Acceleration", -100, 100, 1, .01, DBZ_MODE_ACCEL_Y_INDEX, "%.3f"));
+	Page DBZModePage("Flight Mode Settings", DBZModeLines);
 
 	//main page
 	vector<Line*> MainLines;
-	MainLines.push_back(new Comment("Legacy TE 2.0 Code Menu", &MENU_TITLE_CHECK_LOCATION));
+#if BUILD_TYPE == PROJECT_PLUS
+	MainLines.push_back(new Comment("Project+ Code Menu", &MENU_TITLE_CHECK_LOCATION));
+#else
+	MainLines.push_back(new Comment("Legacy TE 2.5 Code Menu", &MENU_TITLE_CHECK_LOCATION));
+#endif
 	MainLines.push_back(new Comment("Green = Comments | Blue = Changed"));
 	MainLines.push_back(new Comment("A = Enter Submenu | B = Back/Exit"));
 	MainLines.push_back(new Comment("X = Reset Selection | Y = Reset Page"));
 	MainLines.push_back(new Comment("Hold Z = Scroll Faster"));
 	MainLines.push_back(new Comment(""));
-	MainLines.push_back(new Selection("Code Menu Activation", { "Default", "PM 3.6", "OFF" }, 0, CODE_MENU_ACTIVATION_SETTING_INDEX));
 	MainLines.push_back(&DebugMode.CalledFromLine);
-	MainLines.push_back(new Toggle("Draw DI", false, DI_DRAW_INDEX));
+	MainLines.push_back(new Selection("Endless Friendlies", { "OFF", "Same Stage", "Random Stage", "Round Robin" }, 0, INFINITE_FRIENDLIES_INDEX));
+#if BUILD_TYPE != PROJECT_PLUS
+	MainLines.push_back(new Selection("Alternate Stages", { "Enabled", "Random", "OFF" }, 0, ALT_STAGE_BEHAVIOR_INDEX));
+#endif
+	MainLines.push_back(new Toggle("Autoskip Results Screen", false, AUTO_SKIP_TO_CSS_INDEX));
+	MainLines.push_back(new Toggle("Autosave Replays", false, AUTO_SAVE_REPLAY_INDEX));
+	MainLines.push_back(new Toggle("Save Previous Replay", false, SAVE_REPLAY_ANYWHERE_INDEX));
+#if BUILD_TYPE != PROJECT_PLUS
+	MainLines.push_back(new Selection("Tag-Based Costumes", { "ON", "ON + Teams", "OFF" }, 0, TAG_COSTUME_TOGGLE_INDEX));
+#endif
 	MainLines.push_back(&P1.CalledFromLine);
 	MainLines.push_back(&P2.CalledFromLine);
 	MainLines.push_back(&P3.CalledFromLine);
 	MainLines.push_back(&P4.CalledFromLine);
-	MainLines.push_back(new Selection("Endless Friendlies", { "OFF", "Same Stage", "Random Stage" }, 0, INFINITE_FRIENDLIES_INDEX));
-	//MainLines.push_back(new Selection("Infinity War", { "OFF", "Same Stage", "Random Stage" }, 0, INFINITE_FRIENDLIES_INDEX));
-	MainLines.push_back(new Toggle("Autoskip Results Screen", false, AUTO_SKIP_TO_CSS_INDEX));
-	//MainLines.push_back(new Toggle("Terminate Celebrations", false, AUTO_SKIP_TO_CSS_INDEX));
-	MainLines.push_back(new Toggle("Autosave Replays", false, AUTO_SAVE_REPLAY_INDEX));
-	MainLines.push_back(new Toggle("Save Previous Replay", false, SAVE_REPLAY_ANYWHERE_INDEX));
+	MainLines.push_back(&ConstantsPage.CalledFromLine);
+	MainLines.push_back(&DBZModePage.CalledFromLine);
+
+#if BUILD_TYPE == PROJECT_PLUS
+	MainLines.push_back(new Toggle("Crowd Cheers", false, CROWD_CHEER_TOGGLE_INDEX));
+#endif
+
+	MainLines.push_back(new Selection("Code Menu Activation", { "Default", "PM 3.6", "OFF" }, 0, CODE_MENU_ACTIVATION_SETTING_INDEX));
+
+	
+	//MainLines.push_back(new Print("%s", {&tets}));
+	
+	
+	/*MainLines.push_back(new Integer("P1 1st Shield Red", 0, 0xFF, 0, 1, SHIELD_RED_1));
+	MainLines.push_back(new Integer("P1 1st Shield Green", 0, 0xFF, 0, 1, SHIELD_GREEN_1));
+	MainLines.push_back(new Integer("P1 1st Shield Blue", 0, 0xFF, 0, 1, SHIELD_BLUE_1));
+	MainLines.push_back(new Integer("P1 1st Shield Alpha", 0, 0xFF, 0, 1, SHIELD_ALPHA_1));
+	MainLines.push_back(new Integer("P1 2nd Shield Red", 0, 0xFF, 0, 1, SHIELD_RED_2));
+	MainLines.push_back(new Integer("P1 2nd Shield Green", 0, 0xFF, 0, 1, SHIELD_GREEN_2));
+	MainLines.push_back(new Integer("P1 2nd Shield Blue", 0, 0xFF, 0, 1, SHIELD_BLUE_2));
+	MainLines.push_back(new Integer("P1 2nd Shield Alpha", 0, 0xFF, 0, 1, SHIELD_ALPHA_2));
+	MainLines.push_back(new Integer("P1 3rd Shield Red", 0, 0xFF, 0, 1, SHIELD_RED_3));
+	MainLines.push_back(new Integer("P1 3rd Shield Green", 0, 0xFF, 0, 1, SHIELD_GREEN_3));
+	MainLines.push_back(new Integer("P1 3rd Shield Blue", 0, 0xFF, 0, 1, SHIELD_BLUE_3));
+	MainLines.push_back(new Integer("P1 3rd Shield Alpha", 0, 0xFF, 0, 1, SHIELD_ALPHA_3));
+	MainLines.push_back(new Integer("P1 4th Shield Red", 0, 0xFF, 0, 1, SHIELD_RED_4));
+	MainLines.push_back(new Integer("P1 4th Shield Green", 0, 0xFF, 0, 1, SHIELD_GREEN_4));
+	MainLines.push_back(new Integer("P1 4th Shield Blue", 0, 0xFF, 0, 1, SHIELD_BLUE_4));
+	MainLines.push_back(new Integer("P1 4th Shield Alpha", 0, 0xFF, 0, 1, SHIELD_ALPHA_4));*/
+
+
+
 	Page Main("Main", MainLines);
+	
+	
+	//MainLines.push_back(new Selection("Infinity War", { "OFF", "Same Stage", "Random Stage" }, 0, INFINITE_FRIENDLIES_INDEX));
+	
+	//MainLines.push_back(new Toggle("Terminate Celebrations", false, AUTO_SKIP_TO_CSS_INDEX));
+	
+	
+	
+	
+	
+	
+	
+	//int KnucklesTemp;
+	//MainLines.push_back(new Toggle("Knuckles Friendlies", false, KnucklesTemp));
+	
+	
+
+	
+
+	//Unclepunch fps code
+	vector<unsigned int> x = { 3254926684, 3, 2288895028, 946012161, 2557330484, 2283733000, 1610612736, 0, 3254926716, 6, 2288895029, 946012161, 2557330485, 738394172, 1098907672, 2288895028, 2959983670, 945815552, 2557330484, 2557330485, 2147549204, 0 };
+
+	for(auto a: x) {
+		WriteIntToFile(a);
+	}
+
+	/*
+	Causes target smash to load lvl 1.  Fixed by Duke in seperate code
+	WriteIntToFile(0xC210F98C);
+	WriteIntToFile(0x00000002);
+	WriteIntToFile(0x7C9F2378);
+	WriteIntToFile(0x3BA00000);
+	WriteIntToFile(0x93BF0000);
+	WriteIntToFile(0x00000000);*/
 
 	CreateMenu(Main);
 
@@ -124,11 +319,187 @@ void CodeMenu()
 
 	ActualCodes();
 
+	//printf("%X", P1_TAG_STRING_INDEX);
+
+	//printf("%0Xu\n", KnucklesTemp + 8);
+
 	MenuFile.close();
+}
+
+void printMenuSetters() {
+
+	//Could probably set the string indexes to the hex buffers during compile, since they never change
+
+	int resultPtrReg = 31;
+	int tagPtrReg = 30;
+	int hexCharReg = 29;
+	int stringReg = 28;
+	int tagMenuReg = 27;
+	int tagMenuPtrReg = 26;
+	int resultHexStartReg = 25;
+	int counterReg = 24;
+
+	//set string to convert
+	SetRegister(3, "%02X");
+	SetRegister(stringReg, STRING_BUFFER + 0x80);
+	STW(3, stringReg, 0);
+	SetRegister(3, 0);
+	STW(3, stringReg, 4);
+
+	SetRegister(resultHexStartReg, P1_TAG_HEX_LOC + 1);
+
+	SetRegister(tagMenuPtrReg, 0x805882e0 - 4); //this needs wiiztec's 0 to death code
+
+	for (auto tagIndex : { P1_TAG_STRING_INDEX, P2_TAG_STRING_INDEX, P3_TAG_STRING_INDEX, P4_TAG_STRING_INDEX }) {
+		if (tagIndex != -1) {
+			MR(resultPtrReg, resultHexStartReg);
+
+			//get menu location
+			LWZU(tagMenuReg, tagMenuPtrReg, 4);
+			If(tagMenuReg, NOT_EQUAL_I, 0); {
+				ADDI(tagMenuReg, tagMenuReg, 0x1FC);
+				LWZ(3, tagMenuReg, MENU_POS_OFFSET);
+				ADDI(3, 3, -1);
+				//check if initialized
+				If(3, LESS_I_L, 120); {
+					//get tag location
+					MULLI(3, 3, 2);
+					ADDI(3, 3, MENU_INDEX_OFFSET);
+					LHZX(3, tagMenuReg, 3);
+					MULLI(3, 3, TAG_LIST_SIZE);
+					SetRegister(tagPtrReg, TAG_LIST_START_LOC);
+					ADD(tagPtrReg, tagPtrReg, 3);
+
+					//convert tag hex to string
+					//check if entire half is not 0, then convert byte.  Might be able to just convert half, doesn't really matter
+					SetRegister(counterReg, 0);
+					LHZ(hexCharReg, tagPtrReg, 0);
+					While(hexCharReg, NOT_EQUAL_I, 0); {
+						//don't loop too many times
+						If(counterReg, LESS_OR_EQUAL_I, 4); {
+							LBZ(hexCharReg, tagPtrReg, 0);
+							MR(3, resultPtrReg);
+							MR(4, stringReg);
+							MR(5, hexCharReg);
+							WriteIntToFile(0x4cc63182); //clclr 6, 6
+							CallBrawlFunc(0x803f89fc); //sprintf
+
+							ADD(resultPtrReg, resultPtrReg, 3);
+							LHZU(hexCharReg, tagPtrReg, 1);
+						} Else(); {
+							//exit
+							SetRegister(hexCharReg, 0);
+						} EndIf();
+					} EndWhile();
+				} EndIf();
+			} EndIf();
+
+			//null terminator
+			SetRegister(3, 0);
+			STB(3, resultPtrReg, 0);
+
+			SetRegister(3, tagIndex);
+			ADDI(4, resultHexStartReg, -1); //move back one for $
+			STW(4, 3, 0);
+
+			//next sting buffer
+			ADDI(resultHexStartReg, resultHexStartReg, P2_TAG_HEX_LOC - P1_TAG_HEX_LOC);
+		}
+	}
+}
+
+void stopAnouncer() {
+	ASMStart(0x809580b4);
+	//SaveRegisters();
+	
+	int reg1 = 4;
+
+	LoadWordToReg(reg1, INFINITE_FRIENDLIES_INDEX + Line::VALUE);
+	If(reg1, EQUAL_I, 3); {
+		BLR();
+	} EndIf();
+
+	//RestoreRegisters();
+	ASMEnd(0x9421ffe0); //stwu sp, -0x20 (sp)
+}
+
+void TEST() {
+	stopAnouncer();
+
+	//r3 + 0x5D is flag
+	//r3 + 0x28 ^ 0x20 is port num (0 based)
+	ASMStart(0x809489ec);
+	SaveRegisters();
+
+	int reg1 = 31;
+	int reg2 = 30;
+	int reg3 = 29;
+	int reg4 = 28;
+	int reg5 = 27;
+	int reg6 = 26;
+
+	LoadWordToReg(reg1, ENDLESS_ROTATION_QUEUE_LOC);
+	If(reg1, NOT_EQUAL_I, 0); {
+		SetRegister(reg1, ENDLESS_ROTATION_QUEUE_LOC);
+		LWZ(reg2, reg1, 0);
+
+		LBZ(reg3, 3, 0x5D);
+		ORI(reg3, reg3, 0x8);
+		STB(reg3, 3, 0x5D);
+
+		LWZ(reg3, 3, 0x48);
+		MR(reg5, reg3);
+		//ANDI(reg3, reg3, 0x3);
+		ADDI(reg3, reg3, 1); //port num
+
+		SetRegister(reg4, P1_STOP_LOAD_FLAG_PTR_LOC - 4);
+		MULLI(reg5, reg3, 4);
+		ADDI(reg6, 3, 0x5D);
+		STWX(reg6, reg4, reg5);
+
+		RLWINM(reg4, reg2, 8, 24, 31); //>>24
+		If(reg4, EQUAL, reg3); {
+			LBZ(reg4, 3, 0x5D);
+			XORI(reg4, reg4, 0x8); //bit was set before, so this clears it
+			STB(reg4, 3, 0x5D);
+		} EndIf();
+
+		RLWINM(reg4, reg2, 16, 24, 31); //>>16 & 0xFF
+		If(reg4, EQUAL, reg3); {
+			LBZ(reg4, 3, 0x5D);
+			XORI(reg4, reg4, 0x8); //bit was set before, so this clears it
+			STB(reg4, 3, 0x5D);
+		} EndIf();
+	} Else(); {
+		LBZ(reg3, 3, 0x5D);
+		ANDI(reg3, reg3, ~0x8); //clear flag
+		STB(reg3, 3, 0x5D);
+	} EndIf();
+
+	
+
+	/*SetRegister(reg4, 0x935fe304);
+	SetRegister(reg3, "%08X");
+	STW(reg3, reg4, 0);
+	SetRegister(reg3, 0);
+	STW(reg3, reg4, 4);
+	ADDI(reg3, reg4, 8);
+
+	SetRegister(reg1, 0x935fe300);
+	LWZ(reg1, reg1, 0);
+	SprintF(reg4, { reg1 }, reg3);
+
+	ADDI(reg3, reg3, 8);
+	SprintF(reg4, { reg5 }, reg3);*/
+
+	RestoreRegisters();
+	ASMEnd(0x8803005d); //lbz r0, 0x5D (r3)
 }
 
 void ActualCodes()
 {
+	TEST();
+
 	if (DI_DRAW_INDEX != -1) {
 		DrawDI();
 	}
@@ -138,6 +509,90 @@ void ActualCodes()
 
 		RemoveArticle();
 	}
+
+	if(!constantOverrides.empty()) {
+		constantOverride();
+	}
+
+	if(DBZ_MODE_INDEX != -1) {
+		DBZMode();
+	}
+
+	if(ALT_STAGE_BEHAVIOR_INDEX != -1) {
+		//ASMStart(0x8094a168);
+		ASMStart(0x8094bf60);
+		SaveRegisters();
+
+		int Reg1 = 3;
+		int Reg2 = 4;
+		int Reg3 = 5;
+
+		LoadWordToReg(Reg1, ALT_STAGE_BEHAVIOR_INDEX + Line::VALUE);
+		If(Reg1, EQUAL_I, 2); //disable
+		{
+			SetRegister(Reg1, 0);
+			SetRegister(Reg2, 0x800B9EA2);
+			STH(Reg1, Reg2, 0);
+			SetRegister(Reg2, ALT_STAGE_VAL_LOC);
+			STH(Reg1, Reg2, 0);
+		} Else(); If(Reg1, EQUAL_I, 1); //random
+		{
+			LoadWordToReg(Reg1, Reg2, RANDOM_ALTS_MATCH_START_FLAG);
+			If(Reg1, EQUAL_I, 1); {
+				//set new rng value and clear flag
+				LoadWordToReg(Reg1, 0x805a00bc); //random val
+				RLWINM(Reg1, Reg1, 32 - 8, 30, 31);
+				SetRegister(Reg3, RANDOM_ALTS_RNG);
+				STW(Reg1, Reg3, 0);
+				SetRegister(Reg1, 0);
+				STW(Reg1, Reg2, 0);
+			} EndIf();
+			
+			LoadWordToReg(Reg3, RANDOM_ALTS_RNG);
+
+			//SetRegister(Reg2, 4);
+			//MOD(Reg3, Reg1, Reg2);
+			If(Reg3, EQUAL_I, 1);
+			{
+				SetRegister(Reg3, BUTTON_L);
+			} EndIf();
+			If(Reg3, EQUAL_I, 2);
+			{
+				SetRegister(Reg3, BUTTON_START);
+			} EndIf();
+			If(Reg3, EQUAL_I, 3);
+			{
+				SetRegister(Reg3, BUTTON_Z);
+			} EndIf();
+			SetRegister(Reg2, 0x800B9EA2);
+			STH(Reg3, Reg2, 0);
+			SetRegister(Reg2, ALT_STAGE_VAL_LOC);
+			STH(Reg3, Reg2, 0);
+		} EndIf(); EndIf();
+
+		RestoreRegisters();
+		ASMEnd(0x7fe3fb78); //mr r3, r31
+		//ASMEnd(0x809d0038); //lwz r4, r29, 0x38
+	}
+
+	if (CROWD_CHEER_TOGGLE_INDEX != -1) {
+		ASMStart(0x8081AD54);
+		SaveRegisters();
+
+		int reg1 = 31;
+
+		LoadWordToReg(reg1, CROWD_CHEER_TOGGLE_INDEX + Line::VALUE);
+		If(reg1, EQUAL_I, false); {
+			RestoreRegisters();
+			SetRegister(3, 0);
+			BLR();
+		} EndIf();
+
+		RestoreRegisters();
+		ASMEnd(0x9421ffd0); //stwu sp, -0x30(sp)
+	}
+
+	printf("%X\n", SHIELD_RED_1);
 
 	ControlCodes();
 }
@@ -155,7 +610,16 @@ void CreateMenu(Page MainPage)
 			if (x->Index != nullptr) {
 				*(x->Index) = CurrentOffset;
 			}
+			//printf("%X\n", CurrentOffset);
 			CurrentOffset += x->Size;
+			if (x->type == PRINT_LINE) {
+				int offset = CurrentOffset - x->numArgs * 4;
+				//printf("%d\n%X\n%X\n", x->Size, CurrentOffset, offset);
+				for (auto arg : x->args) {
+					*arg = offset;
+					offset += 4;
+				}
+			}
 			if (x->type == SUB_MENU_LINE) {
 				x->SubMenuOffset = EndOffset - CalledPageOffsets[i];
 				Pages.push_back(x->SubMenuPtr);
@@ -163,7 +627,7 @@ void CreateMenu(Page MainPage)
 				EndOffset += x->SubMenuPtr->Size;
 			}
 		}
-		Pages[i]->Lines.back()->Size = 0;
+		//Pages[i]->Lines.back()->Size = 0;
 	}
 
 	//setup header
@@ -235,6 +699,19 @@ void CreateMenu(Page MainPage)
 	AddValueToByteArray(DISABLE_DPAD_P2_INDEX, Header); //P2
 	AddValueToByteArray(DISABLE_DPAD_P3_INDEX, Header); //P3
 	AddValueToByteArray(DISABLE_DPAD_P4_INDEX, Header); //P4
+	//Endless Rotation player queue
+	AddValueToByteArray(0, Header);
+	AddValueToByteArray(0, Header);
+	//Endless Rotation sort buffer
+	AddValueToByteArray(0, Header);
+	AddValueToByteArray(0, Header);
+	AddValueToByteArray(0, Header);
+	AddValueToByteArray(0, Header);
+	//Endless Rotation comp func
+	AddValueToByteArray(0x80630000, Header);
+	AddValueToByteArray(0x80840000, Header);
+	AddValueToByteArray(0x7C641850, Header);
+	AddValueToByteArray(0x4E800020, Header);
 	//replay buffers
 	for(int i = 0; i < 5; i++) { AddValueToByteArray(0, Header); } //nte buffer
 	for(int i = 0; i < 2; i++) { AddValueToByteArray(0, Header); } //section buffer
@@ -243,7 +720,31 @@ void CreateMenu(Page MainPage)
 	Header.insert(Header.end(), CODE_MENU_WIIMOTE_CONVERSION_TABLE.begin(), CODE_MENU_WIIMOTE_CONVERSION_TABLE.end());
 	Header.insert(Header.end(), CODE_MENU_WIICHUCK_CONVERSION_TABLE.begin(), CODE_MENU_WIICHUCK_CONVERSION_TABLE.end());
 	Header.insert(Header.end(), CODE_MENU_CLASSIC_CONVERSION_TABLE.begin(), CODE_MENU_CLASSIC_CONVERSION_TABLE.end());
+	//Display tag hex
+	for (auto x : { P1_TAG_HEX_LOC, P2_TAG_HEX_LOC, P3_TAG_HEX_LOC, P4_TAG_HEX_LOC }) {
+		AddValueToByteArray('$', Header);
+		for (int i = 0; i < 23; i++) { AddValueToByteArray((u8)0, Header); }
+	}
+	//Endless Friendlies rotation ptrs
+	AddValueToByteArray(0, Header);
+	AddValueToByteArray(0, Header);
+	AddValueToByteArray(0, Header);
+	AddValueToByteArray(0, Header);
+	
+	//random alts
+	//rng
+	AddValueToByteArray(0, Header);
+	//start match flag
+	AddValueToByteArray(1, Header);
 
+	//TEAM_SETTINGS_LOC
+	AddValueToByteArray(0, Header);
+
+	//PREV_TAG_COSTUMES_SETTING_LOC
+	AddValueToByteArray(0, Header);
+	//TAG_LOAD_FLAGS_LOC
+	AddValueToByteArray(0, Header);
+	
 	//draw settings buffer
 	vector<u32> DSB(0x200 / 4, 0);
 	DSB[0x4 / 4] = 0xFFFFFFFF;
@@ -270,12 +771,88 @@ void CreateMenu(Page MainPage)
 	}
 }
 
+void constantOverride() {
+	ASMStart(0x80023d60);
+
+	int reg1 = 4;
+	int reg2 = 5;
+
+	for(auto& x : constantOverrides) {
+		LoadWordToReg(reg1, *x.index + Line::VALUE);
+		SetRegister(reg2, x.address);
+		STW(reg1, reg2, 0);
+	}
+
+	ASMEnd(0x2c000000); //cmpwi, r0, 0
+}
+
 void ControlCodeMenu()
 {
 	ASMStart(0x80029574);
 	vector<int> FPRegs(14);
 	iota(FPRegs.begin(), FPRegs.end(), 0);
 	SaveRegisters(FPRegs);
+
+	if (SHIELD_RED_1 != -1) {
+		SetRegister(5, 0x80f574c0 + 0x88);
+		SetRegister(3, SHIELD_RED_1 + 8 + 3);
+		LBZ(4, 3, 0);
+		STB(4, 5, 0);
+		SetRegister(3, SHIELD_GREEN_1 + 8 + 3);
+		LBZ(4, 3, 0);
+		STB(4, 5, 1);
+		SetRegister(3, SHIELD_BLUE_1 + 8 + 3);
+		LBZ(4, 3, 0);
+		STB(4, 5, 2);
+		SetRegister(3, SHIELD_ALPHA_1 + 8 + 3);
+		LBZ(4, 3, 0);
+		STB(4, 5, 3);
+		SetRegister(5, 0x80f574c0 + 0x90);
+		SetRegister(3, SHIELD_RED_2 + 8 + 3);
+		LBZ(4, 3, 0);
+		STB(4, 5, 0);
+		SetRegister(3, SHIELD_GREEN_2 + 8 + 3);
+		LBZ(4, 3, 0);
+		STB(4, 5, 1);
+		SetRegister(3, SHIELD_BLUE_2 + 8 + 3);
+		LBZ(4, 3, 0);
+		STB(4, 5, 2);
+		SetRegister(3, SHIELD_ALPHA_2 + 8 + 3);
+		LBZ(4, 3, 0);
+		STB(4, 5, 3);
+		SetRegister(5, 0x80f574c0 + 0xA0);
+		SetRegister(3, SHIELD_RED_3 + 8 + 3);
+		LBZ(4, 3, 0);
+		STB(4, 5, 0);
+		SetRegister(3, SHIELD_GREEN_3 + 8 + 3);
+		LBZ(4, 3, 0);
+		STB(4, 5, 1);
+		SetRegister(3, SHIELD_BLUE_3 + 8 + 3);
+		LBZ(4, 3, 0);
+		STB(4, 5, 2);
+		SetRegister(3, SHIELD_ALPHA_3 + 8 + 3);
+		LBZ(4, 3, 0);
+		STB(4, 5, 3);
+		SetRegister(5, 0x80f574c0 + 0xA8);
+		SetRegister(3, SHIELD_RED_4 + 8 + 3);
+		LBZ(4, 3, 0);
+		STB(4, 5, 0);
+		SetRegister(3, SHIELD_GREEN_4 + 8 + 3);
+		LBZ(4, 3, 0);
+		STB(4, 5, 1);
+		SetRegister(3, SHIELD_BLUE_4 + 8 + 3);
+		LBZ(4, 3, 0);
+		STB(4, 5, 2);
+		SetRegister(3, SHIELD_ALPHA_4 + 8 + 3);
+		LBZ(4, 3, 0);
+		STB(4, 5, 3);
+	}
+
+
+
+#if BUILD_TYPE == NORMAL
+	printMenuSetters();
+#endif
 
 	int Reg1 = 31;
 	int Reg2 = 30;
@@ -296,11 +873,19 @@ void ControlCodeMenu()
 	int ActionReg = 14;
 
 	int NotLoaded = GetNextLabel();
+#if BUILD_TYPE == PROJECT_PLUS
+	LoadHalfToReg(Reg1, MENU_TITLE_CHECK_LOCATION + 7 + Line::COMMENT_LINE_TEXT_START);
+	If(Reg1, NOT_EQUAL_I_L, 0x2B20); //+
+	{
+		JumpToLabel(NotLoaded);
+	}EndIf();
+#else
 	LoadHalfToReg(Reg1, MENU_TITLE_CHECK_LOCATION + 7 + Line::COMMENT_LINE_TEXT_START);
 	If(Reg1, NOT_EQUAL_I_L, 0x5445); //TE
 	{
 		JumpToLabel(NotLoaded);
 	}EndIf();
+#endif
 
 	LoadWordToReg(OpenFlagReg, Reg4, CODE_MENU_CONTROL_FLAG);
 
@@ -321,9 +906,9 @@ void ControlCodeMenu()
 		OR(ButtonReg, ButtonReg, Reg2);
 		OR(ButtonReg, ButtonReg, Reg8);
 
-		ANDI(Reg8, Reg2, BUTTON_L | BUTTON_R | BUTTON_DPAD);
+		ANDI(Reg8, Reg2, BUTTON_L | BUTTON_R | BUTTON_DD);
 		If(Reg8, GREATER_I, BUTTON_L | BUTTON_R); {
-			//L + R + Dpad is pressed
+			//L + R + DDown is pressed
 			If(OpenFlagReg, NOT_EQUAL_I, CODE_MENU_OPEN); {
 				SetRegister(OpenFlagReg, CODE_MENU_TRIGGERED);
 			}EndIf();
@@ -481,7 +1066,8 @@ void ControlCodeMenu()
 		STW(Reg4, Reg1, 0); //store new buttons
 	}CounterLoopEnd();
 
-	LoadWordToReg(Reg6, ON_GROUP_RECORDS_FLAG_LOC);
+	//LoadWordToReg(Reg6, ON_GROUP_RECORDS_FLAG_LOC);
+	SetRegister(Reg6, 0);
 	If(Reg6, EQUAL_I, 1); {
 		SetRegister(Reg1, PLAY_BUTTON_LOC_START - BUTTON_PORT_OFFSET);
 		SetRegister(Reg2, ~(BUTTON_A | BUTTON_START));
@@ -508,7 +1094,12 @@ void ControlCodeMenu()
 	}
 
 	LoadWordToReg(Reg1, Reg3, 0x80584000);
+	LoadWordToReg(Reg2, CODE_MENU_CONTROL_FLAG);
 	ANDI(Reg6, ButtonReg, BUTTON_Z);
+	If(Reg2, EQUAL_I, CODE_MENU_OPEN); // prevent z frame advance in menu
+	{
+		SetRegister(Reg6, 0);
+	} EndIf();
 	LoadWordToReg(Reg4, Reg5, FRAME_ADVANCE_FRAME_TIMER);
 	SetRegister(Reg2, ~(0x10000000 | 0x00100000)); //stop all debug commands except pause and frame advance
 	If(Reg6, NOT_EQUAL_I, 0); {
@@ -519,6 +1110,13 @@ void ControlCodeMenu()
 			}EndIf();
 			ANDIS(Reg1, Reg1, ~0x0010); //allow frame advance
 			ADDI(Reg4, Reg4, FRAME_ADVANCE_NUM_WAIT_FRAMES);
+
+			CounterLoop(Reg7, 8, 32, 8);
+			{
+				LHZX(Reg8, Reg3, Reg7);
+				ANDI(Reg8, Reg8, ~0x0010);
+				STHX(Reg8, Reg3, Reg7);
+			} CounterLoopEnd();
 		}EndIf();
 	}Else(); {
 		SetRegister(Reg4, 0);
@@ -796,6 +1394,9 @@ void ExecuteAction(int ActionReg)
 	If(ActionReg, EQUAL_I, INCREMENT); //increment
 	IncreaseValue(LineReg, PageReg, TypeReg, TempReg1, TempReg2, TempReg3, TempReg4, TempReg5);
 	EndIf(); //increment
+	If(ActionReg, EQUAL_I, ENTER_SUB_MENU); //increment, if A is pressed
+	IncreaseValue(LineReg, PageReg, TypeReg, TempReg1, TempReg2, TempReg3, TempReg4, TempReg5);
+	EndIf(); //increment
 	
 	If(ActionReg, EQUAL_I, DECREMENT); //decrement
 	DecreaseValue(LineReg, PageReg, TypeReg, TempReg1, TempReg2, TempReg3, TempReg4, TempReg5);
@@ -911,6 +1512,7 @@ void LeaveMenu(int PageReg, int TempReg1, int TempReg2, int TempReg3, int TempRe
 		SUBF(TempReg5, TempReg5, TempReg4);
 		LWZ(TempReg4, PageReg, Page::NUM_CHANGED_LINES);
 		SetRegister(TempReg6, 0);
+		ANDI(TempReg4, TempReg4, 0x1F);
 		If(TempReg4, NOT_EQUAL_I, 0); {
 			SetRegister(TempReg6, 1);
 		}EndIf();
@@ -1149,6 +1751,85 @@ void SetControlStickAction(int StickValReg, int TimerLoc, int NumWaitFrames, int
 	STW(FrameTimerReg, 7, 0);
 }
 
+void printFPS() {
+	int reg1 = 31;
+	int reg2 = 30;
+	int reg3 = 29;
+	int reg4 = 28;
+	int reg5 = 27;
+	int reg6 = 26;
+	int reg7 = 25;
+	int reg8 = 24;
+	int fontHolderReg = 23;
+	int fontHolderReg2 = 22;
+
+	LoadWordToReg(reg1, FPS_DISPLAY_INDEX + Line::VALUE);
+	If(reg1, EQUAL_I, 1);
+	{
+		SetRegister(reg1, 0);
+		LWZ(fontHolderReg, 13, -0x42AC); //save font ptr if exist
+		LWZ(fontHolderReg2, 13, -0x42A8); //save other font ptr if exist
+		STW(reg1, 13, -0x42AC); //clear font ptr
+		STW(reg1, 13, -0x42A8); //clear other font ptr
+
+		SetRegister(reg1, STRING_BUFFER + 0x80);
+		WriteStringToMem("FPS: %2d", reg1);
+		LoadHalfToReg(reg2, 0x805a0856);
+		SprintF(reg1, { reg2 });
+		SetRegister(reg1, STRING_BUFFER - 1);
+		MR(reg6, 3);
+		SetRegister(reg3, DRAW_SETTINGS_BUFFER_LOC);
+
+		SetupPrintText(reg3);
+
+		SetRegs(3, { (int) 0x805B71F0, 0 });
+		CallBrawlFunc(0x801f51dc);
+
+		
+		SetRegister(reg4, 0x805b6df8);
+		LFS(1, reg4, 0); //scale factor
+
+		SetFloatingRegister(2, reg4, 0.33);
+		FMULS(2, 2, 1);
+		STFS(2, reg3, 0x50); //size
+
+		/*SetFloatingRegister(2, reg4, -160.0);
+		FDIVS(2, 2, 1);
+		STFS(2, reg3, DRAW_BUFFER_XPOS_OFFSET); //x pos
+
+		SetFloatingRegister(2, reg4, -128.0);
+		FDIVS(2, 2, 1);
+		STFS(2, reg3, DRAW_BUFFER_YPOS_OFFSET); //y pos*/
+
+
+		//SetRegister(reg4, GetHexFromFloat(0.10));
+		//SetRegister(reg4, GetHexFromFloat(0.15));
+		//STW(reg4, reg3, 0x50); //set size
+
+		//set initial text pos
+		SetRegister(reg4, GetHexFromFloat(-165));
+		SetRegister(reg5, GetHexFromFloat(-115));
+		//SetRegister(reg4, GetHexFromFloat(-192));
+		//SetRegister(reg5, GetHexFromFloat(-128));
+		SetTextPos(reg4, reg5, reg3);
+
+		LoadHalfToReg(reg4, 0x805a0856);
+		If(reg2, LESS_I, 60);
+		{
+			SetRegister(reg2, RED);
+		} Else();
+		{
+			SetRegister(reg2, BLUE);
+		} EndIf();
+		SetTextColor(reg2, reg3);
+
+		STW(fontHolderReg, 13, -0x42AC);
+		STW(fontHolderReg2, 13, -0x42A8);
+		PrintString(reg1, reg6, reg3);
+	} EndIf();
+
+}
+
 void PrintCodeMenu()
 {
 	ASMStart(0x80017928);
@@ -1191,7 +1872,11 @@ void PrintCodeMenu()
 			STW(Reg2, Reg3, 0); //reset camera
 			STW(Reg1, Reg4, 0); //clear saved camera
 		}Else(); {
+			//printFPS();
 			CallBrawlFunc(0x8002e844); //render
+			if (FPS_DISPLAY_INDEX != -1) {
+				printFPS();
+			}
 		}EndIf();
 	}EndIf();
 
@@ -1215,21 +1900,25 @@ void PrimeCodeMenu()
 	int Reg7 = 25;
 	int Reg8 = 24;
 
-	LWZ(Reg3, 3, 0x40);
-	If(Reg3, EQUAL_I, 8); {
-		//on tourney
-		LoadWordToReg(Reg1, Reg2, CODE_MENU_CONTROL_FLAG);
-		If(Reg1, NOT_EQUAL_I, CODE_MENU_OPEN); {
-			SetRegister(Reg2, CODE_MENU_CONTROL_FLAG);
-			SetRegister(Reg1, CODE_MENU_PRIMED);
-			STW(Reg1, Reg2, 0);
+	LWZ(Reg3, 3, 0x54);
+	If(Reg3, EQUAL_I, 1); {
+		LWZ(Reg3, 3, 0x40);
+		If(Reg3, EQUAL_I, 8); {
+			//on tourney
+			LoadWordToReg(Reg1, Reg2, CODE_MENU_CONTROL_FLAG);
+			If(Reg1, NOT_EQUAL_I, CODE_MENU_OPEN); {
+				SetRegister(Reg2, CODE_MENU_CONTROL_FLAG);
+				SetRegister(Reg1, CODE_MENU_PRIMED);
+				STW(Reg1, Reg2, 0);
+			}EndIf();
 		}EndIf();
-	}EndIf();
+	} EndIf();
+	
 
 	SetRegister(Reg2, ON_GROUP_RECORDS_FLAG_LOC);
 	SetRegister(Reg1, 0);
 	If(Reg3, EQUAL_I, 0x4E); {
-		SetRegister(Reg1, 1);
+		//SetRegister(Reg1, 1);
 	}EndIf();
 	STW(Reg1, Reg2, 0);
 
@@ -1333,6 +2022,28 @@ void DrawBlackBackground()
 	DrawPrimitive(PRIMITIVE_QUAD, positions, BLACK, 1);
 }
 
+void getSelectedLineNum(int PageReg, int resultReg) {
+	LWZ(resultReg, PageReg, Page::CURRENT_LINE_OFFSET);
+	ADD(resultReg, PageReg, resultReg); //ptr to selected line
+	LBZ(resultReg, resultReg, Line::LINE_NUM);
+}
+
+void getNewHold(int PageReg, int resultReg, int reg1, int reg2) {
+	LWZ(resultReg, PageReg, Page::PRINT_LOW_HOLD);
+	getSelectedLineNum(PageReg, reg1);
+	If(reg1, GREATER, resultReg);
+	{
+		MR(resultReg, reg1);
+	} Else();
+	{
+		ADDI(reg2, reg1, SCROLL_DISTANCE - 5);
+		If(reg2, LESS, resultReg);
+		{
+			MR(resultReg, reg2);
+		} EndIf();
+	} EndIf();
+}
+
 void PrintPage(int PageReg, int SettingsPtrReg, int Reg1, int Reg2, int Reg3, int Reg4, int Reg5, int Reg6)
 {
 	SetupPrintText(SettingsPtrReg);
@@ -1342,7 +2053,28 @@ void PrintPage(int PageReg, int SettingsPtrReg, int Reg1, int Reg2, int Reg3, in
 	//set initial text pos
 	SetRegister(Reg1, GetHexFromFloat(INITIAL_XPOS));
 	SetRegister(Reg2, GetHexFromFloat(INITIAL_YPOS));
+	getNewHold(PageReg, Reg4, Reg6, Reg3);
+	STW(Reg4, PageReg, Page::PRINT_LOW_HOLD); //save
+
+	If(Reg4, GREATER_I, SCROLL_DISTANCE);
+	{
+		ADDI(Reg3, Reg4, -SCROLL_DISTANCE);
+		MULLI(Reg3, Reg3, -LINE_HEIGHT);
+		ConvertIntToFloat(Reg3, Reg4, Reg6);
+		SetRegister(Reg3, STRING_BUFFER);
+		STW(Reg6, Reg3, 0);
+		LFS(0, Reg3, 0);
+		STW(Reg2, Reg3, 0);
+		LFS(1, Reg3, 0);
+		FADDS(0, 0, 1);
+		STFS(0, Reg3, 0);
+		LWZ(Reg2, Reg3, 0);
+	} EndIf();
+
 	SetTextPos(Reg1, Reg2, SettingsPtrReg);
+
+	SetRegister(Reg1, GetHexFromFloat(0.06));
+	STW(Reg1, SettingsPtrReg, 0x50); //set size
 
 	ADDI(Reg2, PageReg, Page::FIRST_LINE_OFFSET); //first line
 	SetRegister(3, 1);
@@ -1362,13 +2094,23 @@ void PrintCodeMenuLine(int LinePtrReg, int SettingsPtrReg, int ColorArrayPtrReg,
 	LWZX(TempReg1, ColorArrayPtrReg, TempReg1);
 	SetTextColor(TempReg1, SettingsPtrReg);
 
-	LBZ(4, LinePtrReg, Line::TEXT_OFFSET);
+	LHZ(4, LinePtrReg, Line::TEXT_OFFSET);
 	ADD(4, 4, LinePtrReg);
 
-	If(TempReg2, EQUAL_I, FLOATING_LINE); {
+	If(TempReg2, EQUAL_I, PRINT_LINE); {
+		LWZ(TempReg1, LinePtrReg, Line::PRINT_LINE_NUM_ARGS);
+		LHZ(TempReg2, LinePtrReg, Line::SIZE);
+		MULLI(TempReg1, TempReg1, 4);
+		SUBF(TempReg2, TempReg2, TempReg1);
+		LSWX(5, TempReg2, LinePtrReg, TempReg1);
+
+		SetRegister(3, STRING_BUFFER);
+		WriteIntToFile(0x4cc63182); //clclr 6, 6
+		CallBrawlFunc(0x803f89fc); //sprintf
+	} Else(); If(TempReg2, EQUAL_I, FLOATING_LINE); {
 		LFS(1, LinePtrReg, Line::VALUE);
-		SprintF(4, {}, { 1 });
-	}Else(); {
+		SprintF(4, {},  { 1 }, -1);
+	} Else(); {
 		LWZ(5, LinePtrReg, Line::VALUE); //get setting
 
 		If(TempReg2, EQUAL_I, SELECTION_LINE); {
@@ -1379,7 +2121,7 @@ void PrintCodeMenuLine(int LinePtrReg, int SettingsPtrReg, int ColorArrayPtrReg,
 		}EndIf();
 
 		SprintF(4, { 5 });
-	}EndIf();
+	} EndIf(); EndIf();
 
 	MR(TempReg2, 3); //num chars
 	SetRegister(TempReg1, STRING_BUFFER - 1);
@@ -1414,6 +2156,7 @@ void SaveReplay()
 	int reg4 = 22;
 	int reg5 = 21;
 	int reg6 = 20;
+	int reg7 = 19;
 
 	//set buffer ptrs
 	SetRegister(NTEBufferReg, REPLAY_NTE_DATA_BUFFER_LOC);
@@ -1462,6 +2205,7 @@ void SaveReplay()
 	SetRegister(reg1, STRING_BUFFER);
 	SetArgumentsFromRegs(3, { HighTimeReg, LowTimeReg, reg1 });
 	CallBrawlFunc(0x801e1d80); //OSTicksToCalenderTime
+	LWZ(reg7, reg1, 0); //second
 	LWZ(reg2, reg1, 4); //minute
 	LWZ(reg3, reg1, 8); //hour
 	LWZ(reg4, reg1, 0xC); //day
@@ -1471,8 +2215,8 @@ void SaveReplay()
 	SetRegister(3, 100);
 	MR(4, reg6);
 	MOD(reg6, 4, 3);
-	WriteStringToMem("/LegacyTE/rp/rp_%02d%02d%02d_%02d%02d.bin\0"s, PathPtrReg);
-	SprintF(PathPtrReg, { reg6, reg5, reg4, reg3, reg2 });
+	WriteStringToMem("/" + MAIN_FOLDER + "/rp/rp_%02d%02d%02d_%02d%02d_%02d.bin\0"s, PathPtrReg);
+	SprintF(PathPtrReg, { reg6, reg5, reg4, reg3, reg2, reg7 });
 	SetRegister(PathPtrReg, STRING_BUFFER);
 	LWZ(reg1, CryptoBufferReg, 0x2C); //size
 	LWZ(reg2, CryptoBufferReg, 0x28); //ptr

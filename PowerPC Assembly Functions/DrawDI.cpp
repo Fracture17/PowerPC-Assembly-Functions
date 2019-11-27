@@ -156,6 +156,10 @@ void SetHitStart()
 	LWZ(reg1, DIBufferReg, DI_BUFFER_SDI_START_OFFSET);
 	ResetGraphicBuffer(reg1);
 
+	LWZ(reg2, CharacterBufferReg, CHR_BUFFER_XPOS_OFFSET);
+	LWZ(reg3, CharacterBufferReg, CHR_BUFFER_YPOS_OFFSET);
+	AddToGraphicBuffer(reg1, reg2, false, reg3, false, false);
+
 	LWZ(reg1, DIBufferReg, DI_BUFFER_ASDI_START_OFFSET);
 	ResetGraphicBuffer(reg1);
 
@@ -386,15 +390,18 @@ void ResetGraphicBuffer(int AddressReg, int Color)
 
 void AddToGraphicBuffer(int AddressReg, int XPosReg, bool isXFloat, int YPosReg, bool isYFloat, bool shouldSetDrawFlag)
 {
-	LWZ(3, AddressReg, GRAPHIC_BUFFER_END_PTR_OFFSET); //ptr to end of list
-	if (isXFloat) { STFSU(XPosReg, 3, 4); }
-	else { STWU(XPosReg, 3, 4); }
-	if (isYFloat) { STFSU(YPosReg, 3, 4); }
-	else { STWU(YPosReg, 3, 4); }
-	STW(3, AddressReg, 0); //update end of list ptr
 	LWZ(3, AddressReg, GRAPHIC_BUFFER_NUM_ELEMS_OFFSET); //num elements
-	Increment(3);
-	STW(3, AddressReg, GRAPHIC_BUFFER_NUM_ELEMS_OFFSET); //update num elements
+	If(3, LESS_I, 512); {
+		Increment(3);
+		STW(3, AddressReg, GRAPHIC_BUFFER_NUM_ELEMS_OFFSET); //update num elements
+
+		LWZ(3, AddressReg, GRAPHIC_BUFFER_END_PTR_OFFSET); //ptr to end of list
+		if (isXFloat) { STFSU(XPosReg, 3, 4); }
+		else { STWU(XPosReg, 3, 4); }
+		if (isYFloat) { STFSU(YPosReg, 3, 4); }
+		else { STWU(YPosReg, 3, 4); }
+		STW(3, AddressReg, 0); //update end of list ptr
+	} EndIf();
 
 	if (shouldSetDrawFlag) {
 		SetGraphicBufferDrawFlag(AddressReg, true);

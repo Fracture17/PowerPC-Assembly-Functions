@@ -17,7 +17,8 @@ typedef unsigned char u8;
 #define IS_DEBUGGING 0
 #define NORMAL 0
 #define PMEX 1
-#define BUILD_TYPE NORMAL
+#define PROJECT_PLUS 2
+#define BUILD_TYPE PROJECT_PLUS
 
 //ROTC floating offsets
 #define FS_20_0 -0x7920
@@ -28,12 +29,21 @@ typedef unsigned char u8;
 
 const vector<float> DEFAULT_CAMERA_MATRIX = { 1,0,0,0, 0,1,0,0, 0,0,1,-64 };
 
+#if BUILD_TYPE == PROJECT_PLUS
+const string MAIN_FOLDER = "Project+";
+#else
+const string MAIN_FOLDER = "LegacyTE";
+#endif
+
 ///addresses start
 
 ///Function addresses start
 #define GET_MEM_ALLOCATOR 0x80024430
 #define ALLOC 0x80204e5c
 #define MEMMOVE 0x803f602c
+#define STRCPY 0x803fa280
+#define FA_FOPEN 0x803ebeb8
+#define FA_FCLOSE 0x803ebe8c
 #define GF_POOL_FREE 0x8002632c
 #define GX_SET_CULL_MODE 0x801f136c
 #define GX_CLEAR_VTX_DESC 0x801efb10
@@ -47,6 +57,7 @@ const vector<float> DEFAULT_CAMERA_MATRIX = { 1,0,0,0, 0,1,0,0, 0,0,1,-64 };
 #define GX_SET_LINE_WIDTH 0x801f12ac
 #define GF_DRAW_SETUP_COORD_2D 0x8001abbc
 #define GX_DRAW_SET_VTX_COLOR_PRIM_ENVIROMENT 0x8001a5c0
+#define GET_FLOAT_WORK_MODULE 0x807acbb4 //r3 = work module ptr, r4 is variable, returns value in f1
 ///Function addresses end
 
 ///addresses maintained by Brawl start
@@ -61,15 +72,18 @@ const vector<float> DEFAULT_CAMERA_MATRIX = { 1,0,0,0, 0,1,0,0, 0,0,1,-64 };
 #define WII_BASED_CONTROLLER_START 0x804F7880 //P1 wiimote loc, can't affect inputs from here
 #define WII_BASED_CONTROLLER_PORT_OFFSET 0x9A0 //offset between wii controller ports
 #define WII_BASED_CONTROLLER_TYPE_OFFSET 0x28 //offset from Wii contoller of byte containing type of controller
-#if BUILD_TYPE == NORMAL
+#if BUILD_TYPE == PMEX
+#define ALT_STAGE_VAL_LOC 0x805858ba //half word that defines what alt stage should be loaded
+#else
 #define ALT_STAGE_VAL_LOC 0x815e8422 //half word that defines what alt stage should be loaded
 //#define ALT_STAGE_VAL_LOC 0x800B9EA2 //half word that defines what alt stage should be loaded
-#elif BUILD_TYPE == PMEX
-#define ALT_STAGE_VAL_LOC 0x805858ba //half word that defines what alt stage should be loaded
 #endif
 #define REPLAY_BUFFER_BEGIN 0x91301c00 //start of the replay buffer
 #define IS_DEBUG_PAUSED 0x805B8A08 //word that equals 1 if game is debug paused, 0x100 if frame advancing
 #define IS_AUTO_L_CANCEL 0x9017f36f //byte that is 1 if auto L-cancel is on
+#define BUTTON_CONFIG_START 0x805b7480 //start of in game custom control map
+#define BASIC_VARIABLE_START_ADDRESS 0x901ae000
+#define BASIC_VARIABLE_BLOCK_SIZE 0x870
 ///addresses maintained by Brawl end
 
 ///reserved memory for storage start
@@ -109,13 +123,17 @@ const int REPLACE_NAME_TIME_ADDRESS = REPLACE_NAME_OLD_TIME_LOC + 4;
 #define CLASSIC_CONVERSION_TABLE WIICHUCK_CONVERSION_TABLE + 16 //16
 #define KAPPA_ITEM_FLAG CLASSIC_CONVERSION_TABLE + 16 //4
 #define MAIN_BUFFER_PTR KAPPA_ITEM_FLAG + 4 //4
-#define STRING_BUFFER MAIN_BUFFER_PTR + 4 //0x100
+#define STRING_BUFFER MAIN_BUFFER_PTR + 4 //0x100, 0x935ce428
 #define IASA_OVERLAY_MEM_PTR_LOC STRING_BUFFER + 0x100 //4
 #define IASA_TRIGGER_OVERLAY_COMMAND_PTR_LOC IASA_OVERLAY_MEM_PTR_LOC + 4 //4
 #define IASA_TERMINATE_OVERLAY_COMMAND_PTR_LOC IASA_TRIGGER_OVERLAY_COMMAND_PTR_LOC + 4 //4
 #define IASA_STATE IASA_TERMINATE_OVERLAY_COMMAND_PTR_LOC + 4 //4
 #define IS_IN_GAME_FLAG IASA_STATE + 4 //4
 #define WRITE_SD_FILE_HEADER_LOC IS_IN_GAME_FLAG + 4 //0x18
+#define ACTIVE_TAG_ID_BY_PORT WRITE_SD_FILE_HEADER_LOC + 0x18 //4
+#define HEX_TO_ASCII_TABLE ACTIVE_TAG_ID_BY_PORT + 0x4 //0x10
+#define COSTUME_PATH_ADDRESS_RESULT HEX_TO_ASCII_TABLE + 0x10 //4
+#define CSTICK_TAUNT_SPECIAL_WORDS (COSTUME_PATH_ADDRESS_RESULT + 4) //
 ///reserved memory for storage end
 
 ///Control code constants start
@@ -143,6 +161,7 @@ const int MENU_SELECTED_TAG_OFFSET = 0x164;
 #define REPLAY_ALT_STAGE_STORAGE_LOC 0x91301f4a //half word that is used to store which alt stage was loaded
 #define REPLAY_AUTO_L_CANCEL_SETTING 0x91301f4e //half word that stores current and recorded auto L-Cancel settings
 #define IN_STAGE_SELECT_MENU_FLAG 0x91301f50 //byte flag == 1 when in stage select menu
+#define REPLAY_ENDLESS_ROTATION_QUEUE 0x91301f54 //word that saves copy of endless rotation queue for replay
 
 ///addresses end
 
@@ -279,12 +298,14 @@ void JumpToLabel(int LabelNum);
 void CompleteJumps();
 int CalcBranchOffset(int Location, int Target);
 void StrCpy(int Destination, int Source, int Temp);
-void GeckoStringWrite(char *Buffer, u32 NumBytes, u32 Address);
+void GeckoStringWrite(string String, u32 Address);
 void Gecko32BitWrite(int Address, int Value);
 void Gecko8BitWrite(int Address, int Value, int NumTimes = 1);
 void SetGeckoBaseAddress(int Address);
 void SetGeckoPointerAddress(int Address);
 void LoadIntoGeckoPointer(int Address);
+void LoadIntoGeckoRegister(int Address, int Reg, int size);
+void StoreGeckoRegisterAt(int Address, int Reg, int size, int repeats = 0);
 void GeckoIf(u32 Address, int Comparison, int Value);
 void GeckoEndIf();
 //searches for byte, elementOffset is distance between elements, ResultReg returns index if found, else -1
@@ -331,8 +352,9 @@ void WriteVectorToMem(vector<int> Values, int AddressReg);
 void WriteVectorToMem(vector<float> Values, int AddressReg);
 void CounterLoop(int CounterReg, int startVal, int endVal, int stepVal);
 void CounterLoopEnd();
-void SprintF(int StrReg, vector<int> ValueRegs);
-void SprintF(int StrReg, vector<int> ValueRegs, vector<int> FPValueRegs);
+void SprintF(int StrReg, vector<int> ValueRegs, int DestPtrReg = -1);
+//can't have default, because overload ambiguity
+void SprintF(int StrReg, vector<int> ValueRegs, vector<int> FPValueRegs, int DestPtrReg);
 void ClampStick(int FPXValReg, int FPYValReg);
 void ConvertIntStickValsToFloating(int StickXReg, int StickYReg, int FPXResultReg, int FPYResultReg, int FPTempReg);
 void ConvertFloatingRegToInt(int FPReg, int ResultReg);
@@ -361,13 +383,18 @@ void ReverseIterateVector(int VectorReg, int IteratorReg, int TempReg1, int Temp
 void RemoveFromVector(int VectorReg, int ValueReg);
 void FindInVector(int VectorReg, int ValueReg, int ResultReg);
 void ShiftVectorDown(int VectorReg, int StartReg);
-void RandomCapped(int HighReg, int reg1, int ResultReg = 3);
+void Randi(int ResultReg, int MaxReg = 3, int TempReg = 4);
+//void RandomCapped(int HighReg, int reg1, int ResultReg = 3);
 void WriteFileToSD(int PathReg, int SizeReg, int DataPtrReg);
 void IfInGame(int reg = 3, bool condition = true);
 void ClearBitsFromMemory(short BitsToClear, int Address);
 void ClearBitsFromMemory(short BitsToClear, int AddressReg, int Offset = 0);
 void GetSceneNum(int ResultReg);
 void IfInVersus(int reg);
+void LoadFile(string filePath, int destination, int reg1, int reg2);
+void constrainFloat(int floatReg, int tempFReg, int tempReg, float min, float max);
+void constrainFloatDynamic(int floatReg, int minFReg, int maxFReg);
+void modifyInstruction(int instructionReg, int addressReg);
 
 void ABS(int DestReg, int SourceReg, int tempReg);
 void ADD(int DestReg, int SourceReg1, int SourceReg2);
@@ -380,6 +407,7 @@ void ANDIS(int DestReg, int SourceReg, int Immediate);
 void B(int JumpDist);
 void BA(int Address);
 void BC(int JumpDist, int BranchCondition, int ConditionBit);
+void BCTR();
 void BCTRL();
 void BLA(int Address);
 void BLR();
@@ -388,6 +416,9 @@ void CMPI(int Reg, int Immediate, int CondField);
 void CMPL(int Reg1, int Reg2, int CondField);
 void CMPLI(int Reg, int Immediate, int CondField);
 void CNTLZW(int DestReg, int SourceReg);
+//if sourceReg1 == r0, not used
+void DCBF(int SourceReg1, int SourceReg2);
+void DCBST(int SourceReg1, int SourceReg2);
 void DIVW(int DestReg, int DividendReg, int DivisorReg);
 void DIVWU(int DestReg, int DividendReg, int DivisorReg);
 void EQV(int DestReg, int SourceReg1, int SourceReg2);
@@ -407,8 +438,12 @@ void FNEG(int DestReg, int SourceReg);
 void FRES(int DestReg, int SourceReg);
 void FRSP(int DestReg, int SourceReg);
 void FRSQRTE(int DestReg, int SourceReg);
+void FSQRT(int FPDestReg, int FPSourceReg);
 void FSUB(int FPDestReg, int FPSourceReg1, int FPSourceReg2);
 void FSUBS(int FPDestReg, int FPSourceReg1, int FPSourceReg2);
+//if SOurceReg1 == r0, it is not used
+void ICBI(int SourceReg1, int SourceReg2);
+void ISYNC();
 void LBA(int DestReg, int AddressReg, int Immediate);
 void LBAU(int DestReg, int AddressReg, int Immediate);
 void LBAUX(int DestReg, int AddressReg1, int AddressReg2);
@@ -431,12 +466,15 @@ void LWZU(int DestReg, int AddressReg, int Immediate);
 void LWZUX(int DestReg, int AddressReg1, int AddressReg2);
 void LWZX(int DestReg, int AddressReg1, int AddressReg2);
 void LMW(int StartReg, int AddressReg, int Immediate);
+void LSWI(int StartReg, int AddressReg, int numBytes);
+void LSWX(int StartReg, int AddressReg1, int AddressReg2, int NumArgsReg);
 void MFCTR(int TargetReg);
 void MFLR(int TargetReg);
 void MOD(int DestReg, int SourceReg1, int SourceReg2);
 void MR(int DestReg, int SourceReg);
 void MTCTR(int TargetReg);
 void MTLR(int TargetReg);
+void MTXER(int TargetReg);
 void MULLI(int DestReg, int SourceReg, int Immediate);
 void MULLW(int DestReg, int SourceReg1, int SourceReg2);
 void NEG(int DestReg, int SourceReg);
@@ -468,6 +506,7 @@ void STWUX(int SourceReg, int AddressReg1, int AddressReg2);
 void STWX(int SourceReg, int AddressReg1, int AddressReg2);
 //DestReg = SourceReg1 - SourceReg2
 void SUBF(int DestReg, int SourceReg1, int SourceReg2);
+void SYNC();
 void XOR(int DestReg, int SourceReg1, int SourceReg2);
 void XORI(int DestReg, int SourceReg, int Immediate);
 void XORIS(int DestReg, int SourceReg, int Immediate);
