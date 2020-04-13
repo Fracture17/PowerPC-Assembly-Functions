@@ -1421,7 +1421,7 @@ void IfInVersus(int reg) {
 	If(reg, EQUAL_I, 0xA);
 }
 
-void LoadFile(string filePath, int destination, int reg1, int reg2)
+void LoadFile(string filePath, int destination, int reg1, int reg2, bool loadFromSD)
 {
 	SetRegister(reg1, STRING_BUFFER);
 
@@ -1443,7 +1443,12 @@ void LoadFile(string filePath, int destination, int reg1, int reg2)
 	WriteStringToMem(filePath, reg2);
 
 	MR(3, reg1);
-	CallBrawlFunc(0x8001cbf4); //readSDFile
+	if (loadFromSD) {
+		CallBrawlFunc(0x8001cbf4); //readSDFile
+	}
+	else {
+		CallBrawlFunc(0x8001BF0C); //readFile
+	}
 }
 
 void constrainFloat(int floatReg, int tempFReg, int tempReg, float min, float max) {
@@ -1475,6 +1480,22 @@ void modifyInstruction(int instructionReg, int addressReg) {
 	SYNC();
 	ICBI(0, addressReg);
 	ISYNC();
+}
+
+void IfInSSE(int reg1, int reg2) {
+	LoadWordToReg(reg1, 0x805B50AC);
+	LWZ(reg1, reg1, 0x10);
+	LWZ(reg1, reg1, 0);
+	SetRegister(reg2, 0x80702B60);
+	If(reg1, EQUAL, reg2);
+}
+
+void IfNotInSSE(int reg1, int reg2) {
+	LoadWordToReg(reg1, 0x805B50AC);
+	LWZ(reg1, reg1, 0x10);
+	LWZ(reg1, reg1, 0);
+	SetRegister(reg2, 0x80702B60);
+	If(reg1, NOT_EQUAL, reg2);
 }
 
 void ABS(int DestReg, int SourceReg, int tempReg)

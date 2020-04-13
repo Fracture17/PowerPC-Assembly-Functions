@@ -78,6 +78,7 @@ extern int SHIELD_SIZE_MULTIPLIER_INDEX;
 extern int SHIELD_TILT_MULTIPLIER_INDEX;
 extern int KNOCKBACK_DECAY_MULTIPLIER_INDEX;
 extern int WALL_BOUNCE_KNOCKBACK_MULTIPLIER_INDEX;
+extern int STALING_TOGGLE_INDEX;
 
 extern vector<int> Defaults;
 
@@ -90,7 +91,10 @@ const vector<u8> CODE_MENU_WIIMOTE_CONVERSION_TABLE = { 2, 3, 1, 0, 12, 31, 31, 
 const vector<u8> CODE_MENU_WIICHUCK_CONVERSION_TABLE = { 0, 1, 2, 3, 12, 31, 31, 31, 31, 31, 9, 8, 10, 4, 11, 31 };
 const vector<u8> CODE_MENU_CLASSIC_CONVERSION_TABLE = { 3, 0, 4, 10, 8, 11, 9, 4, 31, 5, 12, 31, 12, 6, 2, 1 }; //1 to 1
 
-#if BUILD_TYPE == PROJECT_PLUS
+#ifdef RIDLEY
+const vector<string> CHARACTER_LIST = { "Bowser", "Captain Falcon", "Charizard", "Dedede", "Diddy Kong", "Donkey Kong", "Falco", "Fox", "Ganondorf", "Giga Bowser", "Ice Climbers", "Ike", "Ivysaur", "Jigglypuff", "Kirby", "Knuckles", "Link", "Lucario", "Lucas", "Luigi", "Mario", "Marth", "Meta Knight", "Mewtwo", "Mr. Game and Watch", "Ness", "Olimar", "Peach", "Pikachu", "Pit", "R.O.B.", "Ridley", "Roy", "Samus", "Sheik", "Snake", "Sonic", "Sopo", "Squirtle", "Toon Link", "Wario", "Warioman", "Wolf", "Yoshi", "Zelda", "Zero Suit Samus" };
+const vector<u16> CHARACTER_ID_LIST = { 12, 10, 30, 35, 28, 1, 21, 7, 22, 44, 16, 37, 34, 39, 6, 53, 2, 36, 27, 9, 0, 19, 24, 51, 20, 11, 26, 13, 8, 25, 38, 80, 50, 3, 15, 42, 43, 17, 32, 40, 23, 45, 41, 5, 14, 4 };
+#elif BUILD_TYPE == PROJECT_PLUS
 const vector<string> CHARACTER_LIST = { "Bowser", "Captain Falcon", "Charizard", "Dedede", "Diddy Kong", "Donkey Kong", "Falco", "Fox", "Ganondorf", "Giga Bowser", "Ice Climbers", "Ike", "Ivysaur", "Jigglypuff", "Kirby", "Knuckles", "Link", "Lucario", "Lucas", "Luigi", "Mario", "Marth", "Meta Knight", "Mewtwo", "Mr. Game and Watch", "Ness", "Olimar", "Peach", "Pikachu", "Pit", "R.O.B.", "Roy", "Samus", "Sheik", "Snake", "Sonic", "Sopo", "Squirtle", "Toon Link", "Wario", "Warioman", "Wolf", "Yoshi", "Zelda", "Zero Suit Samus" };
 const vector<u16> CHARACTER_ID_LIST = { 12, 10, 30, 35, 28, 1, 21, 7, 22, 44, 16, 37, 34, 39, 6, 53, 2, 36, 27, 9, 0, 19, 24, 51, 20, 11, 26, 13, 8, 25, 38, 50, 3, 15, 42, 43, 17, 32, 40, 23, 45, 41, 5, 14, 4 };
 #else
@@ -236,7 +240,11 @@ static int CurrentOffset = START_OF_CODE_MENU;
 #define FRAMES_WAITED_DURING_SLOW_MOTION 3
 
 static vector<int> Defaults;
-static fstream MenuFile("C:\\Users\\john\\Documents\\Dolphin Emulator\\Wii\\cm.bin", fstream::out | fstream::binary);
+#if BUILD_TYPE == PROJECT_PLUS
+static fstream MenuFile("C:\\Users\\johno\\Documents\\Modding\\Dolphin\\SD_Raws\\data.cmnu", fstream::out | fstream::binary);
+#else
+static fstream MenuFile("C:\\Users\\johno\\Documents\\Modding\\Dolphin\\SD_Raws\\cm.bin", fstream::out | fstream::binary);
+#endif
 
 class Page;
 

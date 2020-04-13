@@ -3,7 +3,7 @@
 #include "stdafx.h"
 #include "PowerPC Assembly Functions.h"
 
-#define SPECIAL_CSTICK_OPTIONS true
+#define SPECIAL_CSTICK_OPTIONS BUILD_TYPE == PROJECT_PLUS
 
 class Color {
 public:

@@ -180,6 +180,7 @@ void AddToSDIBuffer()
 	//r30 = module ptr
 	//can use r12, r3
 	ASMStart(0x80876c84);
+	SaveRegisters();
 
 	FindCharacterBuffer(30, 12);
 
@@ -190,6 +191,7 @@ void AddToSDIBuffer()
 	LWZ(12, 12, DI_BUFFER_SDI_START_OFFSET);
 	AddToGraphicBuffer(12, 0, true, 2, true, true);
 
+	RestoreRegisters();
 	ASMEnd(0xd0410014); //stfs f2, sp, 0x14
 }
 
@@ -294,24 +296,31 @@ void CreateDIBuffer(int CharacterBufferReg, int reg1, int reg2, int reg3)
 	MR(reg1, 3);
 
 	//allocate buffers
-	ADDI(reg2, reg1, DI_BUFFER_SDI_START_OFFSET);
-	SetRegister(reg3, SDI_BUFFER_SIZE);
-	AllocateGraphicBuffer(reg3, reg2, PRIMITIVE_LINE, ORANGE);
-
 	ADDI(reg2, reg1, DI_BUFFER_ASDI_START_OFFSET);
 	SetRegister(reg3, ASDI_BUFFER_SIZE);
 	AllocateGraphicBuffer(reg3, reg2, PRIMITIVE_LINE, GREEN);
 
+	IfInSSE(reg3, reg2); {
+		SetRegister(reg3, SSE_SDI_BUFFER_SIZE);
+	} Else(); {
+		SetRegister(reg3, SDI_BUFFER_SIZE);
+	} EndIf();
+	ADDI(reg2, reg1, DI_BUFFER_SDI_START_OFFSET);
+	AllocateGraphicBuffer(reg3, reg2, PRIMITIVE_LINE, ORANGE);
+
+	IfInSSE(reg3, reg2); {
+		SetRegister(reg3, SSE_TRAJECTORY_BUFFER_SIZE);
+	} Else(); {
+		SetRegister(reg3, TRAJECTORY_BUFFER_SIZE);
+	} EndIf();
+
 	ADDI(reg2, reg1, DI_BUFFER_NORMAL_START_OFFSET);
-	SetRegister(reg3, TRAJECTORY_BUFFER_SIZE);
 	AllocateGraphicBuffer(reg3, reg2, PRIMITIVE_LINE, BLUE);
 
 	ADDI(reg2, reg1, DI_BUFFER_CURRENT_START_OFFSET);
-	SetRegister(reg3, TRAJECTORY_BUFFER_SIZE);
 	AllocateGraphicBuffer(reg3, reg2, PRIMITIVE_LINE, YELLOW);
 
 	ADDI(reg2, reg1, DI_BUFFER_DEBUG_START_OFFSET);
-	SetRegister(reg3, TRAJECTORY_BUFFER_SIZE);
 	AllocateGraphicBuffer(reg3, reg2, PRIMITIVE_LINE, PURPLE);
 
 	SetRegister(reg2, 0);
@@ -361,11 +370,23 @@ void AllocateGraphicBuffer(int SizeReg, int AddressReg, int primType, int color)
 	SetRegister(4, 0);
 	SetRegister(5, primType);
 	SetRegister(6, color);
-	STWU(5, 3, 4); //primitive type
+
+	STW(5, 3, GRAPHIC_BUFFER_PRIMITIVE_OFFSET); //primitive type
+	ADDI(5, SizeReg, -8);
+	STW(5, 3, GRAPHIC_BUFFER_MAX_SIZE_OFFSET); //max size
+	STW(6, 3, GRAPHIC_BUFFER_COLOR_OFFSET); //color
+	STW(4, 3, GRAPHIC_BUFFER_NUM_ELEMS_OFFSET); //number of elements (0)
+	STW(4, 3, GRAPHIC_BUFFER_DRAW_FLAG_OFFSET); //should draw flag
+
+	ADDI(4, 3, GRAPHIC_BUFFER_POS_START_OFFSET - 4);
+	STW(4, 3, GRAPHIC_BUFFER_END_PTR_OFFSET); //end of position list
+
+
+	/*STWU(5, 3, 4); //primitive type
 	STWU(6, 3, 4); //color
 	STWU(4, 3, 4); //number of elements (0)
 	STWU(4, 3, 4); //should draw flag
-	STWU(3, 3, -0x10); //end of position list
+	STWU(3, 3, -0x10); //end of position list*/
 }
 
 //keep draw flag at end to work
@@ -373,8 +394,12 @@ void ResetGraphicBuffer(int AddressReg)
 {
 	SetRegister(3, 0);
 	STW(3, AddressReg, GRAPHIC_BUFFER_NUM_ELEMS_OFFSET); //reset number of elements
-	STWU(3, AddressReg, GRAPHIC_BUFFER_DRAW_FLAG_OFFSET); //turn off draw flag
-	STWU(AddressReg, AddressReg, -GRAPHIC_BUFFER_DRAW_FLAG_OFFSET); //reset end of list ptr
+	STW(3, AddressReg, GRAPHIC_BUFFER_DRAW_FLAG_OFFSET); //turn off draw flag
+
+	ADDI(3, AddressReg, GRAPHIC_BUFFER_POS_START_OFFSET - 4);
+	STW(3, AddressReg, GRAPHIC_BUFFER_END_PTR_OFFSET); //end of position list
+
+	//STWU(AddressReg, AddressReg, -GRAPHIC_BUFFER_DRAW_FLAG_OFFSET); //reset end of list ptr
 }
 
 //keep draw flag at end to work
@@ -382,16 +407,21 @@ void ResetGraphicBuffer(int AddressReg, int Color)
 {
 	SetRegister(3, Color);
 	STW(3, AddressReg, GRAPHIC_BUFFER_COLOR_OFFSET);
-	SetRegister(3, 0);
+	ResetGraphicBuffer(AddressReg);
+	/*SetRegister(3, 0);
 	STW(3, AddressReg, GRAPHIC_BUFFER_NUM_ELEMS_OFFSET); //reset number of elements
 	STWU(3, AddressReg, GRAPHIC_BUFFER_DRAW_FLAG_OFFSET); //turn off draw flag
-	STWU(AddressReg, AddressReg, -GRAPHIC_BUFFER_DRAW_FLAG_OFFSET); //reset end of list ptr
+	STWU(AddressReg, AddressReg, -GRAPHIC_BUFFER_DRAW_FLAG_OFFSET); //reset end of list ptr*/
 }
 
 void AddToGraphicBuffer(int AddressReg, int XPosReg, bool isXFloat, int YPosReg, bool isYFloat, bool shouldSetDrawFlag)
 {
-	LWZ(3, AddressReg, GRAPHIC_BUFFER_NUM_ELEMS_OFFSET); //num elements
-	If(3, LESS_I, 512); {
+	//LWZ(3, AddressReg, GRAPHIC_BUFFER_NUM_ELEMS_OFFSET); //num elements
+	LWZ(4, AddressReg, GRAPHIC_BUFFER_MAX_SIZE_OFFSET);
+	LWZ(3, AddressReg, GRAPHIC_BUFFER_END_PTR_OFFSET);
+	SUBF(3, 3, AddressReg);
+	If(3, LESS_L, 4); {
+		LWZ(3, AddressReg, GRAPHIC_BUFFER_NUM_ELEMS_OFFSET); //num elements
 		Increment(3);
 		STW(3, AddressReg, GRAPHIC_BUFFER_NUM_ELEMS_OFFSET); //update num elements
 

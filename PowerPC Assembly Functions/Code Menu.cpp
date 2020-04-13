@@ -53,6 +53,7 @@ int P3_TAG_STRING_INDEX = -1;
 int P4_TAG_STRING_INDEX = -1;
 int TAG_COSTUME_TOGGLE_INDEX = -1;
 int CROWD_CHEER_TOGGLE_INDEX = -1;
+int STALING_TOGGLE_INDEX = -1;
 
 //constant overrides
 vector<ConstantPair> constantOverrides;
@@ -102,10 +103,8 @@ void CodeMenu()
 	P1Lines.push_back(new Toggle("Press DPad to select percent", false, PERCENT_SELECT_ACTIVATOR_P1_INDEX));
 	P1Lines.push_back(new Toggle("Disable DPad", false, DISABLE_DPAD_P1_INDEX));
 	P1Lines.push_back(new Comment(""));
-#if BUILD_TYPE != PROJECT_PLUS
 	P1Lines.push_back(new Print("Tag Hex: %s", { &P1_TAG_STRING_INDEX }));
 	P1Lines.push_back(new Comment("For Use With Tag-Based Costumes"));
-#endif
 
 	for (auto x : P1Lines) {
 		cout << x->Text << endl;
@@ -120,10 +119,8 @@ void CodeMenu()
 	P2Lines.push_back(new Toggle("Press DPad to select percent", false, PERCENT_SELECT_ACTIVATOR_P2_INDEX));
 	P2Lines.push_back(new Toggle("Disable DPad", false, DISABLE_DPAD_P2_INDEX));
 	P2Lines.push_back(new Comment(""));
-#if BUILD_TYPE != PROJECT_PLUS
 	P2Lines.push_back(new Print("Tag Hex: %s", { &P2_TAG_STRING_INDEX }));
 	P2Lines.push_back(new Comment("For Use With Tag-Based Costumes"));
-#endif
 	Page P2("Player 2 Codes", P2Lines);
 
 	vector<Line*> P3Lines;
@@ -134,10 +131,8 @@ void CodeMenu()
 	P3Lines.push_back(new Toggle("Press DPad to select percent", false, PERCENT_SELECT_ACTIVATOR_P3_INDEX));
 	P3Lines.push_back(new Toggle("Disable DPad", false, DISABLE_DPAD_P3_INDEX));
 	P3Lines.push_back(new Comment(""));
-#if BUILD_TYPE != PROJECT_PLUS
 	P3Lines.push_back(new Print("Tag Hex: %s", { &P3_TAG_STRING_INDEX }));
 	P3Lines.push_back(new Comment("For Use With Tag-Based Costumes"));
-#endif
 	Page P3("Player 3 Codes", P3Lines);
 
 	vector<Line*> P4Lines;
@@ -148,10 +143,8 @@ void CodeMenu()
 	P4Lines.push_back(new Toggle("Press DPad to select percent", false, PERCENT_SELECT_ACTIVATOR_P4_INDEX));
 	P4Lines.push_back(new Toggle("Disable DPad", false, DISABLE_DPAD_P4_INDEX));
 	P4Lines.push_back(new Comment(""));
-#if BUILD_TYPE != PROJECT_PLUS
 	P4Lines.push_back(new Print("Tag Hex: %s", { &P4_TAG_STRING_INDEX }));
 	P4Lines.push_back(new Comment("For Use With Tag-Based Costumes"));
-#endif
 	Page P4("Player 4 Codes", P4Lines);
 
 	//debug mode
@@ -202,6 +195,7 @@ void CodeMenu()
 	constantOverrides.emplace_back(0x80B88510, WALL_BOUNCE_KNOCKBACK_MULTIPLIER_INDEX);
 	ConstantsLines.push_back(new Floating("Knockback Decay Rate", -999, 999, 0.051, .001, KNOCKBACK_DECAY_MULTIPLIER_INDEX, "%.3f"));
 	constantOverrides.emplace_back(0x80B88534, KNOCKBACK_DECAY_MULTIPLIER_INDEX);
+	ConstantsLines.push_back(new Selection("Staling Toggle", { "Default", "ON", "OFF" }, 0, STALING_TOGGLE_INDEX));
 	Page ConstantsPage("Gameplay Modifiers", ConstantsLines);
 
 	//DBZ Mode settings
@@ -228,15 +222,11 @@ void CodeMenu()
 	MainLines.push_back(new Comment(""));
 	MainLines.push_back(&DebugMode.CalledFromLine);
 	MainLines.push_back(new Selection("Endless Friendlies", { "OFF", "Same Stage", "Random Stage", "Round Robin" }, 0, INFINITE_FRIENDLIES_INDEX));
-#if BUILD_TYPE != PROJECT_PLUS
 	MainLines.push_back(new Selection("Alternate Stages", { "Enabled", "Random", "OFF" }, 0, ALT_STAGE_BEHAVIOR_INDEX));
-#endif
 	MainLines.push_back(new Toggle("Autoskip Results Screen", false, AUTO_SKIP_TO_CSS_INDEX));
 	MainLines.push_back(new Toggle("Autosave Replays", false, AUTO_SAVE_REPLAY_INDEX));
 	MainLines.push_back(new Toggle("Save Previous Replay", false, SAVE_REPLAY_ANYWHERE_INDEX));
-#if BUILD_TYPE != PROJECT_PLUS
 	MainLines.push_back(new Selection("Tag-Based Costumes", { "ON", "ON + Teams", "OFF" }, 0, TAG_COSTUME_TOGGLE_INDEX));
-#endif
 	MainLines.push_back(&P1.CalledFromLine);
 	MainLines.push_back(&P2.CalledFromLine);
 	MainLines.push_back(&P3.CalledFromLine);
@@ -366,31 +356,33 @@ void printMenuSetters() {
 					MULLI(3, 3, 2);
 					ADDI(3, 3, MENU_INDEX_OFFSET);
 					LHZX(3, tagMenuReg, 3);
-					MULLI(3, 3, TAG_LIST_SIZE);
-					SetRegister(tagPtrReg, TAG_LIST_START_LOC);
-					ADD(tagPtrReg, tagPtrReg, 3);
+					If(3, LESS_I_L, 120); {
+						MULLI(3, 3, TAG_LIST_SIZE);
+						SetRegister(tagPtrReg, TAG_LIST_START_LOC);
+						ADD(tagPtrReg, tagPtrReg, 3);
 
-					//convert tag hex to string
-					//check if entire half is not 0, then convert byte.  Might be able to just convert half, doesn't really matter
-					SetRegister(counterReg, 0);
-					LHZ(hexCharReg, tagPtrReg, 0);
-					While(hexCharReg, NOT_EQUAL_I, 0); {
-						//don't loop too many times
-						If(counterReg, LESS_OR_EQUAL_I, 4); {
-							LBZ(hexCharReg, tagPtrReg, 0);
-							MR(3, resultPtrReg);
-							MR(4, stringReg);
-							MR(5, hexCharReg);
-							WriteIntToFile(0x4cc63182); //clclr 6, 6
-							CallBrawlFunc(0x803f89fc); //sprintf
+						//convert tag hex to string
+						//check if entire half is not 0, then convert byte.  Might be able to just convert half, doesn't really matter
+						SetRegister(counterReg, 0);
+						LHZ(hexCharReg, tagPtrReg, 0);
+						While(hexCharReg, NOT_EQUAL_I, 0); {
+							//don't loop too many times
+							If(counterReg, LESS_OR_EQUAL_I, 4); {
+								LBZ(hexCharReg, tagPtrReg, 0);
+								MR(3, resultPtrReg);
+								MR(4, stringReg);
+								MR(5, hexCharReg);
+								WriteIntToFile(0x4cc63182); //clclr 6, 6
+								CallBrawlFunc(0x803f89fc); //sprintf
 
-							ADD(resultPtrReg, resultPtrReg, 3);
-							LHZU(hexCharReg, tagPtrReg, 1);
-						} Else(); {
-							//exit
-							SetRegister(hexCharReg, 0);
-						} EndIf();
-					} EndWhile();
+								ADD(resultPtrReg, resultPtrReg, 3);
+								LHZU(hexCharReg, tagPtrReg, 1);
+							} Else(); {
+								//exit
+								SetRegister(hexCharReg, 0);
+							} EndIf();
+						} EndWhile();
+					} EndIf();
 				} EndIf();
 			} EndIf();
 
@@ -471,9 +463,11 @@ void TEST() {
 			STB(reg4, 3, 0x5D);
 		} EndIf();
 	} Else(); {
-		LBZ(reg3, 3, 0x5D);
-		ANDI(reg3, reg3, ~0x8); //clear flag
-		STB(reg3, 3, 0x5D);
+		IfInVersus(reg3); {
+			LBZ(reg3, 3, 0x5D);
+			ANDI(reg3, reg3, ~0x8); //clear flag
+			STB(reg3, 3, 0x5D);
+		} EndIf();
 	} EndIf();
 
 	
@@ -520,12 +514,17 @@ void ActualCodes()
 
 	if(ALT_STAGE_BEHAVIOR_INDEX != -1) {
 		//ASMStart(0x8094a168);
+#if BUILD_TYPE == PROJECT_PLUS
+		ASMStart(0x8010f990);
+#else
 		ASMStart(0x8094bf60);
+#endif
 		SaveRegisters();
 
 		int Reg1 = 3;
 		int Reg2 = 4;
 		int Reg3 = 5;
+		int Reg4 = 6;
 
 		LoadWordToReg(Reg1, ALT_STAGE_BEHAVIOR_INDEX + Line::VALUE);
 		If(Reg1, EQUAL_I, 2); //disable
@@ -537,11 +536,18 @@ void ActualCodes()
 			STH(Reg1, Reg2, 0);
 		} Else(); If(Reg1, EQUAL_I, 1); //random
 		{
+#if BUILD_TYPE == PROJECT_PLUS
+			vector<int> alts = { 0, BUTTON_L, BUTTON_R, BUTTON_Z, BUTTON_Y };
+#else
+			vector<int> alts = { 0, BUTTON_L, BUTTON_Z, BUTTON_START };
+#endif
 			LoadWordToReg(Reg1, Reg2, RANDOM_ALTS_MATCH_START_FLAG);
 			If(Reg1, EQUAL_I, 1); {
 				//set new rng value and clear flag
-				LoadWordToReg(Reg1, 0x805a00bc); //random val
-				RLWINM(Reg1, Reg1, 32 - 8, 30, 31);
+				LoadWordToReg(Reg4, 0x805a00bc); //random val
+				//RLWINM(Reg1, Reg1, 32 - 8, 30, 31);
+				SetRegister(Reg3, alts.size());
+				MOD(Reg1, Reg4, Reg3);
 				SetRegister(Reg3, RANDOM_ALTS_RNG);
 				STW(Reg1, Reg3, 0);
 				SetRegister(Reg1, 0);
@@ -552,7 +558,12 @@ void ActualCodes()
 
 			//SetRegister(Reg2, 4);
 			//MOD(Reg3, Reg1, Reg2);
-			If(Reg3, EQUAL_I, 1);
+			for (int i = 0; i < alts.size(); i++) {
+				If(Reg3, EQUAL_I, i); {
+					SetRegister(Reg4, alts[i]);
+				} EndIf();
+			}
+			/*If(Reg3, EQUAL_I, 1);
 			{
 				SetRegister(Reg3, BUTTON_L);
 			} EndIf();
@@ -563,15 +574,19 @@ void ActualCodes()
 			If(Reg3, EQUAL_I, 3);
 			{
 				SetRegister(Reg3, BUTTON_Z);
-			} EndIf();
+			} EndIf();*/
 			SetRegister(Reg2, 0x800B9EA2);
-			STH(Reg3, Reg2, 0);
+			STH(Reg4, Reg2, 0);
 			SetRegister(Reg2, ALT_STAGE_VAL_LOC);
-			STH(Reg3, Reg2, 0);
+			STH(Reg4, Reg2, 0);
 		} EndIf(); EndIf();
 
 		RestoreRegisters();
+#if BUILD_TYPE == PROJECT_PLUS
+		ASMEnd(0x7cbd2b78); //mr r29, r5
+#else
 		ASMEnd(0x7fe3fb78); //mr r3, r31
+#endif
 		//ASMEnd(0x809d0038); //lwz r4, r29, 0x38
 	}
 
@@ -590,6 +605,21 @@ void ActualCodes()
 
 		RestoreRegisters();
 		ASMEnd(0x9421ffd0); //stwu sp, -0x30(sp)
+	}
+
+	if (STALING_TOGGLE_INDEX != -1) {
+		ASMStart(0x808e00a4);
+		
+		LoadWordToReg(6, STALING_TOGGLE_INDEX + Line::VALUE);
+		If(6, EQUAL_I, 1); {
+			SetRegister(0, 8);
+		} EndIf();
+		If(6, EQUAL_I, 2); {
+			SetRegister(0, 0);
+		} EndIf();
+
+		SetRegister(6, 0x808E0000);
+		ASMEnd(0x5400efff); //rlwinm. r0, r0, 29, 31, 31
 	}
 
 	printf("%X\n", SHIELD_RED_1);
@@ -850,9 +880,7 @@ void ControlCodeMenu()
 
 
 
-#if BUILD_TYPE == NORMAL
 	printMenuSetters();
-#endif
 
 	int Reg1 = 31;
 	int Reg2 = 30;

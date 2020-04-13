@@ -22,7 +22,7 @@ using namespace std;
 
 int main()
 {
-	string OutputTextPath = "C:\\Users\\john\\Desktop\\ASM Testing\\ASM Dest.txt";
+	string OutputTextPath = "C:\\Users\\johno\\Documents\\Modding\\Dolphin\\SD_Raws\\ASM.txt";
 	
 	CodeStart(OutputTextPath);
 	//place all ASM code here
@@ -49,13 +49,13 @@ int main()
 
 	//LXPGreenOverlayFix();
 
-	//CodeMenu();
+	CodeMenu();
 
 	//musicPercentCode();
 
 	//DoubleFighterTest();
 
-	UCF();
+	//UCF();
 
 	//CStickSlowFix();
 
@@ -89,7 +89,9 @@ int main()
 	//writeInjectionsRepeat();
 
 	CodeEnd();
-	
+
+
+
 	//string InputGCTPath = "C:\\Users\\john\\Desktop\\ASM Testing\\Good GCT\\RSBE01.gct";
 	//string InputGCTPath = "C:\\Users\\john\\Downloads\\Legacy TE 1.0\\Legacy TE 1.0\\LegacyTE\\RSBE01.gct";
 	//string InputGCTPath = "C:\\Users\\john\\Downloads\\Legacy TE 1.11 Wii\\Legacy TE 1.11 Wii\\LegacyTE\\RSBE01.gct";
@@ -101,6 +103,6 @@ int main()
 #endif
 	//string InputGCTPath = "C:\\Users\\john\\Downloads\\LXPL 2.1 v1 [Wii]\\LegacyLT\\RSBE01.gct";
 	string OutputGCTPath = R"(C:\Users\john\Documents\Dolphin Emulator\Wii\RSBE01.gct)";
-	MakeGCT(OutputTextPath, InputGCTPath, OutputGCTPath); //remove if you don't want to append code
+	//MakeGCT(OutputTextPath, InputGCTPath, OutputGCTPath); //remove if you don't want to append code
 	return 0;
 }

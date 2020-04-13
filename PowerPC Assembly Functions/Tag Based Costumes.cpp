@@ -4,6 +4,10 @@
 #include "Code Menu.h"
 
 void tagBasedCostumes() {
+	if(TAG_COSTUME_TOGGLE_INDEX == -1) {
+		cout << "BAD!!!!\nHave to build code menu too!!!" << endl;		
+	}
+
 	GeckoStringWrite("0123456789ABCDEF", HEX_TO_ASCII_TABLE);
 
 	recordActiveTags();
@@ -23,7 +27,8 @@ void recordActiveTags() {
 	//[r3 + 0x57] & 7 == port num
 
 	//r31 is menuPtr thing
-	ASMStart(0x806a0714);
+	//ASMStart(0x806a0714);
+	ASMStart(0x806a0718);
 	SaveRegisters();
 
 	int menuPtrReg = 3;
@@ -46,7 +51,8 @@ void recordActiveTags() {
 	STBX(reg3, reg1, reg2);
 
 	RestoreRegisters();
-	ASMEnd(0x9421fff0); //stwu sp, -0x10 (sp)
+	//ASMEnd(0x9421fff0); //stwu sp, -0x10 (sp)
+	ASMEnd(0x7c0802a6); //mflr r0
 }
 
 void teamBattleTagReload() {
@@ -87,11 +93,12 @@ void setTagCostume() {
 	int reg4 = 28;
 	int reg5 = 27;
 
+	//if in SSE, don' run
 	//if tag toggle is off, don't run
 	//if toggle is on, don't run if teams, and not S4 teams
 	LoadWordToReg(reg1, TAG_COSTUME_TOGGLE_INDEX + 8);
 	If(reg1, NOT_EQUAL_I, 2); { //not off
-		If(reg1, EQUAL_I, 0); {//on, no teams
+		If(reg1, EQUAL_I, 0); { //on, no teams
 			LoadByteToReg(reg2, TEAM_SETTINGS_LOC); //= 1 if team
 			LoadByteToReg(reg3, TEAM_SETTINGS_LOC + 3); //= 1 if S4 teams
 			If(reg2, EQUAL_I, 1); { //in teams
@@ -101,6 +108,9 @@ void setTagCostume() {
 			} Else(); {
 				SetRegister(reg1, 1);
 			} EndIf();
+		} EndIf();
+		IfInSSE(reg2, reg3); {
+			SetRegister(reg1, 0);
 		} EndIf();
 
 		If(reg1, EQUAL_I, 1); { //logic says should run

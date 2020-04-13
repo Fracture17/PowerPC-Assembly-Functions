@@ -69,7 +69,11 @@ void LoadCodeMenu()
 	int reg1 = 31;
 	int reg2 = 30;
 
+#if BUILD_TYPE == PROJECT_PLUS
+	LoadFile("/menu3/data.cmnu", START_OF_CODE_MENU_HEADER, reg1, reg2, false);
+#else
 	LoadFile(MAIN_FOLDER + "/cm.bin", START_OF_CODE_MENU_HEADER, reg1, reg2);
+#endif
 
 	/*SetRegister(reg1, STRING_BUFFER);
 
@@ -564,6 +568,18 @@ void EndMatch()
 		LWZ(reg1, reg1, 0x10);
 		STW(NextSceneReg, reg1, 8);
 
+		If(oldSceneReg, NOT_EQUAL, NextSceneReg); {
+			SetRegister(reg2, 0);
+			SetRegister(reg5, 0x80588003);
+			SetRegister(reg6, 0x80588300);
+			CounterLoop(reg1, 0, 4, 1); {
+				STW(reg2, reg5, 153);
+				STW(reg2, reg6, 104);
+				ADDI(reg5, reg5, 0xA0);
+				ADDI(reg6, reg6, 0x70);
+			} CounterLoopEnd();
+		} EndIf();
+
 		STW(reg4, reg3, 0); //set hold to pause to whatever
 	}EndIf();
 
@@ -949,6 +965,8 @@ void InfiniteFriendlies(int reg1, int reg2, int reg3, int reg4, int reg5, int re
 	//Label(Quit);
 }
 
+
+#if BUILD_TYPE != PROJECT_PLUS
 //reg4 contains total size
 //reg3 contains start address
 void GetLegalStagesArray(int reg1, int reg2, int reg3, int reg4, int reg5, int reg6, int reg7, int reg8, int reg9)
@@ -993,3 +1011,51 @@ void AddLegalStagesToArray(int StageListReg, int LegalStageHighMaskReg, int Lega
 		}EndIf();
 	}EndWhile();
 }
+
+#else
+
+//reg4 contains total size
+//reg3 contains start address
+void GetLegalStagesArray(int reg1, int reg2, int reg3, int reg4, int reg5, int reg6, int reg7, int reg8, int reg9)
+{
+	LoadWordToReg(reg2, 0x805A00E0);
+	LWZ(reg2, reg2, 0x24);
+	ADDI(reg2, reg2, 2064);
+	SetRegister(reg3, STRING_BUFFER);
+	SetRegister(reg4, 0);
+	LWZ(reg8, reg2, 0x24);
+	LWZ(reg9, reg2, 0x20);
+
+	LoadWordToReg(reg1, 0x80495D04);
+	AddLegalStagesToArray(reg1, reg9, reg8, reg3, reg4, reg5, reg6, reg7);
+	LoadWordToReg(reg1, 0x80495D08);
+	AddLegalStagesToArray(reg1, reg9, reg8, reg3, reg4, reg5, reg6, reg7);
+}
+
+void AddLegalStagesToArray(int StageListReg, int LegalStageHighMaskReg, int LegalStageLowMaskReg, int ArrayReg, int PosReg, int reg2, int reg3, int reg4)
+{
+	SetRegister(4, 0x16); //num stages
+	SetRegister(3, 1);
+	While(4, GREATER_I, 0); {
+		Decrement(4);
+		LBZX(reg3, StageListReg, 4);
+		If(reg3, GREATER_OR_EQUAL_I, 31); {
+			ADDI(reg4, reg3, -23);
+			RLWNM(reg4, 3, reg4, 0, 31);
+			AND(reg4, reg4, LegalStageHighMaskReg);
+		}Else(); {
+			RLWNM(reg4, 3, reg3, 0, 31);
+			AND(reg4, reg4, LegalStageLowMaskReg);
+		}EndIf();
+
+		If(reg4, NOT_EQUAL_I, 0); {
+			If(reg3, NOT_EQUAL_I, 0x14); {
+				If(reg3, NOT_EQUAL_I, 0xE); {
+					STBX(reg3, ArrayReg, PosReg);
+					Increment(PosReg);
+				}EndIf();
+			}EndIf();
+		}EndIf();
+	}EndWhile();
+}
+#endif

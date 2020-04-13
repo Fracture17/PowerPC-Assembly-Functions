@@ -76,7 +76,6 @@ const string MAIN_FOLDER = "LegacyTE";
 #define ALT_STAGE_VAL_LOC 0x805858ba //half word that defines what alt stage should be loaded
 #else
 #define ALT_STAGE_VAL_LOC 0x815e8422 //half word that defines what alt stage should be loaded
-//#define ALT_STAGE_VAL_LOC 0x800B9EA2 //half word that defines what alt stage should be loaded
 #endif
 #define REPLAY_BUFFER_BEGIN 0x91301c00 //start of the replay buffer
 #define IS_DEBUG_PAUSED 0x805B8A08 //word that equals 1 if game is debug paused, 0x100 if frame advancing
@@ -391,10 +390,12 @@ void ClearBitsFromMemory(short BitsToClear, int Address);
 void ClearBitsFromMemory(short BitsToClear, int AddressReg, int Offset = 0);
 void GetSceneNum(int ResultReg);
 void IfInVersus(int reg);
-void LoadFile(string filePath, int destination, int reg1, int reg2);
+void LoadFile(string filePath, int destination, int reg1, int reg2, bool loadFromSD = true);
 void constrainFloat(int floatReg, int tempFReg, int tempReg, float min, float max);
 void constrainFloatDynamic(int floatReg, int minFReg, int maxFReg);
 void modifyInstruction(int instructionReg, int addressReg);
+void IfInSSE(int reg1, int reg2);
+void IfNotInSSE(int reg1, int reg2);
 
 void ABS(int DestReg, int SourceReg, int tempReg);
 void ADD(int DestReg, int SourceReg1, int SourceReg2);

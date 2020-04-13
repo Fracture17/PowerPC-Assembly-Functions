@@ -12,9 +12,9 @@ void MenuControlCodes()
 	GeckoStringWrite(ConfigList.c_str(), MENU_CONTROL_STRING_LOC);
 	assert(ConfigList.size() == TAG_IN_USE_LOC - MENU_CONTROL_STRING_LOC);
 
-	string ExtraList = { "TAUNT|||CHARGE||" };
+	string ExtraList = { "TAUNT|||CHARGE||TILT||||" };
 	GeckoStringWrite(ExtraList.c_str(), CSTICK_TAUNT_SPECIAL_WORDS);
-	assert(ExtraList.size() == 8 * 2);
+	assert(ExtraList.size() == 8 * 3);
 
 	SetMenuOpen();
 
@@ -28,7 +28,9 @@ void MenuControlCodes()
 
 	ReplaceNameFunctions();
 
+#if BUILD_TYPE != PROJECT_PLUS
 	PortRumbleColorChange();
+#endif
 
 	TogglePortRumble();
 
@@ -795,6 +797,16 @@ void ControlMenuState()
 								ADDI(Reg6, Reg6, 5);
 							} EndIf(); //is dpad or smash
 
+#if SPECIAL_CSTICK_OPTIONS
+							/*LBZ(Reg4, Reg3, MENU_STATE_INFO_OFFSET + 3); //button
+							If(Reg4, EQUAL_I, 8); //setting c stick
+							{
+								If(Reg6, GREATER_OR_EQUAL_I, 12);
+								{
+									ADDI(Reg6, Reg6, 1);
+								} EndIf();
+							}EndIf();*/
+#endif
 							If(Reg6, EQUAL_I, 14); { //is smash
 								SetRegister(Reg6, 5);
 							} EndIf(); //is smash
@@ -886,6 +898,7 @@ void WriteMenu()
 	//check if menu is in state 2 or 3
 		LBZ(Reg1, 6, MENU_STATE_INFO_OFFSET);
 		If(Reg1, GREATER_OR_EQUAL_I, 2); { //should edit
+			MR(Reg4, 5); //store for later
 
 			ADDI(Reg3, 5, 0);
 
@@ -951,7 +964,7 @@ void WriteMenu()
 			LBZ(Reg2, 6, MENU_STATE_INFO_OFFSET);
 			If(Reg2, EQUAL_I, 2); //in button menu
 			{
-				If(5, EQUAL_I, 8); //is c stick
+				If(Reg4, EQUAL_I, 8); //is c stick
 				{
 					If(Reg3, EQUAL_I, 5); //utaunt
 					{
@@ -961,16 +974,21 @@ void WriteMenu()
 					{
 						SetRegister(Reg1, CSTICK_TAUNT_SPECIAL_WORDS);
 						SetRegister(Reg3, 1);
-					} EndIf(); EndIf();
+					} Else(); If(Reg3, EQUAL_I, 7); {
+						SetRegister(Reg1, CSTICK_TAUNT_SPECIAL_WORDS);
+						SetRegister(Reg3, 2);
+					} EndIf(); EndIf(); EndIf();
 				} EndIf();
 			} EndIf();
 
 			If(Reg2, EQUAL_I, 3); //in config menu
 			{
-				LBZ(Reg2, 6, MENU_SIZE_OFFSET + 3);
-				If(Reg2, EQUAL_I, 9); //in c stick settings
+				//LBZ(Reg2, 6, MENU_SIZE_OFFSET + 3);
+				//If(Reg2, EQUAL_I, 9); //in c stick settings
+				LBZ(Reg4, 6, MENU_STATE_INFO_OFFSET + 3);
+				If(Reg4, EQUAL_I, 8); //in c stick
 				{
-					If(5, EQUAL_I, 5); //utaunt
+					If(Reg3, EQUAL_I, 5); //utaunt
 					{
 						SetRegister(Reg1, CSTICK_TAUNT_SPECIAL_WORDS);
 						SetRegister(Reg3, 0);
@@ -978,7 +996,11 @@ void WriteMenu()
 					{
 						SetRegister(Reg1, CSTICK_TAUNT_SPECIAL_WORDS);
 						SetRegister(Reg3, 1);
-					} EndIf(); EndIf();
+					} Else(); If(Reg3, EQUAL_I, 7); //d taunt
+					{
+						SetRegister(Reg1, CSTICK_TAUNT_SPECIAL_WORDS);
+						SetRegister(Reg3, 2);
+					} EndIf(); EndIf(); EndIf();
 				} EndIf();
 			} EndIf();
 #endif
