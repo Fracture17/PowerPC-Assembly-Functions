@@ -49,7 +49,7 @@ int main()
 
 	//LXPGreenOverlayFix();
 
-	CodeMenu();
+	CodeMenu(); tagBasedCostumes();
 
 	//musicPercentCode();
 
@@ -66,8 +66,6 @@ int main()
 	//FixTr4shTeamToggle();
 
 	//cstickTiltTest();
-
-	//tagBasedCostumes();
 
 	//FPSDisplay();
 

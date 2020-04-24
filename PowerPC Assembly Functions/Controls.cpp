@@ -35,6 +35,29 @@ void MenuControlCodes()
 	TogglePortRumble();
 
 	clearMenuState();
+
+	preventMenuCloseRaceCondition();
+}
+
+//Prevents munu from closing unintentionally by setting buttons to 0 if the menu is open
+void preventMenuCloseRaceCondition() {
+	//r3 = menu ptr
+	//r4 + 0xC = buttons
+	ASMStart(0x8069fe88);
+	SaveRegisters();
+
+	int reg1 = 31;
+	int menuReg = 3;
+	int buttonReg = 4;
+
+	LBZ(reg1, menuReg, MENU_STATE_INFO_OFFSET);
+	If(reg1, GREATER_OR_EQUAL_I, 2); { //in button or control menu
+		SetRegister(reg1, 0);
+		STW(reg1, buttonReg, 0xC);
+	} EndIf();
+
+	RestoreRegisters();
+	ASMEnd(0x9421ffc0); //stwu sp, -0x40(sp)
 }
 
 //contains the functions to replace names

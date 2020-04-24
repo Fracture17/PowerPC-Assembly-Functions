@@ -59,8 +59,6 @@ void ControlMenuState();
 void WriteMenu();
 void SetMenuData();
 void clearMenuState();
-
-//test
 void ReplaceNameFunctions();
 void PortRumbleColorChange();
 void TogglePortRumble();
@@ -76,3 +74,4 @@ void GreyOutUsedNames();
 void StopSelectionOfUsedNames();
 void ResetTagUsedList();
 void PinTag(int MenuPtrReg, int TempReg1, int TempReg2, int TempReg3);
+void preventMenuCloseRaceCondition();

@@ -134,40 +134,41 @@ void SetHitStart()
 	int CharacterBufferReg = 14;
 
 	FindCharacterBuffer(30, CharacterBufferReg);
+	If(CharacterBufferReg, NOT_EQUAL_I, 0); {
+		LWZ(reg1, CharacterBufferReg, CHR_BUFFER_HITSTUN_FRAMES_PTR_OFFSET);
+		LWZ(reg1, reg1, 0);
+		STW(reg1, CharacterBufferReg, CHR_BUFFER_HITSTUN_FRAMES_OFFSET);
 
-	LWZ(reg1, CharacterBufferReg, CHR_BUFFER_HITSTUN_FRAMES_PTR_OFFSET);
-	LWZ(reg1, reg1, 0);
-	STW(reg1, CharacterBufferReg, CHR_BUFFER_HITSTUN_FRAMES_OFFSET);
+		LWZ(reg1, CharacterBufferReg, CHR_BUFFER_POS_PTR_OFFSET);
+		LWZ(reg2, reg1, 0xC);
+		LWZ(reg3, reg1, 0x10);
+		STW(reg2, CharacterBufferReg, CHR_BUFFER_XPOS_OFFSET);
+		STW(reg3, CharacterBufferReg, CHR_BUFFER_YPOS_OFFSET);
 
-	LWZ(reg1, CharacterBufferReg, CHR_BUFFER_POS_PTR_OFFSET);
-	LWZ(reg2, reg1, 0xC);
-	LWZ(reg3, reg1, 0x10);
-	STW(reg2, CharacterBufferReg, CHR_BUFFER_XPOS_OFFSET);
-	STW(reg3, CharacterBufferReg, CHR_BUFFER_YPOS_OFFSET);
+		LWZ(reg1, 31, 0xC);
+		STW(reg1, CharacterBufferReg, CHR_BUFFER_XVEL_OFFSET);
 
-	LWZ(reg1, 31, 0xC);
-	STW(reg1, CharacterBufferReg, CHR_BUFFER_XVEL_OFFSET);
+		LWZ(reg1, 31, 0x10);
+		STW(reg1, CharacterBufferReg, CHR_BUFFER_YVEL_OFFSET);
 
-	LWZ(reg1, 31, 0x10);
-	STW(reg1, CharacterBufferReg, CHR_BUFFER_YVEL_OFFSET);
+		LWZ(DIBufferReg, CharacterBufferReg, CHR_BUFFER_DI_BUFFER_PTR_OFFSET);
 
-	LWZ(DIBufferReg, CharacterBufferReg, CHR_BUFFER_DI_BUFFER_PTR_OFFSET);
+		LWZ(reg1, DIBufferReg, DI_BUFFER_SDI_START_OFFSET);
+		ResetGraphicBuffer(reg1);
 
-	LWZ(reg1, DIBufferReg, DI_BUFFER_SDI_START_OFFSET);
-	ResetGraphicBuffer(reg1);
+		LWZ(reg2, CharacterBufferReg, CHR_BUFFER_XPOS_OFFSET);
+		LWZ(reg3, CharacterBufferReg, CHR_BUFFER_YPOS_OFFSET);
+		AddToGraphicBuffer(reg1, reg2, false, reg3, false, false);
 
-	LWZ(reg2, CharacterBufferReg, CHR_BUFFER_XPOS_OFFSET);
-	LWZ(reg3, CharacterBufferReg, CHR_BUFFER_YPOS_OFFSET);
-	AddToGraphicBuffer(reg1, reg2, false, reg3, false, false);
+		LWZ(reg1, DIBufferReg, DI_BUFFER_ASDI_START_OFFSET);
+		ResetGraphicBuffer(reg1);
 
-	LWZ(reg1, DIBufferReg, DI_BUFFER_ASDI_START_OFFSET);
-	ResetGraphicBuffer(reg1);
+		LWZ(reg1, DIBufferReg, DI_BUFFER_NORMAL_START_OFFSET);
+		ResetGraphicBuffer(reg1, BLUE);
 
-	LWZ(reg1, DIBufferReg, DI_BUFFER_NORMAL_START_OFFSET);
-	ResetGraphicBuffer(reg1, BLUE);
-
-	LWZ(reg1, DIBufferReg, DI_BUFFER_CURRENT_START_OFFSET);
-	ResetGraphicBuffer(reg1, YELLOW);
+		LWZ(reg1, DIBufferReg, DI_BUFFER_CURRENT_START_OFFSET);
+		ResetGraphicBuffer(reg1, YELLOW);
+	} EndIf();
 
 	RestoreRegisters();
 	ASMEnd();
@@ -183,13 +184,16 @@ void AddToSDIBuffer()
 	SaveRegisters();
 
 	FindCharacterBuffer(30, 12);
+	If(12, NOT_EQUAL_I, 0); {
 
-	STFS(0, 12, CHR_BUFFER_XPOS_OFFSET);
-	STFS(2, 12, CHR_BUFFER_YPOS_OFFSET);
+		STFS(0, 12, CHR_BUFFER_XPOS_OFFSET);
+		STFS(2, 12, CHR_BUFFER_YPOS_OFFSET);
 
-	LWZ(12, 12, CHR_BUFFER_DI_BUFFER_PTR_OFFSET);
-	LWZ(12, 12, DI_BUFFER_SDI_START_OFFSET);
-	AddToGraphicBuffer(12, 0, true, 2, true, true);
+		LWZ(12, 12, CHR_BUFFER_DI_BUFFER_PTR_OFFSET);
+		LWZ(12, 12, DI_BUFFER_SDI_START_OFFSET);
+		AddToGraphicBuffer(12, 0, true, 2, true, true);
+
+	} EndIf();
 
 	RestoreRegisters();
 	ASMEnd(0xd0410014); //stfs f2, sp, 0x14
@@ -212,17 +216,20 @@ void AddToASDIBuffer()
 	int DIBufferReg = 14;
 
 	FindCharacterBuffer(31, CharacterBufferReg);
+	If(CharacterBufferReg, NOT_EQUAL_I, 0); {
 
-	LWZ(DIBufferReg, CharacterBufferReg, CHR_BUFFER_DI_BUFFER_PTR_OFFSET);
-	LWZ(reg1, DIBufferReg, DI_BUFFER_ASDI_START_OFFSET);
-	AddToGraphicBuffer(reg1, 1, true, 3, true, true);
+		LWZ(DIBufferReg, CharacterBufferReg, CHR_BUFFER_DI_BUFFER_PTR_OFFSET);
+		LWZ(reg1, DIBufferReg, DI_BUFFER_ASDI_START_OFFSET);
+		AddToGraphicBuffer(reg1, 1, true, 3, true, true);
 
-	FADDS(3, 0, 1);
+		FADDS(3, 0, 1);
 
-	STFS(3, CharacterBufferReg, CHR_BUFFER_XPOS_OFFSET);
-	STFS(2, CharacterBufferReg, CHR_BUFFER_YPOS_OFFSET);
+		STFS(3, CharacterBufferReg, CHR_BUFFER_XPOS_OFFSET);
+		STFS(2, CharacterBufferReg, CHR_BUFFER_YPOS_OFFSET);
 
-	AddToGraphicBuffer(reg1, 3, true, 2, true, false);
+		AddToGraphicBuffer(reg1, 3, true, 2, true, false);
+
+	} EndIf();
 
 	RestoreRegisters();
 	ASMEnd(0xc0610018); //lfs f3, sp, 0x18
@@ -246,43 +253,46 @@ void SetTrajectoryBuffers()
 	FP_REGISTERS
 
 	FindCharacterBuffer(29, CharacterBufferReg);
+	If(CharacterBufferReg, NOT_EQUAL_I, 0); {
 
-	LoadByteToReg(reg3, IS_DEBUG_PAUSED + 3);
+		LoadByteToReg(reg3, IS_DEBUG_PAUSED + 3);
 
-	LFS(G, CharacterBufferReg, CHR_BUFFER_GRAVITY_OFFSET);
-	LFS(MFS, CharacterBufferReg, CHR_BUFFER_MFS_OFFSET);
-	LFS(VX, CharacterBufferReg, CHR_BUFFER_XVEL_OFFSET);
-	LFS(VY, CharacterBufferReg, CHR_BUFFER_YVEL_OFFSET);
-	LWZ(DIBufferReg, CharacterBufferReg, CHR_BUFFER_DI_BUFFER_PTR_OFFSET);
-	LWZ(reg1, DIBufferReg, DI_BUFFER_NORMAL_START_OFFSET);
-	ResetGraphicBuffer(reg1, BLUE);
+		LFS(G, CharacterBufferReg, CHR_BUFFER_GRAVITY_OFFSET);
+		LFS(MFS, CharacterBufferReg, CHR_BUFFER_MFS_OFFSET);
+		LFS(VX, CharacterBufferReg, CHR_BUFFER_XVEL_OFFSET);
+		LFS(VY, CharacterBufferReg, CHR_BUFFER_YVEL_OFFSET);
+		LWZ(DIBufferReg, CharacterBufferReg, CHR_BUFFER_DI_BUFFER_PTR_OFFSET);
+		LWZ(reg1, DIBufferReg, DI_BUFFER_NORMAL_START_OFFSET);
+		ResetGraphicBuffer(reg1, BLUE);
 
-	CounterLoop(reg6, 0, 2, 1); {
-		LFS(PX, CharacterBufferReg, CHR_BUFFER_XPOS_OFFSET);
-		LFS(PY, CharacterBufferReg, CHR_BUFFER_YPOS_OFFSET);
+		CounterLoop(reg6, 0, 2, 1); {
+			LFS(PX, CharacterBufferReg, CHR_BUFFER_XPOS_OFFSET);
+			LFS(PY, CharacterBufferReg, CHR_BUFFER_YPOS_OFFSET);
 
-		LWZ(reg2, CharacterBufferReg, CHR_BUFFER_HITSTUN_FRAMES_OFFSET);
-		SetFloatingRegister(FS, 3, 0);
-		//LWZ(reg2, reg2, 0);
-		CalcTrajectory(reg1, reg2);
+			LWZ(reg2, CharacterBufferReg, CHR_BUFFER_HITSTUN_FRAMES_OFFSET);
+			SetFloatingRegister(FS, 3, 0);
+			//LWZ(reg2, reg2, 0);
+			CalcTrajectory(reg1, reg2);
 
-		LWZ(reg1, CharacterBufferReg, CHR_BUFFER_KB_VECTOR_PTR_OFFSET);
-		LFS(VX, reg1, 0x8);
-		LFS(VY, reg1, 0xC);
+			LWZ(reg1, CharacterBufferReg, CHR_BUFFER_KB_VECTOR_PTR_OFFSET);
+			LFS(VX, reg1, 0x8);
+			LFS(VY, reg1, 0xC);
 
-		If(reg3, NOT_EQUAL_I, 0); {
-			//is debug paused
-			LWZ(reg1, DIBufferReg, DI_BUFFER_DEBUG_START_OFFSET);
-			ResetGraphicBuffer(reg1, PURPLE);
-			SetRegister(reg3, 0);
-		}Else(); {
-			If(reg6, EQUAL_I, 0);
-			{
-				LWZ(reg1, DIBufferReg, DI_BUFFER_CURRENT_START_OFFSET);
-				ResetGraphicBuffer(reg1, YELLOW);
+			If(reg3, NOT_EQUAL_I, 0); {
+				//is debug paused
+				LWZ(reg1, DIBufferReg, DI_BUFFER_DEBUG_START_OFFSET);
+				ResetGraphicBuffer(reg1, PURPLE);
+				SetRegister(reg3, 0);
+			}Else(); {
+				If(reg6, EQUAL_I, 0);
+				{
+					LWZ(reg1, DIBufferReg, DI_BUFFER_CURRENT_START_OFFSET);
+					ResetGraphicBuffer(reg1, YELLOW);
+				}EndIf();
 			}EndIf();
-		}EndIf();
-	}CounterLoopEnd();
+		}CounterLoopEnd();
+
+	} EndIf();
 
 	RestoreRegisters();
 	ASMEnd(0xe3e10088); //psq_l stuff

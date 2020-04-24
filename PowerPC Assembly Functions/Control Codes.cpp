@@ -886,11 +886,21 @@ void DeleteCharacterBuffer()
 void FindCharacterBuffer(int TargetReg, int ResultReg)
 {
 	LoadWordToReg(3, MAIN_BUFFER_PTR);
-	LWZ(ResultReg, 3, 0);
-	While(ResultReg, NOT_EQUAL, TargetReg); {
-		LWZU(ResultReg, 3, 8);
-	}EndWhile();
-	LWZ(ResultReg, 3, 4);
+	SetRegister(4, 0x80000000);
+	If(3, LESS_L, 4); {
+		SetRegister(4, 0xA0000000);
+		If(3, GREATER_L, 4); {
+			SetRegister(3, 0);
+		} EndIf();
+	} EndIf();
+
+	If(3, NOT_EQUAL_I, 0); {
+		LWZ(ResultReg, 3, 0);
+		While(ResultReg, NOT_EQUAL, TargetReg); {
+			LWZU(ResultReg, 3, 8);
+		}EndWhile();
+		LWZ(ResultReg, 3, 4);
+	}EndIf();
 
 	/*LoadWordToReg(ResultReg, MAIN_BUFFER_PTR);
 	LWZ(3, ResultReg, 0);
