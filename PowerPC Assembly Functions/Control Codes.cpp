@@ -888,10 +888,11 @@ void FindCharacterBuffer(int TargetReg, int ResultReg)
 	LoadWordToReg(3, MAIN_BUFFER_PTR);
 	SetRegister(4, 0x80000000);
 	If(3, LESS_L, 4); {
-		SetRegister(4, 0xA0000000);
-		If(3, GREATER_L, 4); {
-			SetRegister(3, 0);
-		} EndIf();
+		SetRegister(3, 0);
+	} EndIf();
+	SetRegister(4, 0xA0000000);
+	If(3, GREATER_L, 4); {
+		SetRegister(3, 0);
 	} EndIf();
 
 	If(3, NOT_EQUAL_I, 0); {
