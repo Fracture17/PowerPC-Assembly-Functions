@@ -887,11 +887,11 @@ void FindCharacterBuffer(int TargetReg, int ResultReg)
 {
 	LoadWordToReg(3, MAIN_BUFFER_PTR);
 	RLWINM(4, 3, 16, 16, 31);
-	If(4, EQUAL_I, 0xCCCC); {
-		SetRegister(3, 0);
+	If(4, EQUAL_I_L, 0xCCCC); {
+		SetRegister(ResultReg, 0);
 	} EndIf();
 
-	If(3, NOT_EQUAL_I, 0); {
+	If(ResultReg, NOT_EQUAL_I, 0); {
 		LWZ(ResultReg, 3, 0);
 		While(ResultReg, NOT_EQUAL, TargetReg); {
 			LWZU(ResultReg, 3, 8);
