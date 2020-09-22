@@ -49,7 +49,7 @@ int main()
 
 	//LXPGreenOverlayFix();
 
-	CodeMenu(); tagBasedCostumes();
+	//CodeMenu(); tagBasedCostumes();
 
 	//musicPercentCode();
 
@@ -83,8 +83,7 @@ int main()
 
 	//AIDisplay();
 
-	//loadCppCodes();
-	//writeInjectionsRepeat();
+	loadCppCodes(); writeInjectionsRepeat();
 
 	CodeEnd();
 

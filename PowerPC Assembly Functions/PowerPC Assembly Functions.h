@@ -19,6 +19,8 @@ typedef unsigned char u8;
 #define PMEX 1
 #define PROJECT_PLUS 2
 #define BUILD_TYPE PROJECT_PLUS
+#define DOLPHIN_BUILD true
+#define EON_DEBUG_BUILD false
 
 //ROTC floating offsets
 #define FS_20_0 -0x7920
@@ -385,6 +387,7 @@ void ShiftVectorDown(int VectorReg, int StartReg);
 void Randi(int ResultReg, int MaxReg = 3, int TempReg = 4);
 //void RandomCapped(int HighReg, int reg1, int ResultReg = 3);
 void WriteFileToSD(int PathReg, int SizeReg, int DataPtrReg);
+void WriteFileToVF(int PathReg, int SizeReg, int DataPtrReg);
 void IfInGame(int reg = 3, bool condition = true);
 void ClearBitsFromMemory(short BitsToClear, int Address);
 void ClearBitsFromMemory(short BitsToClear, int AddressReg, int Offset = 0);

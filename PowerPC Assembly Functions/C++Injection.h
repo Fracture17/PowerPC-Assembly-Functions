@@ -4,5 +4,5 @@
 #include "PowerPC Assembly Functions.h"
 
 void loadCppCodes();
-void writeInjections(bool clearCache = false);
+void writeInjections(int addressReg, bool clearCache = false);
 void writeInjectionsRepeat();

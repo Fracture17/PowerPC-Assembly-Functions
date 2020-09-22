@@ -94,6 +94,19 @@ int tets = 0x935fe30C;
 
 void CodeMenu()
 {
+#if EON_DEBUG_BUILD
+	//testing page
+	vector<Line*> TestLines;
+	//P2Lines.push_back(new Selection("P2 Identity Crisis", CHARACTER_LIST, CHARACTER_ID_LIST, 0, CHARACTER_SELECT_P2_INDEX));
+	cout << "Debug Toggles:\n";
+	int toggleLocations[16];
+	for(int i = 0; i < 16; i++)
+	{
+		TestLines.push_back(new Integer(to_string(i), -10000, 10000, 0, 1, toggleLocations[i]));
+	}
+	Page TestPage("Testing flags", TestLines);
+#endif
+	
 	//player pages
 	vector<Line*> P1Lines;
 	P1Lines.push_back(new Toggle("Infinite Shield", false, INFINITE_SHIELDS_P1_INDEX));
@@ -210,6 +223,11 @@ void CodeMenu()
 
 	//main page
 	vector<Line*> MainLines;
+#if DOLPHIN_BUILD
+	MainLines.push_back(new Comment("Dolphin Code Menu"));
+	MainLines.push_back(new Comment(""));
+#endif
+
 #if BUILD_TYPE == PROJECT_PLUS
 	MainLines.push_back(new Comment("Project+ Code Menu", &MENU_TITLE_CHECK_LOCATION));
 #else
@@ -220,11 +238,20 @@ void CodeMenu()
 	MainLines.push_back(new Comment("X = Reset Selection | Y = Reset Page"));
 	MainLines.push_back(new Comment("Hold Z = Scroll Faster"));
 	MainLines.push_back(new Comment(""));
+
+#if EON_DEBUG_BUILD
+	MainLines.push_back(&TestPage.CalledFromLine);
+#endif
+	
 	MainLines.push_back(&DebugMode.CalledFromLine);
 	MainLines.push_back(new Selection("Endless Friendlies", { "OFF", "Same Stage", "Random Stage", "Round Robin" }, 0, INFINITE_FRIENDLIES_INDEX));
 	MainLines.push_back(new Selection("Alternate Stages", { "Enabled", "Random", "OFF" }, 0, ALT_STAGE_BEHAVIOR_INDEX));
 	MainLines.push_back(new Toggle("Autoskip Results Screen", false, AUTO_SKIP_TO_CSS_INDEX));
+#if DOLPHIN_BUILD
+	MainLines.push_back(new Toggle("Autosave Replays", true, AUTO_SAVE_REPLAY_INDEX));
+#else
 	MainLines.push_back(new Toggle("Autosave Replays", false, AUTO_SAVE_REPLAY_INDEX));
+#endif
 	MainLines.push_back(new Toggle("Save Previous Replay", false, SAVE_REPLAY_ANYWHERE_INDEX));
 	MainLines.push_back(new Selection("Tag-Based Costumes", { "ON", "ON + Teams", "OFF" }, 0, TAG_COSTUME_TOGGLE_INDEX));
 	MainLines.push_back(&P1.CalledFromLine);
@@ -309,6 +336,14 @@ void CodeMenu()
 
 	ActualCodes();
 
+#if EON_DEBUG_BUILD
+	for(auto TOGGLE_LOC: toggleLocations)
+	{
+		printf("%0X\n", TOGGLE_LOC);
+	}
+	cout << endl;
+#endif
+	
 	//printf("%X", P1_TAG_STRING_INDEX);
 
 	//printf("%0Xu\n", KnucklesTemp + 8);
@@ -415,7 +450,7 @@ void stopAnouncer() {
 	ASMEnd(0x9421ffe0); //stwu sp, -0x20 (sp)
 }
 
-void TEST() {
+void endlessFriendlies() {
 	stopAnouncer();
 
 	//r3 + 0x5D is flag
@@ -492,7 +527,7 @@ void TEST() {
 
 void ActualCodes()
 {
-	TEST();
+	endlessFriendlies();
 
 	if (DI_DRAW_INDEX != -1) {
 		DrawDI();
@@ -769,10 +804,13 @@ void CreateMenu(Page MainPage)
 
 	//TEAM_SETTINGS_LOC
 	AddValueToByteArray(0, Header);
+	//TAG_LOAD_FLAGS_LOC
+	AddValueToByteArray(0, Header);
 
 	//PREV_TAG_COSTUMES_SETTING_LOC
 	AddValueToByteArray(0, Header);
-	//TAG_LOAD_FLAGS_LOC
+
+	//DOLPHIN_MOUNT_VF_LOC
 	AddValueToByteArray(0, Header);
 	
 	//draw settings buffer
@@ -2186,6 +2224,15 @@ void SaveReplay()
 	int reg6 = 20;
 	int reg7 = 19;
 
+#if DOLPHIN_BUILD
+	SetRegister(reg5, STRING_BUFFER);
+	WriteStringToMem("nand:/collect.vff\0"s, reg5);
+	SetRegs(3, { DOLPHIN_MOUNT_VF_LOC, 0, STRING_BUFFER });
+	CallBrawlFunc(0x80020f90); //mountVF
+	SetRegs(3, { 0, 607500 * 3});
+	CallBrawlFunc(0x801e1a80); //OSSleepTicks
+#endif
+
 	//set buffer ptrs
 	SetRegister(NTEBufferReg, REPLAY_NTE_DATA_BUFFER_LOC);
 	SetRegister(SectionBufferReg, REPLAY_CREATE_SECTION_BUFFER_LOC);
@@ -2225,8 +2272,10 @@ void SaveReplay()
 	ADDI(3, 3, 0x20);
 	STW(3, CryptoBufferReg, 0x14);
 	ADDI(3, CryptoBufferReg, -832);
+#if DOLPHIN_BUILD == false
 	CallBrawlFunc(0x8003d1cc); //run crypto
-
+#endif
+	
 	SetRegister(PathPtrReg, STRING_BUFFER + 0xA0);
 	//WriteStringToMem("/LegacyTE/rp/rp_%d%d.bin\0"s, PathPtrReg);
 	//SprintF(PathPtrReg, { HighTimeReg, LowTimeReg });
@@ -2243,17 +2292,38 @@ void SaveReplay()
 	SetRegister(3, 100);
 	MR(4, reg6);
 	MOD(reg6, 4, 3);
+#if DOLPHIN_BUILD
+	WriteStringToMem("/rp/rp_%02d%02d%02d_%02d%02d_%02d.bin\0"s, PathPtrReg);
+#else
 	WriteStringToMem("/" + MAIN_FOLDER + "/rp/rp_%02d%02d%02d_%02d%02d_%02d.bin\0"s, PathPtrReg);
+#endif
 	SprintF(PathPtrReg, { reg6, reg5, reg4, reg3, reg2, reg7 });
 	SetRegister(PathPtrReg, STRING_BUFFER);
+#if DOLPHIN_BUILD
+	LWZ(reg2, SectionBufferReg, 0);
+	LWZ(reg1, reg2, 0x1C);
+	ADDI(reg1, reg1, 0x20);
+#else
 	LWZ(reg1, CryptoBufferReg, 0x2C); //size
 	LWZ(reg2, CryptoBufferReg, 0x28); //ptr
+#endif
 	SetRegister(reg3, 0x2000);
 	Allocate(reg3);
 	MR(reg3, 1);
 	ADDI(1, 3, 0x1F00);
 	MR(reg4, 3);
+
+#if DOLPHIN_BUILD
+	WriteFileToVF(PathPtrReg, reg1, reg2);
+
+	SetRegs(3, { DOLPHIN_MOUNT_VF_LOC, 0 });
+	CallBrawlFunc(0x80021038); //unmountVF
+	SetRegister(reg1, 0);
+	SetRegister(reg2, DOLPHIN_MOUNT_VF_LOC);
+	STW(reg1, reg2, 0);
+#else
 	WriteFileToSD(PathPtrReg, reg1, reg2);
+#endif
 	MR(1, reg3);
 	FreeMem(reg4);
 

@@ -395,7 +395,14 @@ void SetupPlayback()
 	OR(3, 3, 8);
 	If(3, NOT_EQUAL_I, 0);
 	{
-		LBZ(4, 6, 1); //get size of offset
+		LBZ(3, 6, 1); //get size of offset
+		If(3, NOT_EQUAL_I, 0);
+		{
+			If(3, LESS_I, 0x80);
+			{
+				MR(4, 3);
+			} EndIf();
+		} EndIf();
 	}EndIf();
 
 	ASMEnd();

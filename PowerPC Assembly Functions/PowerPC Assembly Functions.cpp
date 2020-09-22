@@ -1383,6 +1383,19 @@ void WriteFileToSD(int PathReg, int SizeReg, int DataPtrReg)
 	CallBrawlFunc(0x8001d740); //writeSD
 }
 
+void WriteFileToVF(int PathReg, int SizeReg, int DataPtrReg)
+{
+	SetRegister(4, 0);
+	SetRegister(3, WRITE_SD_FILE_HEADER_LOC);
+	STW(PathReg, 3, 0);
+	STW(4, 3, 4);
+	STW(SizeReg, 3, 8);
+	STW(DataPtrReg, 3, 0xC);
+	STW(4, 3, 0x10);
+	STW(4, 3, 0x14);
+	CallBrawlFunc(0x8001d5a8); //writeVFFile
+}
+
 //reguires endif
 void IfInGame(int reg, bool condition)
 {

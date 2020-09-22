@@ -1,15 +1,21 @@
 #include "stdafx.h"
 #include "C++Injection.h"
 
-const int DATA_ADDRESS = 0x804E2200;
+const int CODE_ADDRESS = 0x8057a800;
+const int DATA_ADDRESS = 0x8057d000;
+const int INITIALIZER_ADDRESS = 0x80d00000;
+//const int DATA_ADDRESS = 0x804E2200;
 
 void loadCppCodes() {
 	ASMStart(0x8002d4f8);
 	SaveRegisters();
 
-	LoadFile("codes.bin", DATA_ADDRESS, 31, 30);
+	LoadFile("codes.bin", CODE_ADDRESS, 31, 30);
+	LoadFile("data.bin", DATA_ADDRESS, 31, 30);
+	LoadFile("initializers.bin", INITIALIZER_ADDRESS, 31, 30);
 
-	writeInjections(true);
+	writeInjections(INITIALIZER_ADDRESS, true);
+	writeInjections(CODE_ADDRESS, true);
 
 	RestoreRegisters();
 	ASMEnd(0x7c0802a6); //mflr r0
@@ -20,14 +26,14 @@ void writeInjectionsRepeat() {
 	//ASMStart(0x80023d5c);
 	SaveRegisters();
 
-	writeInjections();
+	writeInjections(CODE_ADDRESS);
 
 	RestoreRegisters();
 	ASMEnd(0x80630010); //lwz r3, 0x10(r3)
 	//ASMEnd(0x881f0008); //lbz r0, 8(r31)
 }
 
-void writeInjections(bool clearCache) {
+void writeInjections(int address, bool clearCache) {
 	int reg1 = 31;
 	int reg2 = 30;
 	int reg3 = 29;
@@ -38,7 +44,7 @@ void writeInjections(bool clearCache) {
 	int lengthReg = 15;
 	int dataPtrReg = 14;
 
-	LoadWordToReg(lengthReg, dataPtrReg, DATA_ADDRESS);
+	LoadWordToReg(lengthReg, dataPtrReg, address);
 	SetRegister(counterReg, 0);
 	While(counterReg, LESS, lengthReg); {
 		LWZU(reg1, dataPtrReg, 4); //function branch
