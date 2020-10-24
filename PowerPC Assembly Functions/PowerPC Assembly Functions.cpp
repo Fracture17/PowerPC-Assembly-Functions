@@ -27,10 +27,7 @@ void CodeEnd()
 {
 	CompleteJumps();
 
-	if (IfIndex != 0) {
-		cout << "Ifs not paired" << endl;
-		exit(-1);
-	}
+	assert(IfIndex == 0);
 
 	WPtr.close();
 }
@@ -164,6 +161,7 @@ void If(int Val1, int Comparision, int Val2)
 void EndIf()
 {
 	IfIndex--;
+	assert(IfIndex >= 0);
 	int holdPos = WPtr.tellp();
 	WPtr.seekp(IfStartPos[IfIndex]);
 	int BranchCond = BRANCH_IF_FALSE;
