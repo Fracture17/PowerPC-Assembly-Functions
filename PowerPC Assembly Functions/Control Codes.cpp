@@ -172,7 +172,7 @@ void setRotationQueuePlayers() {
 			SetRegister(reg2, ENDLESS_ROTATION_QUEUE_LOC);
 			STW(reg1, reg2, 0);
 		} EndIf();
-	} EndIf(); EndIf();
+	} EndIf();
 }
 
 void saveRotationQueueForReplay() {
@@ -377,8 +377,8 @@ void orderRotationQueueByMatchPlacing() {
 						STB(portReg, placementListReg, 3);
 						ADDI(placementListReg, placementListReg, 4);
 						ADDI(numPortsReg, numPortsReg, 1);
-					}
-				} EndIf(); EndIf();
+					} EndIf(); EndIf();
+				} EndIf();
 			} CounterLoopEnd();
 
 			//call qsort @ 0x803f8acc
