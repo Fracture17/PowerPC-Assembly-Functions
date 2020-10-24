@@ -22,7 +22,8 @@ int INFINITE_SHIELDS_P2_INDEX = -1;
 int INFINITE_SHIELDS_P3_INDEX = -1;
 int INFINITE_SHIELDS_P4_INDEX = -1;
 int CAMERA_LOCK_INDEX = -1;
-int INFINITE_FRIENDLIES_INDEX = -1;
+int ENDLESS_FRIENDLIES_MODE_INDEX = -1;
+int ENDLESS_FRIENDLIES_STAGE_SELECTION_INDEX = -1;
 int AUTO_SAVE_REPLAY_INDEX = -1;
 int SAVE_STATES_INDEX = -1;
 int SAVE_REPLAY_ANYWHERE_INDEX = -1;
@@ -126,7 +127,6 @@ void CodeMenu()
 
 	vector<Line*> P2Lines;
 	P2Lines.push_back(new Toggle("Infinite Shield", false, INFINITE_SHIELDS_P2_INDEX));
-	//P2Lines.push_back(new Selection("P2 Identity Crisis", CHARACTER_LIST, CHARACTER_ID_LIST, 0, CHARACTER_SELECT_P2_INDEX));
 	P2Lines.push_back(new Selection("P2 Character Select", CHARACTER_LIST, CHARACTER_ID_LIST, 0, CHARACTER_SELECT_P2_INDEX));
 	P2Lines.push_back(new Floating("Select Percent", 0, 999, 0, 1, PERCENT_SELECT_VALUE_P2_INDEX, "%.0f%%"));
 	P2Lines.push_back(new Toggle("Press DPad to select percent", false, PERCENT_SELECT_ACTIVATOR_P2_INDEX));
@@ -244,7 +244,9 @@ void CodeMenu()
 #endif
 	
 	MainLines.push_back(&DebugMode.CalledFromLine);
-	MainLines.push_back(new Selection("Endless Friendlies", { "OFF", "Same Stage", "Random Stage", "Round Robin" }, 0, INFINITE_FRIENDLIES_INDEX));
+	//	MainLines.push_back(new Selection("Endless Friendlies", { "OFF", "Same Stage", "Random Stage", "Round Robin" }, 0, INFINITE_FRIENDLIES_INDEX));
+	MainLines.push_back(new Selection("Endless Friendlies Mode", { "OFF", "All Stay", "Winner Stays", "Loser Stays", "Rotation"}, 0, ENDLESS_FRIENDLIES_MODE_INDEX));
+	MainLines.push_back(new Selection("Endless Friendlies Stage Selection", { "Random Stage", "Same Stage" }, 0, ENDLESS_FRIENDLIES_STAGE_SELECTION_INDEX));
 	MainLines.push_back(new Selection("Alternate Stages", { "Enabled", "Random", "OFF" }, 0, ALT_STAGE_BEHAVIOR_INDEX));
 	MainLines.push_back(new Toggle("Autoskip Results Screen", false, AUTO_SKIP_TO_CSS_INDEX));
 #if DOLPHIN_BUILD
@@ -293,7 +295,7 @@ void CodeMenu()
 	Page Main("Main", MainLines);
 	
 	
-	//MainLines.push_back(new Selection("Infinity War", { "OFF", "Same Stage", "Random Stage" }, 0, INFINITE_FRIENDLIES_INDEX));
+	//MainLines.push_back(new Selection("Infinity War", { "OFF", "Same Stage", "Random Stage" }, 0, ENDLESS_FRIENDLIES_INDEX));
 	
 	//MainLines.push_back(new Toggle("Terminate Celebrations", false, AUTO_SKIP_TO_CSS_INDEX));
 	
@@ -441,8 +443,8 @@ void stopAnouncer() {
 	
 	int reg1 = 4;
 
-	LoadWordToReg(reg1, INFINITE_FRIENDLIES_INDEX + Line::VALUE);
-	If(reg1, EQUAL_I, 3); {
+	LoadWordToReg(reg1, ENDLESS_FRIENDLIES_MODE_INDEX + Line::VALUE);
+	If(reg1, GREATER_OR_EQUAL_I, 2); {
 		BLR();
 	} EndIf();
 

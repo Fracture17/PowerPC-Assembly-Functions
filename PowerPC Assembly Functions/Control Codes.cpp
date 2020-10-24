@@ -123,8 +123,8 @@ void setRotationQueuePlayers() {
 		SetRegister(reg2, ENDLESS_ROTATION_QUEUE_LOC);
 		STW(reg1, reg2, 0);
 	} Else(); {
-		LoadWordToReg(reg1, INFINITE_FRIENDLIES_INDEX + Line::VALUE);
-		If(reg1, EQUAL_I, 3); {
+		LoadWordToReg(reg1, ENDLESS_FRIENDLIES_MODE_INDEX + Line::VALUE);
+		If(reg1, GREATER_OR_EQUAL_I, 1); {
 			SetRegister(portInfoReg, 0x90180fb8 + 4);
 			//for each port:
 			CounterLoop(portReg, 1, 5, 1); {
@@ -172,7 +172,7 @@ void setRotationQueuePlayers() {
 			SetRegister(reg2, ENDLESS_ROTATION_QUEUE_LOC);
 			STW(reg1, reg2, 0);
 		} EndIf();
-	} EndIf();
+	} EndIf(); EndIf();
 }
 
 void saveRotationQueueForReplay() {
@@ -228,7 +228,7 @@ void StartMatch()
 
 	SetupCharacterBuffer();
 
-	if (INFINITE_FRIENDLIES_INDEX != -1) {
+	if (ENDLESS_FRIENDLIES_MODE_INDEX != -1) {
 		InfiniteFriendlies(reg1, reg2, reg3, reg4, reg5, reg6, reg7, reg8, reg9);
 	}
 
@@ -311,126 +311,110 @@ void orderRotationQueueByMatchPlacing() {
 	int queuePtrReg = 14;
 
 	IfInVersus(reg1); {
-
-		SetRegister(placementListReg, ENDLESS_ROTATION_PLACEMENT_LIST_LOC);
-		CounterLoop(portReg, 1, 5, 1); {
-			SetRegister(3, 0x80629a00);
-			ADDI(4, portReg, -1);
-			CallBrawlFunc(0x80815c40); //getEntryID
-
-			If(3, GREATER_I, -1); {
-				MR(entryReg, 3);
-				//call getFighter
-				MR(4, 3);
-				SetRegister(3, 0x80629a00);
-				SetRegister(5, -1);
-				CallBrawlFunc(0x80814f20);
-				LWZ(moduleReg, 3, 0x60);
-				LWZ(moduleReg, moduleReg, 0xD8);
-
-				//call getPercent
-				LWZ(3, moduleReg, 0x38);
-				SetRegister(4, 0);
-				CallBrawlFunc(0x80769cb8); //getDamage
-				ConvertFloatingRegToInt(1, percentReg);
-
-				//call getStocks
-				SetRegister(3, 0x80629a00);
-				MR(4, entryReg);
-				CallBrawlFunc(0x808159e4); //getOwner
-				CallBrawlFunc(0x8081c540); //getStockCount
-				NEG(stocksReg, 3);
-
-				STB(stocksReg, placementListReg, 0);
-				STH(percentReg, placementListReg, 1);
-				STB(portReg, placementListReg, 3);
-				ADDI(placementListReg, placementListReg, 4);
-				ADDI(numPortsReg, numPortsReg, 1);
-			} EndIf();
-		} CounterLoopEnd();
-
-		//getEntryID 0x80815c40
-		//r3 = 0x80629a00
-		//r4 = port
-
-		//getFighter 80814f20
-
-		/*SetRegister(placementListReg, ENDLESS_ROTATION_PLACEMENT_LIST_LOC);
-		SetRegister(numPortsReg, 0);
-		SetRegister(stockPtrReg, 0x80623318);
-
-		//for each port in queue:
-		SetRegister(queuePtrReg, ENDLESS_ROTATION_QUEUE_LOC);
-		LBZ(portReg, queuePtrReg, 0);
-		While(portReg, NOT_EQUAL_I, 0); {
-			//get port stocks
+		LoadWordToReg(reg1, ENDLESS_FRIENDLIES_MODE_INDEX + Line::VALUE);
+		If(reg1, EQUAL_I, 4); //Rotation
+		{
+			//shift 1st position back
 			SetRegister(reg2, 0);
-			LWZ(reg1, stockPtrReg, 0x20); //port
-			ADDI(reg1, reg1, 1);
-			If(reg1, EQUAL, portReg); {
-				LWZ(reg3, stockPtrReg, 0);
-				SetRegister(reg2, 1);
-			} EndIf();
-			LWZ(reg1, stockPtrReg, 0x20 + 0x244); //port
-			ADDI(reg1, reg1, 1);
-			If(reg1, EQUAL, portReg); {
-				LWZ(reg3, stockPtrReg, 0x244);
-				SetRegister(reg2, 1);
-			} EndIf();
+			SetRegister(queuePtrReg, ENDLESS_ROTATION_QUEUE_LOC);
+			FindInArray(reg2, queuePtrReg, 4, 1, reg1, reg3);
 
-			If(reg2, EQUAL_I, 1); {
-				LWZ(stocksReg, reg3, 0x44);
-				NEG(stocksReg, stocksReg); //negate stocks
+			SetRegister(reg1, ENDLESS_ROTATION_QUEUE_LOC);
+			LBZ(reg3, reg1, 0); //byte to push back
+			LWZ(reg2, reg1, 0);
+			RLWINM(reg2, reg2, 8, 0, 24); //<<8
+			STW(reg2, reg1, 0);
+			STB(reg3, queuePtrReg, -1); //reg4 is address of first 0
+		} Else(); If(reg1, GREATER_OR_EQUAL_I, 2); //Winner or Loser Stays
+		{
+			SetRegister(placementListReg, ENDLESS_ROTATION_PLACEMENT_LIST_LOC);
+			CounterLoop(portReg, 1, 5, 1); {
+				SetRegister(3, 0x80629a00);
+				ADDI(4, portReg, -1);
+				CallBrawlFunc(0x80815c40); //getEntryID
 
-				//get port percent
-				LFS(0, reg3, 0x34);
-				ConvertFloatingRegToInt(0, percentReg);
+				If(3, GREATER_I, -1); {
+					MR(entryReg, 3);
+					//call getFighter
+					MR(4, 3);
+					SetRegister(3, 0x80629a00);
+					SetRegister(5, -1);
+					CallBrawlFunc(0x80814f20);
+					LWZ(moduleReg, 3, 0x60);
+					LWZ(moduleReg, moduleReg, 0xD8);
 
-				//store stocks as byte, percent as half, port num as byte
-				STB(stocksReg, placementListReg, 0);
-				STH(percentReg, placementListReg, 1);
-				STB(portReg, placementListReg, 3);
-				ADDI(placementListReg, placementListReg, 4);
+					//call getPercent
+					LWZ(3, moduleReg, 0x38);
+					SetRegister(4, 0);
+					CallBrawlFunc(0x80769cb8); //getDamage
+					ConvertFloatingRegToInt(1, percentReg);
 
-				ADDI(numPortsReg, numPortsReg, 1);
-			} EndIf();
+					//call getStocks
+					SetRegister(3, 0x80629a00);
+					MR(4, entryReg);
+					CallBrawlFunc(0x808159e4); //getOwner
+					CallBrawlFunc(0x8081c540); //getStockCount
+					NEG(stocksReg, 3);
 
-			LBZU(portReg, queuePtrReg, 1);
-		} EndWhile();*/
+					LoadWordToReg(reg1, ENDLESS_FRIENDLIES_MODE_INDEX + Line::VALUE);
+					If(reg1, EQUAL_I, 2); //Winner Stays
+					{
+						STB(stocksReg, placementListReg, 0);
+						STH(percentReg, placementListReg, 1);
+						STB(portReg, placementListReg, 3);
+						ADDI(placementListReg, placementListReg, 4);
+						ADDI(numPortsReg, numPortsReg, 1);
+					} Else(); If(reg1, EQUAL_I, 3); //Loser Stays
+					{
+						ADDI(stocksReg, stocksReg, -0x7F);
+						NEG(stocksReg, stocksReg);
 
-		//call qsort @ 0x803f8acc
-		//r3 = start of list
-		SetRegister(3, ENDLESS_ROTATION_PLACEMENT_LIST_LOC);
-		//r4 = num elements
-		MR(4, numPortsReg);
-		//r5 = size of each element (4)
-		SetRegister(5, 4);
-		//r6 = ptr to compare func
-		SetRegister(6, ENDLESS_ROTATION_COMP_FUNC_LOC);
-		CallBrawlFunc(0x803f8acc);
+						ADDI(percentReg, percentReg, -2000);
+						NEG(percentReg, percentReg);
 
-		//MR(reg4, queuePtrReg);
+						STB(stocksReg, placementListReg, 0);
+						STH(percentReg, placementListReg, 1);
+						STB(portReg, placementListReg, 3);
+						ADDI(placementListReg, placementListReg, 4);
+						ADDI(numPortsReg, numPortsReg, 1);
+					}
+				} EndIf(); EndIf();
+			} CounterLoopEnd();
 
-		//re-create queue using sorted results
-		SetRegister(queuePtrReg, ENDLESS_ROTATION_QUEUE_LOC - 1);
-		SetRegister(placementListReg, ENDLESS_ROTATION_PLACEMENT_LIST_LOC + 3 - 4);
-		While(numPortsReg, GREATER_I, 0); {
-			LBZU(reg1, placementListReg, 4); //get port
-			STBU(reg1, queuePtrReg, 1); //store port in new list
-			ADDI(numPortsReg, numPortsReg, -1);
-		} EndWhile();
+			//call qsort @ 0x803f8acc
+			//r3 = start of list
+			SetRegister(3, ENDLESS_ROTATION_PLACEMENT_LIST_LOC);
+			//r4 = num elements
+			MR(4, numPortsReg);
+			//r5 = size of each element (4)
+			SetRegister(5, 4);
+			//r6 = ptr to compare func
+			SetRegister(6, ENDLESS_ROTATION_COMP_FUNC_LOC);
+			CallBrawlFunc(0x803f8acc);
 
-		//shift 2nd position back
-		SetRegister(reg2, 0);
-		SetRegister(queuePtrReg, ENDLESS_ROTATION_QUEUE_LOC);
-		FindInArray(reg2, queuePtrReg, 4, 1, reg1, reg3);
+			//MR(reg4, queuePtrReg);
 
-		SetRegister(reg1, ENDLESS_ROTATION_QUEUE_LOC);
-		LBZ(reg3, reg1, 1); //byte to push back
-		LWZ(reg2, reg1, 1);
-		RLWINM(reg2, reg2, 8, 0, 24); //<<8
-		STW(reg2, reg1, 1);
-		STB(reg3, queuePtrReg, -1); //reg4 is address of first 0
+			//re-create queue using sorted results
+			SetRegister(queuePtrReg, ENDLESS_ROTATION_QUEUE_LOC - 1);
+			SetRegister(placementListReg, ENDLESS_ROTATION_PLACEMENT_LIST_LOC + 3 - 4);
+			While(numPortsReg, GREATER_I, 0); {
+				LBZU(reg1, placementListReg, 4); //get port
+				STBU(reg1, queuePtrReg, 1); //store port in new list
+				ADDI(numPortsReg, numPortsReg, -1);
+			} EndWhile();
+
+			//shift 2nd position back
+			SetRegister(reg2, 0);
+			SetRegister(queuePtrReg, ENDLESS_ROTATION_QUEUE_LOC);
+			FindInArray(reg2, queuePtrReg, 4, 1, reg1, reg3);
+
+			SetRegister(reg1, ENDLESS_ROTATION_QUEUE_LOC);
+			LBZ(reg3, reg1, 1); //byte to push back
+			LWZ(reg2, reg1, 1);
+			RLWINM(reg2, reg2, 8, 0, 24); //<<8
+			STW(reg2, reg1, 1);
+			STB(reg3, queuePtrReg, -1); //reg4 is address of first 0
+		} EndIf(); EndIf();
 	} EndIf();
 
 	RestoreRegisters();
@@ -500,9 +484,9 @@ void EndMatch()
 		}
 
 		//reload stage
-		if (INFINITE_FRIENDLIES_INDEX != -1) {
+		if (ENDLESS_FRIENDLIES_MODE_INDEX != -1) {
 			int Skip = GetNextLabel();
-			LoadWordToReg(reg1, INFINITE_FRIENDLIES_INDEX + Line::VALUE);
+			LoadWordToReg(reg1, ENDLESS_FRIENDLIES_MODE_INDEX + Line::VALUE);
 			If(reg1, GREATER_I, 0); {
 				LWZ(reg1, 3, 0x24);
 				LWZ(reg1, reg1, 0x8C);
@@ -829,7 +813,6 @@ void AddNewCharacterBuffer()
 }
 
 
-
 void DeleteCharacterBuffer()
 {
 	//r4 is module ptr
@@ -923,25 +906,13 @@ void GetCharacterValue(int CharacterBufferReg, vector<int> ValuePath, int Result
 
 void InfiniteFriendlies(int reg1, int reg2, int reg3, int reg4, int reg5, int reg6, int reg7, int reg8, int reg9)
 {
-	//int Quit = GetNextLabel();
-
 	LoadWordToReg(reg1, reg2, INFINITE_FRIENDLIES_FLAG_LOC);
 	If(reg1, EQUAL_I, 1); {
 		SetRegister(reg1, 0);
 		STW(reg1, reg2, 0); //clear flag
 
-		/*SetRegister(reg2, PLAY_BUTTON_LOC_START - BUTTON_PORT_OFFSET);
-		CounterLoop(reg1, 0, 4, 1); {
-			LWZU(reg3, reg2, BUTTON_PORT_OFFSET);
-			//salty runback
-			ANDI(reg4, reg3, BUTTON_L | BUTTON_R | BUTTON_A | BUTTON_Y);
-			If(reg4, EQUAL_I, BUTTON_L | BUTTON_R | BUTTON_A | BUTTON_Y); {
-				JumpToLabel(Quit);
-			}EndIf();
-		}CounterLoopEnd();*/
-
-		LoadWordToReg(reg1, INFINITE_FRIENDLIES_INDEX + Line::VALUE);
-		If(reg1, GREATER_OR_EQUAL_I, 2); {
+		LoadWordToReg(reg1, ENDLESS_FRIENDLIES_STAGE_SELECTION_INDEX + Line::VALUE);
+		If(reg1, EQUAL_I, 0); {
 			//random stage
 			GetLegalStagesArray(reg1, reg2, reg3, reg4, reg5, reg6, reg7, reg8, reg9);
 			If(reg4, EQUAL_I, 0); {
@@ -968,8 +939,6 @@ void InfiniteFriendlies(int reg1, int reg2, int reg3, int reg4, int reg5, int re
 		SetRegister(6, 0);
 		CallBrawlFunc(0x8010f960); //stGetStageParameter
 	}EndIf();
-
-	//Label(Quit);
 }
 
 
