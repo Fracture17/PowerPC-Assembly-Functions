@@ -241,52 +241,6 @@ void StartMatch()
 	ASMEnd(0x3fa08070); //lis r29, 0x8070
 }
 
-void LimitCharacters() {
-	//[80B8A6D0] + 0 based port = ptr
-	//ptr + 0x44 = stuff
-	//set stuff to 0x08010100 to stop fighter
-	//upper bits are 0 if doesn't exist
-
-	int reg1 = 31;
-	int reg2 = 30;
-	int reg3 = 29;
-	int reg4 = 28;
-	int reg5 = 27;
-	int reg6 = 26;
-	int reg7 = 25;
-	int reg8 = 24;
-	int reg9 = 23;
-
-	IfInVersus(reg1);
-	{
-		//check if option selected
-
-		LoadWordToReg(reg1, 0x80B8A6D0);
-		LWZ(reg1, reg1, 0xC); //port 4
-		SetRegister(reg2, 0x03010100);
-		STW(reg2, reg1, 0x44);
-	}EndIf();
-}
-
-void RestoreLimitedCharacters() {
-	ASMStart(0x806d4c24);
-	//r18 is 0 based port number
-	//r3 is ptr
-	//r3 + 0x44 == stuff to change
-	//change to 0x03000100 to restore
-
-	IfInVersus(12); {
-		If(18, EQUAL_I, 3);
-		{
-			SetRegister(12, 0x03000100);
-			STW(12, 3, 0x44);
-		}EndIf();
-	}EndIf();
-	
-
-
-	ASMEnd(0x8183003c); //lwz r12, 0x3C (r3)
-}
 
 void orderRotationQueueByMatchPlacing() {
 	ASMStart(0x806d4c14);
