@@ -466,62 +466,54 @@ void endlessFriendlies() {
 	int reg4 = 28;
 	int reg5 = 27;
 	int reg6 = 26;
+	int flagReg = 25;
 
-	LoadWordToReg(reg1, ENDLESS_ROTATION_QUEUE_LOC);
-	If(reg1, NOT_EQUAL_I, 0); {
-		SetRegister(reg1, ENDLESS_ROTATION_QUEUE_LOC);
-		LWZ(reg2, reg1, 0);
+	
+	SetRegister(flagReg, -1); //Doesn't do anything unless changed
 
-		LBZ(reg3, 3, 0x5D);
-		ORI(reg3, reg3, 0x8);
-		STB(reg3, 3, 0x5D);
+	LoadWordToReg(reg1, ENDLESS_FRIENDLIES_MODE_INDEX + Line::VALUE);
+	If(reg1, GREATER_OR_EQUAL_I, 2); {
+		LoadWordToReg(reg2, reg1, ENDLESS_ROTATION_QUEUE_LOC);
+		If(reg2, NOT_EQUAL_I, 0); {
+			SetRegister(flagReg, 1);
 
-		LWZ(reg3, 3, 0x48);
-		MR(reg5, reg3);
-		//ANDI(reg3, reg3, 0x3);
-		ADDI(reg3, reg3, 1); //port num
+			LWZ(reg3, 3, 0x48);
+			ADDI(reg3, reg3, 1); //port num
 
-		SetRegister(reg4, P1_STOP_LOAD_FLAG_PTR_LOC - 4);
-		MULLI(reg5, reg3, 4);
-		ADDI(reg6, 3, 0x5D);
-		STWX(reg6, reg4, reg5);
+			SetRegister(reg4, P1_STOP_LOAD_FLAG_PTR_LOC - 4);
+			MULLI(reg5, reg3, 4);
+			ADDI(reg6, 3, 0x5D);
+			STWX(reg6, reg4, reg5);
 
-		RLWINM(reg4, reg2, 8, 24, 31); //>>24
-		If(reg4, EQUAL, reg3); {
-			LBZ(reg4, 3, 0x5D);
-			XORI(reg4, reg4, 0x8); //bit was set before, so this clears it
-			STB(reg4, 3, 0x5D);
-		} EndIf();
+			RLWINM(reg4, reg2, 8, 24, 31); //>>24
+			If(reg4, EQUAL, reg3); {
+				SetRegister(flagReg, 0);
+			} EndIf();
 
-		RLWINM(reg4, reg2, 16, 24, 31); //>>16 & 0xFF
-		If(reg4, EQUAL, reg3); {
-			LBZ(reg4, 3, 0x5D);
-			XORI(reg4, reg4, 0x8); //bit was set before, so this clears it
-			STB(reg4, 3, 0x5D);
-		} EndIf();
-	} Else(); {
-		IfInVersus(reg3); {
-			LBZ(reg3, 3, 0x5D);
-			ANDI(reg3, reg3, ~0x8); //clear flag
-			STB(reg3, 3, 0x5D);
+			RLWINM(reg4, reg2, 16, 24, 31); //>>16 & 0xFF
+			If(reg4, EQUAL, reg3); {
+				SetRegister(flagReg, 0);
+			} EndIf();
+		} Else(); {
+			IfInVersus(reg3); {
+				SetRegister(flagReg, 0);
+			} EndIf();
 		} EndIf();
 	} EndIf();
 
+	If(flagReg, EQUAL_I, 0);
+	{
+		LBZ(reg3, 3, 0x5D);
+		ANDI(reg3, reg3, ~0x8); //clear flag
+		STB(reg3, 3, 0x5D);
+	} EndIf();
+	If(flagReg, EQUAL_I, 1);
+	{
+		LBZ(reg3, 3, 0x5D);
+		ORI(reg3, reg3, 0x8); //set flag
+		STB(reg3, 3, 0x5D);
+	} EndIf();
 	
-
-	/*SetRegister(reg4, 0x935fe304);
-	SetRegister(reg3, "%08X");
-	STW(reg3, reg4, 0);
-	SetRegister(reg3, 0);
-	STW(reg3, reg4, 4);
-	ADDI(reg3, reg4, 8);
-
-	SetRegister(reg1, 0x935fe300);
-	LWZ(reg1, reg1, 0);
-	SprintF(reg4, { reg1 }, reg3);
-
-	ADDI(reg3, reg3, 8);
-	SprintF(reg4, { reg5 }, reg3);*/
 
 	RestoreRegisters();
 	ASMEnd(0x8803005d); //lbz r0, 0x5D (r3)
