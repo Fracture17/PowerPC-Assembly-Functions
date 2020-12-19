@@ -94,7 +94,7 @@ int main()
 	//string InputGCTPath = "C:\\Users\\john\\Downloads\\Legacy TE 1.11 Wii\\Legacy TE 1.11 Wii\\LegacyTE\\RSBE01.gct";
 	//string InputGCTPath = "C:\\Users\\john\\Downloads\\Legacy TE\\LegacyTE\\RSBE01.gct"s;
 #if BUILD_TYPE == PROJECT_PLUS
-	string InputGCTPath = R"(C:\Users\johno\Downloads\Project+ v2.15 (Wii)\Project+\RSBE01.GCT)";
+	string InputGCTPath = R"(C:\Users\johno\Downloads\tournament-addition-master\Project+\RSBE01.GCT)";
 #elif BUILD_TYPE == NORMAL
 	string InputGCTPath = "C:\\Users\\john\\Downloads\\legacyte-master-Smash Bros Legacy TE-Legacy TE\\Smash Bros Legacy TE\\Legacy TE\\LegacyTE\\RSBE01.gct";
 #endif

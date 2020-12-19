@@ -20,7 +20,7 @@ typedef unsigned char u8;
 #define PMEX 1
 #define PROJECT_PLUS 2
 #define BUILD_TYPE PROJECT_PLUS
-#define DOLPHIN_BUILD true
+#define DOLPHIN_BUILD false
 #define EON_DEBUG_BUILD false
 
 //ROTC floating offsets
@@ -107,7 +107,8 @@ const string MAIN_FOLDER = "LegacyTE";
 #define B_HELD_FRAME_COUNTER_LOC   (SHOULD_STOP_RECORDING - 4) //counts how many frames z was held consecutively and records state of debug pause from before slo-mo
 #define CURRENT_ALT_STAGE_INFO_LOC   (B_HELD_FRAME_COUNTER_LOC - 4) //contains alt stage, used to fix salty runback
 #define IS_VERSUS_LOC   (CURRENT_ALT_STAGE_INFO_LOC - 4) //is 1 if in versus, else 0
-#define END_OF_REPLAY_BUFFER   (IS_VERSUS_LOC - 0x100) //tells when to stop recording inputs
+#define RANDOM_1_TO_1_CPP_FLAG_LOC	(IS_VERSUS_LOC - 4) //flag to communicate with c++ code
+#define END_OF_REPLAY_BUFFER   (RANDOM_1_TO_1_CPP_FLAG_LOC - 0x100) //tells when to stop recording inputs
 ///set END_OF_REPLAY_BUFFER to the last constant - 0x80 to ensure no memory leaks
 
 ///at end of MEM2

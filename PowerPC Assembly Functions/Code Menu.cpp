@@ -13,6 +13,7 @@ int DEBUG_MODE_INDEX = -1;
 int DISPLAY_HITBOXES_INDEX = -1;
 int DISPLAY_COLLISION_INDEX = -1;
 int DISPLAY_LEDGEGRAB_INDEX = -1;
+int HUD_DISPLAY_INDEX = -1;
 int CHARACTER_SELECT_P1_INDEX = -1;
 int CHARACTER_SELECT_P2_INDEX = -1;
 int CHARACTER_SELECT_P3_INDEX = -1;
@@ -24,6 +25,7 @@ int INFINITE_SHIELDS_P4_INDEX = -1;
 int CAMERA_LOCK_INDEX = -1;
 int ENDLESS_FRIENDLIES_MODE_INDEX = -1;
 int ENDLESS_FRIENDLIES_STAGE_SELECTION_INDEX = -1;
+int RANDOM_1_TO_1_INDEX = -1;
 int AUTO_SAVE_REPLAY_INDEX = -1;
 int SAVE_STATES_INDEX = -1;
 int SAVE_REPLAY_ANYWHERE_INDEX = -1;
@@ -167,12 +169,13 @@ void CodeMenu()
 	DebugLines.push_back(new Comment("Z = Frame Advance | Hold Z = Slow Motion"));
 	DebugLines.push_back(new Comment(""));
 	DebugLines.push_back(new Toggle("Debug Mode", false, DEBUG_MODE_INDEX));
-	DebugLines.push_back(new Selection("Hitbox Display", { "OFF", "ON", "Interpolate" }, 0, DISPLAY_HITBOXES_INDEX));
+	DebugLines.push_back(new Selection("Hitbox Display", { "OFF", "ON", "Models Off" }, 0, DISPLAY_HITBOXES_INDEX));
 	DebugLines.push_back(new Toggle("Collision Display", false, DISPLAY_COLLISION_INDEX));
-	DebugLines.push_back(new Toggle("Ledgegrab Display", false, DISPLAY_LEDGEGRAB_INDEX));
+	DebugLines.push_back(new Selection("Stage Collisions", { "OFF", "ON", "Background Off" }, 0, DISPLAY_LEDGEGRAB_INDEX));
 	DebugLines.push_back(new Toggle("Camera Lock", false, CAMERA_LOCK_INDEX));
 	DebugLines.push_back(new Toggle("Draw DI", false, DI_DRAW_INDEX));
 	DebugLines.push_back(new Toggle("FPS Display", false, FPS_DISPLAY_INDEX));
+	DebugLines.push_back(new Toggle("HUD", true, HUD_DISPLAY_INDEX));
 	Page DebugMode("Debug Mode Settings", DebugLines);
 
 	//value setting
@@ -247,6 +250,7 @@ void CodeMenu()
 	//	MainLines.push_back(new Selection("Endless Friendlies", { "OFF", "Same Stage", "Random Stage", "Round Robin" }, 0, INFINITE_FRIENDLIES_INDEX));
 	MainLines.push_back(new Selection("Endless Friendlies Mode", { "OFF", "All Stay", "Winner Stays", "Loser Stays", "Rotation"}, 0, ENDLESS_FRIENDLIES_MODE_INDEX));
 	MainLines.push_back(new Selection("Endless Friendlies Stage Selection", { "Random Stage", "Same Stage" }, 0, ENDLESS_FRIENDLIES_STAGE_SELECTION_INDEX));
+	//MainLines.push_back(new Selection("Random 1-1", { "OFF", "ON" }, 0, RANDOM_1_TO_1_INDEX));
 	MainLines.push_back(new Selection("Alternate Stages", { "Enabled", "Random", "OFF" }, 0, ALT_STAGE_BEHAVIOR_INDEX));
 	MainLines.push_back(new Toggle("Autoskip Results Screen", false, AUTO_SKIP_TO_CSS_INDEX));
 #if DOLPHIN_BUILD
@@ -806,6 +810,14 @@ void CreateMenu(Page MainPage)
 
 	//DOLPHIN_MOUNT_VF_LOC
 	AddValueToByteArray(0, Header);
+
+	//CODE_MENU_OLD_CAMERA_MATRIX_LOC
+	for (int i = 0; i < 12; i++) { AddValueToByteArray(0, Header); }
+	//CODE_MENU_NEED_TO_SAVE_CAMERA_MATRIX_FLAG_LOC
+	AddValueToByteArray(0, Header);
+
+	//SHOULD_DISPLAY_HUD_FLAG_LOC
+	AddValueToByteArray(0, Header);
 	
 	//draw settings buffer
 	vector<u32> DSB(0x200 / 4, 0);
@@ -947,6 +959,35 @@ void ControlCodeMenu()
 	}EndIf();
 #endif
 
+	LoadWordToReg(Reg4, HUD_DISPLAY_INDEX + Line::VALUE);
+	If(Reg4, EQUAL_I, 0);
+	{
+		SetRegister(Reg4, SHOULD_DISPLAY_HUD_FLAG_LOC);
+		SetRegister(Reg1, 1);
+		STW(Reg1, Reg4, 0);
+		
+		//Remove HUD
+		SetRegister(3, 0x80672f40);
+		SetRegister(4, 8);
+		SetRegister(5, 0);
+		CallBrawlFunc(0x8000D234); //setLayerDispStatus[gfSceneRoot]
+	} Else();
+	{
+		LoadWordToReg(Reg1, Reg4, SHOULD_DISPLAY_HUD_FLAG_LOC);
+		If(Reg1, EQUAL_I, 1);
+		{
+			//Show HUD
+			SetRegister(3, 0x80672f40);
+			SetRegister(4, 8);
+			SetRegister(5, 1);
+			CallBrawlFunc(0x8000D234); //setLayerDispStatus[gfSceneRoot]
+
+			SetRegister(Reg1, 0);
+			STW(Reg1, Reg4, 0);
+		} EndIf();
+	} EndIf();
+	
+	
 	LoadWordToReg(OpenFlagReg, Reg4, CODE_MENU_CONTROL_FLAG);
 
 	//GCC input
@@ -1199,6 +1240,11 @@ void ControlCodeMenu()
 	ApplyMenuSetting(DISPLAY_COLLISION_INDEX, 0x80583FF4 + 3, Reg1, Reg2, 1);
 
 	ApplyMenuSetting(CAMERA_LOCK_INDEX, 0x80583FF8 + 3, Reg1, Reg2, 1);
+
+	if (RANDOM_1_TO_1_INDEX != -1) {
+		ApplyMenuSetting(RANDOM_1_TO_1_INDEX, RANDOM_1_TO_1_CPP_FLAG_LOC, Reg1, Reg2, 1);
+		printf("1 to 1 location %0X\n", RANDOM_1_TO_1_CPP_FLAG_LOC);
+	}
 
 	Label(SkipDebugNegation);
 
@@ -1912,6 +1958,14 @@ void PrintCodeMenu()
 	If(Reg3, GREATER_OR_EQUAL_I, CODE_MENU_OPEN); {
 		//code menu is open, or old camera pos is not 0
 		SetRegister(3, 0x805b6d20);
+		LoadWordToReg(4, 5, CODE_MENU_NEED_TO_SAVE_CAMERA_MATRIX_FLAG_LOC);
+		If(4, EQUAL_I, 0);
+		{
+			SetRegister(6, 1);
+			STW(6, 5, 0);
+			SetRegister(4, CODE_MENU_OLD_CAMERA_MATRIX_LOC);
+			Memmove(4, 3, 4 * 12);
+		} EndIf();
 		WriteVectorToMem(DEFAULT_CAMERA_MATRIX, 3);
 		DrawBlackBackground();
 	}EndIf();
@@ -1931,6 +1985,13 @@ void PrintCodeMenu()
 			SetRegister(Reg1, 0);
 			STW(Reg2, Reg3, 0); //reset camera
 			STW(Reg1, Reg4, 0); //clear saved camera
+
+			SetRegister(3, 0x805b6d20);
+			SetRegister(4, CODE_MENU_OLD_CAMERA_MATRIX_LOC);
+			Memmove(3, 4, 4 * 12);
+			SetRegister(3, 0);
+			SetRegister(4, CODE_MENU_NEED_TO_SAVE_CAMERA_MATRIX_FLAG_LOC);
+			STW(3, 4, 0);
 		}Else(); {
 			//printFPS();
 			CallBrawlFunc(0x8002e844); //render

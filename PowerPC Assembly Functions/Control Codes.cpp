@@ -865,33 +865,37 @@ void InfiniteFriendlies(int reg1, int reg2, int reg3, int reg4, int reg5, int re
 		SetRegister(reg1, 0);
 		STW(reg1, reg2, 0); //clear flag
 
-		LoadWordToReg(reg1, ENDLESS_FRIENDLIES_STAGE_SELECTION_INDEX + Line::VALUE);
-		If(reg1, EQUAL_I, 0); {
-			//random stage
-			GetLegalStagesArray(reg1, reg2, reg3, reg4, reg5, reg6, reg7, reg8, reg9);
-			If(reg4, EQUAL_I, 0); {
-				//provide default
-				STW(reg4, reg3, 0);
-				SetRegister(reg4, 1);
+		//LoadWordToReg(reg1, RANDOM_1_TO_1_INDEX + Line::VALUE);
+		//If(reg1, NOT_EQUAL_I, 1); {
+
+			LoadWordToReg(reg1, ENDLESS_FRIENDLIES_STAGE_SELECTION_INDEX + Line::VALUE);
+			If(reg1, EQUAL_I, 0); {
+				//random stage
+				GetLegalStagesArray(reg1, reg2, reg3, reg4, reg5, reg6, reg7, reg8, reg9);
+				If(reg4, EQUAL_I, 0); {
+					//provide default
+					STW(reg4, reg3, 0);
+					SetRegister(reg4, 1);
+				}EndIf();
+				MR(3, reg4);
+				CallBrawlFunc(0x8003fc7c); //randi
+				//RandomCapped(reg4, reg1);
+				LoadWordToReg(reg2, 0x805a00e0);
+				LBZX(3, reg3, 3);
+				LWZ(reg2, reg2, 8);
+				CallBrawlFunc(0x800af614); //exchangeMuStageForScStage
+				STH(3, reg2, 0x1A);
 			}EndIf();
-			MR(3, reg4);
-			CallBrawlFunc(0x8003fc7c); //randi
-			//RandomCapped(reg4, reg1);
+
 			LoadWordToReg(reg2, 0x805a00e0);
 			LBZX(3, reg3, 3);
 			LWZ(reg2, reg2, 8);
-			CallBrawlFunc(0x800af614); //exchangeMuStageForScStage
-			STH(3, reg2, 0x1A);
-		}EndIf();
-
-		LoadWordToReg(reg2, 0x805a00e0);
-		LBZX(3, reg3, 3);
-		LWZ(reg2, reg2, 8);
-		LHZ(3, reg2, 0x1A); //stage ID
-		ADDI(4, reg2, 0x1C);
-		ADDI(5, reg2, 0x5C);
-		SetRegister(6, 0);
-		CallBrawlFunc(0x8010f960); //stGetStageParameter
+			LHZ(3, reg2, 0x1A); //stage ID
+			ADDI(4, reg2, 0x1C);
+			ADDI(5, reg2, 0x5C);
+			SetRegister(6, 0);
+			CallBrawlFunc(0x8010f960); //stGetStageParameter
+		//} EndIf();
 	}EndIf();
 }
 
