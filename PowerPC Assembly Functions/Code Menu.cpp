@@ -184,7 +184,7 @@ void CodeMenu()
 	ConstantsLines.push_back(new Comment(""));
 	ConstantsLines.push_back(new Floating("Hitstun Multiplier", 0, 999, 0.4, .01, HITSTUN_MULTIPLIER_INDEX, "%.3f"));
 	constantOverrides.emplace_back(0x80B87AA8, HITSTUN_MULTIPLIER_INDEX);
-	ConstantsLines.push_back(new Floating("Hitlag Multiplier", 0, 999, 0.384615, .02, HITLAG_MULTIPLIER_INDEX, "%.3f"));
+	ConstantsLines.push_back(new Floating("Hitlag Multiplier", 0, 999, 1. / 3., .02, HITLAG_MULTIPLIER_INDEX, "%.3f"));
 	constantOverrides.emplace_back(0x80B87AEC, HITLAG_MULTIPLIER_INDEX);
 	ConstantsLines.push_back(new Floating("Hitlag Maximum", 0, 999, 30, 1, HITLAG_MAXIMUM_INDEX, "%.3f"));
 	constantOverrides.emplace_back(0x80B87AE8, HITLAG_MAXIMUM_INDEX);
@@ -818,6 +818,11 @@ void CreateMenu(Page MainPage)
 
 	//SHOULD_DISPLAY_HUD_FLAG_LOC
 	AddValueToByteArray(0, Header);
+
+	//SHOULD_RESET_HITBOX_DISPLAY_FLAG_LOC
+	AddValueToByteArray(0, Header);
+	//SHOULD_RESET_STAGE_COLLISIONS_FLAG_LOC
+	AddValueToByteArray(0, Header);
 	
 	//draw settings buffer
 	vector<u32> DSB(0x200 / 4, 0);
@@ -1424,6 +1429,60 @@ void ControlCodeMenu()
 		}EndIf();
 	}
 
+	//stage collisions
+	LoadByteToReg(Reg1, 0x80583FF8 + 1);
+	If(Reg1, EQUAL_I, 2);
+	{
+		SetRegister(Reg2, 1);
+		SetRegister(Reg3, SHOULD_RESET_STAGE_COLLISIONS_FLAG_LOC);
+		STW(Reg2, Reg3, 0);
+	} Else();
+	{
+		LoadWordToReg(Reg2, Reg3, SHOULD_RESET_STAGE_COLLISIONS_FLAG_LOC);
+		If(Reg2, EQUAL_I, 1);
+		{
+			SetRegister(Reg2, 0);
+			STW(Reg2, Reg3, 0);
+			
+			//reset
+			SetRegister(3, 0x80672f40);
+			SetRegister(4, 0);
+			SetRegister(5, 1);
+			CallBrawlFunc(0x8000d234); //setLayerDispStatus
+			ADDI(Reg1, Reg1, 1);
+		} EndIf();
+	} EndIf();
+
+
+	//hitbox display
+	LoadByteToReg(Reg1, 0x80583FFC + 1);
+	If(Reg1, EQUAL_I, 2);
+	{
+		SetRegister(Reg2, 1);
+		SetRegister(Reg3, SHOULD_RESET_HITBOX_DISPLAY_FLAG_LOC);
+		STW(Reg2, Reg3, 0);
+	} Else();
+	{
+		LoadWordToReg(Reg2, Reg3, SHOULD_RESET_HITBOX_DISPLAY_FLAG_LOC);
+		If(Reg2, EQUAL_I, 1);
+		{
+			SetRegister(Reg2, 0);
+			STW(Reg2, Reg3, 0);
+
+			//reset
+			SetRegister(Reg1, 1);
+			While(Reg1, LESS_OR_EQUAL_I, 5);
+			{
+				SetRegister(3, 0x80672f40);
+				MR(4, Reg1);
+				SetRegister(5, 1);
+				CallBrawlFunc(0x8000d234); //setLayerDispStatus
+				ADDI(Reg1, Reg1, 1);
+			} EndWhile();
+		} EndIf();
+	} EndIf();
+	
+
 	//can't trust register values after here
 	//need to change when save states are active again
 	if (SAVE_STATES_INDEX != -1) {
@@ -1957,16 +2016,17 @@ void PrintCodeMenu()
 	OR(Reg3, Reg1, Reg2);
 	If(Reg3, GREATER_OR_EQUAL_I, CODE_MENU_OPEN); {
 		//code menu is open, or old camera pos is not 0
-		SetRegister(3, 0x805b6d20);
+		SetRegister(Reg3, 0x805b6d20);
 		LoadWordToReg(4, 5, CODE_MENU_NEED_TO_SAVE_CAMERA_MATRIX_FLAG_LOC);
 		If(4, EQUAL_I, 0);
 		{
 			SetRegister(6, 1);
 			STW(6, 5, 0);
-			SetRegister(4, CODE_MENU_OLD_CAMERA_MATRIX_LOC);
-			Memmove(4, 3, 4 * 12);
+			SetRegister(Reg2, CODE_MENU_OLD_CAMERA_MATRIX_LOC);
+			SetRegister(6, 4 * 12);
+			Memmove(Reg2, Reg3, 6);
 		} EndIf();
-		WriteVectorToMem(DEFAULT_CAMERA_MATRIX, 3);
+		WriteVectorToMem(DEFAULT_CAMERA_MATRIX, Reg3);
 		DrawBlackBackground();
 	}EndIf();
 
@@ -1988,7 +2048,8 @@ void PrintCodeMenu()
 
 			SetRegister(3, 0x805b6d20);
 			SetRegister(4, CODE_MENU_OLD_CAMERA_MATRIX_LOC);
-			Memmove(3, 4, 4 * 12);
+			SetRegister(Reg2, 4 * 12);
+			Memmove(3, 4, Reg2);
 			SetRegister(3, 0);
 			SetRegister(4, CODE_MENU_NEED_TO_SAVE_CAMERA_MATRIX_FLAG_LOC);
 			STW(3, 4, 0);
