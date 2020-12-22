@@ -822,6 +822,8 @@ void DeleteCharacterBuffer()
 //r3 has address of chr buffer ptr
 void FindCharacterBuffer(int TargetReg, int ResultReg)
 {
+	SetRegister(ResultReg, 1);
+	
 	LoadWordToReg(3, MAIN_BUFFER_PTR);
 	RLWINM(4, 3, 16, 16, 31);
 	If(4, EQUAL_I_L, 0xCCCC); {
