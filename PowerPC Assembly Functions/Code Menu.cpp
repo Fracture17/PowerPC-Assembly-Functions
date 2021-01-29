@@ -249,8 +249,10 @@ void CodeMenu()
 	MainLines.push_back(&DebugMode.CalledFromLine);
 	//	MainLines.push_back(new Selection("Endless Friendlies", { "OFF", "Same Stage", "Random Stage", "Round Robin" }, 0, INFINITE_FRIENDLIES_INDEX));
 	MainLines.push_back(new Selection("Endless Friendlies Mode", { "OFF", "All Stay", "Winner Stays", "Loser Stays", "Rotation"}, 0, ENDLESS_FRIENDLIES_MODE_INDEX));
-	MainLines.push_back(new Selection("Endless Friendlies Stage Selection", { "Random Stage", "Same Stage" }, 0, ENDLESS_FRIENDLIES_STAGE_SELECTION_INDEX));
-	//MainLines.push_back(new Selection("Random 1-1", { "OFF", "ON" }, 0, RANDOM_1_TO_1_INDEX));
+	MainLines.push_back(new Selection("Endless Friendlies Stage Selection", { "Random", "Same" }, 0, ENDLESS_FRIENDLIES_STAGE_SELECTION_INDEX));
+#if TOURNAMENT_ADDITION_BUILD
+	MainLines.push_back(new Selection("Random 1-1", { "OFF", "ON" }, 0, RANDOM_1_TO_1_INDEX));
+#endif
 	MainLines.push_back(new Selection("Alternate Stages", { "Enabled", "Random", "OFF" }, 0, ALT_STAGE_BEHAVIOR_INDEX));
 	MainLines.push_back(new Toggle("Autoskip Results Screen", false, AUTO_SKIP_TO_CSS_INDEX));
 #if DOLPHIN_BUILD
@@ -1318,7 +1320,34 @@ void ControlCodeMenu()
 							If(Reg1, NOT_EQUAL_I, 0); {
 								GetArrayValueFromIndex(PERCENT_SELCTION_VALUE_ARRAY_LOC, Reg8, 0, 3); {
 									LFS(1, 3, Line::VALUE);
+
+									SetRegister(Reg3, 0x80615520);
+									RLWINM(Reg4, Reg8, 2, 0, 31); //<< 2
+									ADD(Reg3, Reg3, Reg8);
+									LWZ(Reg3, Reg3, 0x4C);
+
+									FCTIWZ(0, 1);
+									STFD(0, 1, -0x30);
+									LWZ(Reg4, 1, -0x2C);
+									STW(Reg4, Reg3, 0x18);
+									ADDI(Reg1, Reg4, 1);
+
+									STW(Reg1, Reg3, 0x1C);
+									LWZ(Reg3, CharacterBufferReg, 0x3C);
+									LWZ(Reg3, Reg3, 0x60);
+									LWZ(Reg3, Reg3, 0xD8);
+									LWZ(Reg3, Reg3, 0x38);
+									LWZ(Reg3, Reg3, 0x40);
+									STFS(1, Reg3, 0xC);
+
 									LWZ(3, CharacterBufferReg, CHR_BUFFER_HEAD_OF_FIGHTER_OFFSET);
+									CallBrawlFunc(0x8083ae24); //getOwner
+									LWZ(3, 3, 0);
+									STFS(1, 3, 0x24);
+
+
+									
+									/*LWZ(3, CharacterBufferReg, CHR_BUFFER_HEAD_OF_FIGHTER_OFFSET);
 									CallBrawlFunc(0x8083ae24); //getOwner
 									//SetRegister(4, 1);
 									ConvertFloatingRegToInt(1, Reg1, 0);
@@ -1341,7 +1370,10 @@ void ControlCodeMenu()
 									MR(4, Reg1);
 									MR(3, Reg3);
 									SetRegister(5, 1);
-									CallBrawlFunc(0x800e14a4); //updateDamageHP
+									CallBrawlFunc(0x800e14a4); //updateDamageHP*/
+
+
+									
 								}EndIf(); EndIf();
 							}EndIf();
 						}EndIf();

@@ -52,7 +52,7 @@ void DrawTrajectories()
 				If(reg1, GREATER_I, 0); {
 					//in hitstun or debug paused
 					LWZ(DIBufferReg, CharacterBufferReg, CHR_BUFFER_DI_BUFFER_PTR_OFFSET);
-					If(reg2, EQUAL_I, 1); {
+					If(reg2, NOT_EQUAL_I, 0); {
 						//is debug paused
 						LWZ(reg1, DIBufferReg, DI_BUFFER_NORMAL_START_OFFSET);
 						ResetGraphicBuffer(reg1, BLUE);

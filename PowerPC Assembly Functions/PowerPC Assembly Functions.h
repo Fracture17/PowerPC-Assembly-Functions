@@ -22,6 +22,7 @@ typedef unsigned char u8;
 #define BUILD_TYPE PROJECT_PLUS
 #define DOLPHIN_BUILD false
 #define EON_DEBUG_BUILD false
+#define TOURNAMENT_ADDITION_BUILD false
 
 //ROTC floating offsets
 #define FS_20_0 -0x7920
